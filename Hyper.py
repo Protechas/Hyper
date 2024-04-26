@@ -17,6 +17,14 @@ import time
 import win32com.client as win32
 from time import sleep
 
+def add_hyperlink_to_excel(file_path, sheet_name, cell_address, url, display_text):
+    wb = load_workbook(file_path)
+    ws = wb[sheet_name]
+    ws[cell_address].hyperlink = url
+    ws[cell_address].value = display_text
+    ws[cell_address].font = Font(color="0000FF", underline='single')
+    wb.save(file_path)
+
 class SeleniumAutomationApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -90,6 +98,9 @@ class SeleniumAutomationApp(QWidget):
 
     def run_acura_script(self):
         try:    
+            # Collect URLs
+            urls = []
+            
             # Open a specific SharePoint page for Acura
             self.driver.get('https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/EjIo8sg9qXNEt6CDCKpeRGkBEY-67TppBRysHPrqdbNSmg')
         
@@ -97,77 +108,36 @@ class SeleniumAutomationApp(QWidget):
             acura = self.wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="appRoot"]/div/div[2]/div/div/div[2]/div[2]/main/div/div/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div/div/div[3]/div/div[1]/span/span[1]/button')))
             acura.click()
         
-            # Clicks Year
+            # Clicks 2012 Year
             acurayear2012 = self.wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="appRoot"]/div/div[2]/div/div/div[2]/div[2]/main/div/div/div[2]/div/div/div/div/div[2]/div/div/div/div[2]')))
             self.action_chains.double_click(acurayear2012).perform()
         
-            # Clicks Model
+            # Clicks MDX Model
             acura2012mdx = self.wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="appRoot"]/div/div[2]/div/div/div[2]/div[2]/main/div/div/div[2]/div/div/div/div/div[2]/div/div/div/div[1]')))
             self.action_chains.double_click(acura2012mdx).perform()
             
-            # Clicks 3 Dots
-            context_menu_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="appRoot"]/div/div[2]/div/div/div[2]/div[2]/main/div/div/div[2]/div/div/div/div/div[2]/div/div/div/div[1]/div/div/div[3]/div/div[2]/div/button')))
-            context_menu_button.click()
+            # Clicks on ACC Doc
+            acura2012mdxacc = self.wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="appRoot"]/div/div[2]/div/div/div[2]/div[2]/main/div/div/div[2]/div/div/div/div/div[2]/div/div/div/div[1]')))
+            self.action_chains.double_click(acura2012mdxacc).perform()
 
-            # Clicks "Open"
-            open_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, '/html/body/div[3]/div/div/div/div/div/div/ul/li[1]/button/div/span')))
-            open_button.click()
-
-            # Clicks "Open in Browser"
-            open_in_browser_button = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Open in browser')]/ancestor::button")))
-            open_in_browser_button.click()
-
-            # Gets Link and Copys it
-        
-            # Switch to new tab to get the URL
-            self.driver.switch_to.window(self.driver.window_handles[1])
-            document_url = self.driver.current_url
-
-            # Copy the URL to the clipboard
-            pyperclip.copy(document_url)
-        
-            # Open the workbook and select the active worksheet
-            wb = load_workbook(self.excel_path)
-            ws = wb.active
-
-            # Define the cell where the URL will be pasted
-            cell_to_update = 'L2'  # Change this as needed
-
-            # Paste the URL into the specified cell
-            ws[cell_to_update] = document_url
+            time.sleep(3)
             
-            def add_hyperlink_to_excel(file_path, sheet_name, cell_address, url, display_text):
-                # Load the workbook
-                wb = load_workbook(file_path)
-    
-                # Select the worksheet
-                ws = wb[sheet_name]
-    
-                # Set the hyperlink
-                ws[cell_address].hyperlink = url
-                ws[cell_address].value = display_text  # Text to display
-                ws[cell_address].style = "Hyperlink"  # Optional: Applies the Excel hyperlink style
-    
-                # Alternatively, set a custom style if you want
-                ws[cell_address].font = Font(color="0000FF", underline='single')
-                
-            # Assuming you have already defined or know the file path, sheet, and cell
-            file_path = self.excel_path  # The Excel file path chosen via GUI
-            sheet_name = 'Sheet1'  # Ensure this is the correct sheet name
-            cell_address = 'L2'
-            display_text = document_url  # Use the URL itself as the display text or something descriptive
+            document_url = self.driver.current_url  # This line is conceptual
 
             # Add hyperlink to Excel
+            file_path = self.excel_path
+            sheet_name = 'Sheet1'
+            cell_address = 'L2'
+            display_text = document_url  # or some other meaningful text
             add_hyperlink_to_excel(file_path, sheet_name, cell_address, document_url, display_text)
 
-            # Save the workbook
-            wb.save(self.excel_path)
-            
+            # Continue with any other necessary steps, such as closing the browser
         except Exception as e:
-                print("An error occurred: ", e)
-
-        self.driver.close()  # Close the new tab
-        self.driver.switch_to.window(self.driver.window_handles[0])  # Switch back to the original tab
+            print(f"An error occurred: {e}")
+            QMessageBox.critical(self, 'Error', str(e), QMessageBox.Ok)
+        finally:
+            # Decide whether to quit the driver based on your needs
+            pass
 
     def safe_action(self, action, description, max_attempts=3):
         attempts = 0
@@ -177,7 +147,7 @@ class SeleniumAutomationApp(QWidget):
                 return
             except (NoSuchElementException, TimeoutException) as e:
                 print(f"Error performing {description}: {e}")
-                time.sleep(2)  # Wait before retrying
+                time.sleep(2)
                 attempts += 1
         raise Exception(f"Failed to perform {description} after {max_attempts} attempts")
 
