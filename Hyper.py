@@ -11,7 +11,7 @@ class SeleniumAutomationApp(QWidget):
         self.excel_path = ''
 
     def initUI(self):
-        self.setWindowTitle('Selenium Automation')
+        self.setWindowTitle('Hyperlink Automation')
         layout = QVBoxLayout()
 
         # Manufacturer dropdown
@@ -20,7 +20,7 @@ class SeleniumAutomationApp(QWidget):
         layout.addWidget(self.manufacturer_dropdown)
 
         # Start button
-        self.start_button = QPushButton('Run Automation', self)
+        self.start_button = QPushButton('Start Automation', self)
         self.start_button.clicked.connect(self.start_automation)
         layout.addWidget(self.start_button)
 
@@ -39,7 +39,7 @@ class SeleniumAutomationApp(QWidget):
 
     def start_automation(self):
         manufacturer = self.manufacturer_dropdown.currentText()
-        confirm_message = f"You have selected {manufacturer}. Are you sure? This can take some time as it will be going through everything and refreshing links, continue?"
+        confirm_message = f"You have selected {manufacturer}. Are you sure? This can take some time, continue?"
         confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if confirm == QMessageBox.Yes and self.excel_path:
