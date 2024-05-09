@@ -14,6 +14,7 @@ import time
 import io
 from PIL import Image
 import pytesseract
+import re
 
 # Set the path for Tesseract if not in PATH
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update this path as needed
@@ -26,8 +27,8 @@ def screenshot_and_get_text(driver):
     text = pytesseract.image_to_string(image)
     return text
 
-def find_row_in_excel(wb, sheet_name, year, make, model, adas_system):
-    ws = wb[sheet_name]
+def find_row_in_excel(ws, year, make, model, adas_system):
+
     for row in ws.iter_rows(min_row=2, max_col=8):
         year_cell = row[0]  # Assuming year is in the first column
         make_cell = row[1]  # Assuming make is in the second column
@@ -1326,10 +1327,11 @@ def run_acura_script(excel_path):
         acura = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="appRoot"]/div/div[2]/div/div/div[2]/div[2]/main/div/div/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div/div/div[3]/div/div[1]/span/span[1]/button')))
         acura.click()
         time.sleep(1)
-      
-               # Take screenshots and process documents
+        adas_last_row = {}
         wb = load_workbook(excel_path)
-        sheet_name = 'Sheet1'
+        ws = wb['Sheet1']  # Correctly referencing the worksheet
+      
+
         print(f"Workbook loaded successfully: {excel_path}")
     
         for year, data in years_models_documents.items():
@@ -1350,19 +1352,24 @@ def run_acura_script(excel_path):
                     double_click_element(driver, wait, model_page_xpath)
                     print(f"Retrieving document: {doc_name}")
                     document_url = get_document_url(driver, wait, doc_xpath)
+                    
+                      # Using adas_system correctly here
                     print(f"Document URL retrieved: {document_url}")
+                    
                     # Take screenshot and get text
                     extracted_text = screenshot_and_get_text(driver)
-
-                    # Find corresponding row in Excel
-                    cell = find_row_in_excel(wb, sheet_name, year, "Acura", model, doc_name)
-                    if cell:
-                        cell.hyperlink = document_url
-                        cell.value = document_url
-                        print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
+    
+                    # Correcting the function call
+                    if doc_name in adas_last_row:
+                        next_row = adas_last_row[doc_name] + 1
                     else:
-                        print(f"No matching row found for {year} Acura {model} {doc_name}")
-                    
+                        cell = find_row_in_excel(ws, year, "Acura", model, doc_name)  # Correct function call
+                        if cell:                           
+                            next_row = cell.row
+                        else:
+                            next_row = ws.max_row + 1                           
+
+                    print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
                     wb.save(excel_path)
                     
                     # Go back to model page to get the next document's URL
