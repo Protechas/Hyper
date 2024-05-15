@@ -18,14 +18,22 @@ import re
 
 # Set the path for Tesseract if not in PATH
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update this path as needed
+            
+def update_excel(ws, year, model, doc_name, document_url):
+    cell = find_row_in_excel(ws, year, "Acura", model, doc_name)
+    if cell:
+        cell.hyperlink = document_url
+        cell.value = document_url  # Or any descriptive text
+        cell.font = Font(color="0000FF", underline='single')
+        ws.parent.save(excel_file_path)
+        print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
+    else:
+        print(f"No matching row found for {year} Acura {model} {doc_name}")
 
 def screenshot_and_get_text(driver):
-    # Take screenshot using Selenium
     screenshot = driver.get_screenshot_as_png()
     image = Image.open(io.BytesIO(screenshot))
-    # Use Tesseract to extract text
-    text = pytesseract.image_to_string(image)
-    return text
+    return pytesseract.image_to_string(image)
 
 def find_row_in_excel(ws, year, make, model, adas_system):
 
@@ -51,22 +59,13 @@ def find_row_in_excel(ws, year, make, model, adas_system):
 def double_click_element(driver, wait, xpath):
     element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
     ActionChains(driver).double_click(element).perform()
-
-def add_hyperlink_to_excel(file_path, sheet_name, cell_address, url, display_text):
-    wb = load_workbook(file_path)
-    ws = wb[sheet_name]
-    ws[cell_address].hyperlink = url
-    ws[cell_address].value = url
-    ws[cell_address].font = Font(color="0000FF", underline='single')
-    wb.save(file_path)
     
-def get_document_url(driver, wait, document_xpath):
-        double_click_element(driver, wait, document_xpath)  
-        time.sleep(3)  
-        document_url = driver.current_url
-        time.sleep(3)  
-        driver.back
-        return document_url
+def navigate_and_extract(driver, wait, xpath):
+    double_click_element(driver, wait, xpath)
+    time.sleep(3)  # Allow page to load
+    document_url = driver.current_url
+    time.sleep(3)
+    return document_url
 
 def navigate_to_model(driver, wait, model_xpath):
      model_link = wait.until(EC.element_to_be_clickable((By.XPATH, model_xpath)))
@@ -81,6 +80,8 @@ def run_acura_script(excel_path):
     # Setup WebDriver
     options = webdriver.ChromeOptions()
     options.add_experimental_option("detach", True)
+    options.add_argument("--no-sandbox")  # This option can help avoid permissions issues
+    options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     wait = WebDriverWait(driver, 10)
     action_chains = ActionChains(driver)
@@ -248,7 +249,7 @@ def run_acura_script(excel_path):
                 'TSX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'ACC': '//*[@data-automationid="ListCell"][3]', 
                         'AEB': '//*[@data-automationid="ListCell"][5]',  
                         'AHL': '//*[@data-automationid="ListCell"][4]',
                         'APA': '//*[@data-automationid="ListCell"][2]',
@@ -264,13 +265,13 @@ def run_acura_script(excel_path):
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][6]',
                         'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
+                        'BUC': '//*[@data-automationid="ListCell"][4]',
+                        'LKA': '//*[@data-automationid="ListCell"][5]',
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]',  
                     }
                 },                
             }
@@ -281,24 +282,10 @@ def run_acura_script(excel_path):
                            #      2014       #
                            #                 #
                            ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+        'year_page_xpath': '//*[@data-automationid="ListCell"][4]',  
             'models': {
-                'MDX': {
+                'ILX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
-                    }
-                },
-                'RDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][3]', 
                         'AEB': '//*[@data-automationid="ListCell"][5]',  
@@ -308,10 +295,30 @@ def run_acura_script(excel_path):
                         'BUC': '//*[@data-automationid="ListCell"][1]',
                         'LKA': '//*[@data-automationid="ListCell"][7]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                    }
+                },
+                'MDX': {   #copy this Line v
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][2]', 
+                        'AEB': '//*[@data-automationid="ListCell"][3]',  
+                        'AHL': '//*[@data-automationid="ListCell"][4]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'LKA Folder': {
+                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'subdocuments': {
+                                'LKA 1': '//*[@data-automationid="ListCell"][1]',
+                                'LKA 2': '//*[@data-automationid="ListCell"][2]'
+                            }
+                        },
+                        'NV': '//*[@data-automationid="ListCell"][8]',
                         'SVC': '//*[@data-automationid="ListCell"][10]',  
                     }
                 },        #to this time ^
-                'RL': {
+                'RDX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
@@ -325,7 +332,7 @@ def run_acura_script(excel_path):
                         'SVC': '//*[@data-automationid="ListCell"][10]', 
                     }
                 },
-                'TL': {
+                'RLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][4]', 
@@ -339,7 +346,7 @@ def run_acura_script(excel_path):
                         'SVC': '//*[@data-automationid="ListCell"][10]',  
                     }
                 },
-                'TSX': {
+                'TL': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
@@ -353,7 +360,7 @@ def run_acura_script(excel_path):
                         'SVC': '//*[@data-automationid="ListCell"][10]',  
                     }
                 },
-                'ZDX': { 
+                'TSX': { 
                     'model_page_xpath': '//*[@data-automationid="ListCell"][6]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
@@ -1320,7 +1327,7 @@ def run_acura_script(excel_path):
     try:
         # Navigate to the main SharePoint page for Acura
         print("Navigating to Acura's main SharePoint page...")
-        driver.get('https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/EjIo8sg9qXNEt6CDCKpeRGkBEY-67TppBRysHPrqdbNSmg')
+        driver.get('https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/EjIo8sg9qXNEt6CDCKpeRGkBWevmI5I6jIqUgAXsOVKpSw')
         
         # Clicks Acura
         print("Locating Acura link and clicking...")
@@ -1339,36 +1346,46 @@ def run_acura_script(excel_path):
             print(f"Processing year: {year}")
             year_page_xpath = data['year_page_xpath']
             double_click_element(driver, wait, year_page_xpath)
-            time.sleep(1)
+            time.sleep(2)
             
             for model, model_data in data['models'].items():
                 # Clicks the model
                 print(f"Accessing model: {model}")
                 model_page_xpath = model_data['model_page_xpath']
-                double_click_element(driver, wait, model_page_xpath)
-                time.sleep(1)
+                double_click_element(driver, wait, model_page_xpath)  
+                time.sleep(2)
                 
-                for doc_name, doc_xpath in model_data['documents'].items():
+                for doc_name, doc_info in model_data['documents'].items():
                     double_click_element(driver, wait, model_page_xpath)
-                    print(f"Retrieving document: {doc_name}")
-                    document_url = get_document_url(driver, wait, doc_xpath)
-                    
-                      # Using adas_system correctly here
-                    print(f"Document URL retrieved: {document_url}")
-                    
+                    print(f"Retrieving document: {doc_name}")                             
+                          
                     # Take screenshot and get text
-                    extracted_text = screenshot_and_get_text(driver)
-    
-                    # Correcting the function call
-                    if doc_name in adas_last_row:
-                        next_row = adas_last_row[doc_name] + 1
-                    else:
-                        cell = find_row_in_excel(ws, year, "Acura", model, doc_name)  # Correct function call
-                        if cell:                           
-                            next_row = cell.row
-                        else:
-                            next_row = ws.max_row + 1                           
-
+                    extracted_text = screenshot_and_get_text(driver)                   
+                    
+                    print(f"Retrieving document or folder: {doc_name}")
+                    if isinstance(doc_info, dict):  # This is a folder
+                            # Navigate to the folder
+                            double_click_element(driver, wait, doc_info['folder_xpath'])
+                            time.sleep(2)
+                            # Process each document in the folder
+                            for sub_doc_name, sub_doc_xpath in doc_info['subdocuments'].items():
+                                document_url = navigate_and_extract(driver, wait, sub_doc_xpath)
+                                update_excel(ws, year, model, sub_doc_name, document_url)
+                            driver.back()  # Go back only from the folder content to the model page
+                    else:  # This is a direct document link
+                            document_url = navigate_and_extract(driver, wait, doc_info)
+                            update_excel(ws, year, model, doc_name, document_url)
+                    
+                            # Correcting the function call
+                            if doc_name in adas_last_row:
+                                next_row = adas_last_row[doc_name] + 1
+                            else:
+                                cell = find_row_in_excel(ws, year, "Acura", model, doc_name)  # Correct function call
+                                if cell:                           
+                                    next_row = cell.row
+                                else:
+                                    next_row = ws.max_row + 1                            
+                            
                     print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
                     wb.save(excel_path)
                     
