@@ -18,42 +18,58 @@ import re
 
 # Set the path for Tesseract if not in PATH
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update this path as needed
-            
-def update_excel(ws, year, model, doc_name, document_url):
+ 
+def process_documents(driver, wait, ws, model_data, year, model, adas_last_row):
+    for doc_name, doc_info in model_data['documents'].items():
+        if isinstance(doc_info, dict):  # This is a folder
+            print(f"Accessing folder: {doc_name}")
+            double_click_element(driver, wait, doc_info['folder_xpath'])
+            time.sleep(2)
+            for sub_doc_name, sub_doc_xpath in doc_info['subdocuments'].items():
+                print(f"Retrieving sub-document: {sub_doc_name}")
+                document_url = navigate_and_extract(driver, wait, sub_doc_xpath)
+                update_excel(ws, year, model, sub_doc_name, document_url, adas_last_row)
+                driver.back()
+                WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located((By.XPATH, doc_info['folder_xpath']))
+                )
+            driver.back()
+        else:  # This is a direct document link
+            print(f"Retrieving document: {doc_name}")
+            document_url = navigate_and_extract(driver, wait, doc_info)
+            update_excel(ws, year, model, doc_name, document_url, adas_last_row)
+
+def update_excel(ws, year, model, doc_name, document_url, adas_last_row):
     cell = find_row_in_excel(ws, year, "Acura", model, doc_name)
     if cell:
-        cell.hyperlink = document_url
-        cell.value = document_url  # Or any descriptive text
-        cell.font = Font(color="0000FF", underline='single')
-        ws.parent.save(excel_file_path)
-        print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
+        row = cell.row
     else:
-        print(f"No matching row found for {year} Acura {model} {doc_name}")
+        row = ws.max_row + 1
+
+    if doc_name in adas_last_row:
+        row = adas_last_row[doc_name] + 1
+
+    ws.cell(row=row, column=12, value=document_url).hyperlink = document_url
+    ws.cell(row=row, column=12).font = Font(color="0000FF", underline='single')
+
+    adas_last_row[doc_name] = row
+    ws.parent.save(excel_file_path)
+    print(f"Hyperlink for {doc_name} added at row {row}")
 
 def screenshot_and_get_text(driver):
     screenshot = driver.get_screenshot_as_png()
     image = Image.open(io.BytesIO(screenshot))
-    return pytesseract.image_to_string(image)
+    text = pytesseract.image_to_string(image)
+    return text
 
 def find_row_in_excel(ws, year, make, model, adas_system):
-
     for row in ws.iter_rows(min_row=2, max_col=8):
-        year_cell = row[0]  # Assuming year is in the first column
-        make_cell = row[1]  # Assuming make is in the second column
-        model_cell = row[2]  # Assuming model is in the third column
-        adas_cell = row[7]  # Assuming ADAS system is in the eighth column
-
-        # Debugging output to check what is being compared
-        print(f"Checking row: Year={year_cell.value}, Make={make_cell.value}, Model={model_cell.value}, ADAS={adas_cell.value}")
-
-        # Match year, make, model, and ADAS system; ensure to convert everything to string and strip any whitespace
-        if str(year_cell.value).strip() == str(year).strip() and \
-           str(make_cell.value).strip().lower() == make.lower().strip() and \
-           str(model_cell.value).strip().lower() == model.lower().strip() and \
-           adas_system.lower().strip() in str(adas_cell.value).lower().strip():
-            # Return the cell in column L of the matched row
-            return ws.cell(row=year_cell.row, column=12)  # Assumes column L is 12
-
+        year_cell, make_cell, model_cell, adas_cell = row[0], row[1], row[2], row[7]
+        if (str(year_cell.value).strip() == str(year).strip() and
+            str(make_cell.value).strip().lower() == make.lower().strip() and
+            str(model_cell.value).strip().lower() == model.lower().strip() and
+            adas_system.lower().strip() in str(adas_cell.value).lower().strip()):
+            return ws.cell(row=year_cell.row, column=12)
     return None
 
 def double_click_element(driver, wait, xpath):
@@ -62,9 +78,11 @@ def double_click_element(driver, wait, xpath):
     
 def navigate_and_extract(driver, wait, xpath):
     double_click_element(driver, wait, xpath)
-    time.sleep(3)  # Allow page to load
+    WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.TAG_NAME, "body"))  # Adjust to a reliable element
+    )
     document_url = driver.current_url
-    time.sleep(3)
+    driver.back()
     return document_url
 
 def navigate_to_model(driver, wait, model_xpath):
@@ -1336,76 +1354,36 @@ def run_acura_script(excel_path):
         time.sleep(1)
         adas_last_row = {}
         wb = load_workbook(excel_path)
-        ws = wb['Sheet1']  # Correctly referencing the worksheet
+        ws = wb['Model Version']  # Correctly referencing the worksheet
       
 
         print(f"Workbook loaded successfully: {excel_path}")
     
         for year, data in years_models_documents.items():
-            # Clicks the year
             print(f"Processing year: {year}")
             year_page_xpath = data['year_page_xpath']
             double_click_element(driver, wait, year_page_xpath)
-            time.sleep(2)
-            
+            time.sleep(1)
+
             for model, model_data in data['models'].items():
-                # Clicks the model
                 print(f"Accessing model: {model}")
                 model_page_xpath = model_data['model_page_xpath']
-                double_click_element(driver, wait, model_page_xpath)  
-                time.sleep(2)
-                
-                for doc_name, doc_info in model_data['documents'].items():
-                    double_click_element(driver, wait, model_page_xpath)
-                    print(f"Retrieving document: {doc_name}")                             
-                          
-                    # Take screenshot and get text
-                    extracted_text = screenshot_and_get_text(driver)                   
-                    
-                    print(f"Retrieving document or folder: {doc_name}")
-                    if isinstance(doc_info, dict):  # This is a folder
-                            # Navigate to the folder
-                            double_click_element(driver, wait, doc_info['folder_xpath'])
-                            time.sleep(2)
-                            # Process each document in the folder
-                            for sub_doc_name, sub_doc_xpath in doc_info['subdocuments'].items():
-                                document_url = navigate_and_extract(driver, wait, sub_doc_xpath)
-                                update_excel(ws, year, model, sub_doc_name, document_url)
-                            driver.back()  # Go back only from the folder content to the model page
-                    else:  # This is a direct document link
-                            document_url = navigate_and_extract(driver, wait, doc_info)
-                            update_excel(ws, year, model, doc_name, document_url)
-                    
-                            # Correcting the function call
-                            if doc_name in adas_last_row:
-                                next_row = adas_last_row[doc_name] + 1
-                            else:
-                                cell = find_row_in_excel(ws, year, "Acura", model, doc_name)  # Correct function call
-                                if cell:                           
-                                    next_row = cell.row
-                                else:
-                                    next_row = ws.max_row + 1                            
-                            
-                    print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
-                    wb.save(excel_path)
-                    
-                    # Go back to model page to get the next document's URL
-                    print("Returning to model page...")
-                    driver.back()
-                
-                # Goes back to the year's page to select the next model
-                print("Returning to year page...")    
-                driver.back()  # Ensure this takes you back to the correct page
-
-            # Goes back to the Acura main page to select the next year
-            print("Returning to Acura's main page...")    
-            driver.back()  # Ensure this takes you back to the correct page
-            
+                double_click_element(driver, wait, model_page_xpath)
+                adas_last_row = {}  # Reset ADAS last row tracker for each model
+                process_documents(driver, wait, ws, model_data, year, model, adas_last_row)
+                driver.back()
+                WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located((By.XPATH, year_page_xpath))
+                )
+            driver.back()
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, '//*[@id="appRoot"]/div/div[2]/div/div/div[2]/div[2]/main/div/div/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div/div/div[3]/div/div[1]/span/span[1]/button'))
+            )
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
-        print("Script Sucessfully Completed, you may exit the program and terminal at any time ")
         driver.quit()
+        print("Script completed, you may exit now.")
         
 if __name__ == "__main__":
     excel_file_path = sys.argv[1]  # The Excel file path is expected as the first argument
