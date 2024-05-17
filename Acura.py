@@ -338,11 +338,11 @@ def run_acura_script(excel_path):
                             'folder_xpath': '//*[@data-automationid="ListCell"][1]',
                             'subdocuments': {
                                 'LKA 1': {
-                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'xpath': '//*[@data-automationid="ListCell"][2]',
                                     'cell_address': 'L126'  # Specify the exact cell for the hyperlink
                                 },
                                 'LKA 2': {
-                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'xpath': '//*[@data-automationid="ListCell"][1]',
                                     'cell_address': 'L127'  # Specify the exact cell for the hyperlink
                                 }
                             }
