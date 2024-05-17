@@ -24,37 +24,46 @@ def process_documents(driver, wait, ws, model_data, year, model, adas_last_row):
         if isinstance(doc_info, dict):  # This is a folder
             print(f"Accessing folder: {doc_name}")
             double_click_element(driver, wait, doc_info['folder_xpath'])
-            time.sleep(2)
-            for sub_doc_name, sub_doc_xpath in doc_info['subdocuments'].items():
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, doc_info['folder_xpath']))
+            )
+            for sub_doc_name, sub_doc_info in doc_info['subdocuments'].items():
                 print(f"Retrieving sub-document: {sub_doc_name}")
-                document_url = navigate_and_extract(driver, wait, sub_doc_xpath)
-                update_excel(ws, year, model, sub_doc_name, document_url, adas_last_row)
-                driver.back()
+                document_url = navigate_and_extract(driver, wait, sub_doc_info['xpath'])
+                update_excel(ws, year, model, sub_doc_name, document_url, adas_last_row, sub_doc_info.get('cell_address'))               
                 WebDriverWait(driver, 10).until(
                     EC.visibility_of_element_located((By.XPATH, doc_info['folder_xpath']))
                 )
             driver.back()
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, model_data['model_page_xpath']))
+            )
         else:  # This is a direct document link
             print(f"Retrieving document: {doc_name}")
             document_url = navigate_and_extract(driver, wait, doc_info)
             update_excel(ws, year, model, doc_name, document_url, adas_last_row)
 
-def update_excel(ws, year, model, doc_name, document_url, adas_last_row):
-    cell = find_row_in_excel(ws, year, "Acura", model, doc_name)
-    if cell:
-        row = cell.row
+def update_excel(ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
+    if cell_address:
+        cell = ws[cell_address]
     else:
-        row = ws.max_row + 1
+        cell = find_row_in_excel(ws, year, "Acura", model, doc_name)
+        if cell:
+            row = cell.row
+        else:
+            row = ws.max_row + 1
+        if doc_name in adas_last_row:
+            row = adas_last_row[doc_name] + 1
+        else:
+            adas_last_row[doc_name] = row
+        cell = ws.cell(row=row, column=12)
 
-    if doc_name in adas_last_row:
-        row = adas_last_row[doc_name] + 1
-
-    ws.cell(row=row, column=12, value=document_url).hyperlink = document_url
-    ws.cell(row=row, column=12).font = Font(color="0000FF", underline='single')
-
-    adas_last_row[doc_name] = row
+    cell.hyperlink = document_url
+    cell.value = document_url
+    cell.font = Font(color="0000FF", underline='single')
+    adas_last_row[doc_name] = cell.row
     ws.parent.save(excel_file_path)
-    print(f"Hyperlink for {doc_name} added at row {row}")
+    print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
 
 def screenshot_and_get_text(driver):
     screenshot = driver.get_screenshot_as_png()
@@ -298,7 +307,7 @@ def run_acura_script(excel_path):
                            ###################
                            #                 #
                            #      2014       #
-                           #                 #
+                           #                 #    ######################################### Start here and work down ##################################################
                            ###################
         'year_page_xpath': '//*[@data-automationid="ListCell"][4]',  
             'models': {
@@ -328,12 +337,18 @@ def run_acura_script(excel_path):
                         'LKA Folder': {
                             'folder_xpath': '//*[@data-automationid="ListCell"][1]',
                             'subdocuments': {
-                                'LKA 1': '//*[@data-automationid="ListCell"][1]',
-                                'LKA 2': '//*[@data-automationid="ListCell"][2]'
+                                'LKA 1': {
+                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'cell_address': 'L126'  # Specify the exact cell for the hyperlink
+                                },
+                                'LKA 2': {
+                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'cell_address': 'L127'  # Specify the exact cell for the hyperlink
+                                }
                             }
                         },
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',
                     }
                 },        #to this time ^
                 'RDX': {
@@ -1363,12 +1378,17 @@ def run_acura_script(excel_path):
             print(f"Processing year: {year}")
             year_page_xpath = data['year_page_xpath']
             double_click_element(driver, wait, year_page_xpath)
-            time.sleep(1)
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, year_page_xpath))
+            )
 
             for model, model_data in data['models'].items():
                 print(f"Accessing model: {model}")
                 model_page_xpath = model_data['model_page_xpath']
                 double_click_element(driver, wait, model_page_xpath)
+                WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located((By.XPATH, model_page_xpath))
+                )
                 adas_last_row = {}  # Reset ADAS last row tracker for each model
                 process_documents(driver, wait, ws, model_data, year, model, adas_last_row)
                 driver.back()
