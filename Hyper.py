@@ -39,7 +39,7 @@ class SeleniumAutomationApp(QWidget):
 
     def start_automation(self):
         manufacturer = self.manufacturer_dropdown.currentText()
-        confirm_message = f"You have selected {manufacturer}. Are you sure? This can take some time, continue?"
+        confirm_message = f"You have selected {manufacturer}. Are you sure? This can take some time. Please close you Google Chrome before continuing as it will crash the program, continue?"
         confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if confirm == QMessageBox.Yes and self.excel_path:

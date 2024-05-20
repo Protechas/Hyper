@@ -10,11 +10,14 @@ from webdriver_manager.chrome import ChromeDriverManager
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font
+from selenium.webdriver.chrome.options import Options
+import os
 import time
 import io
 from PIL import Image
 import pytesseract
 import re
+import psutil
 
 # Set the path for Tesseract if not in PATH
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update this path as needed
@@ -103,13 +106,41 @@ def navigate_to_year(driver, wait, year_xpath):
      year_link = wait.until(EC.element_to_be_clickable((By.XPATH, year_xpath)))
      year_link.click()
 
+def check_if_chrome_running():
+    """Check if any Chrome instances are running."""
+    for process in psutil.process_iter(['name']):
+        if process.info['name'] == 'chrome.exe':
+            return True
+    return False
+
 def run_acura_script(excel_path):
-    # Setup WebDriver
-    options = webdriver.ChromeOptions()
-    options.add_experimental_option("detach", True)
-    options.add_argument("--no-sandbox")  # This option can help avoid permissions issues
-    options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    
+    if check_if_chrome_running():
+        raise Exception("The program has detected an instance of Google Chrome running on your system. Please ensure that all Chrome instances are closed before proceeding.")
+    
+    # Set up Chrome options
+    chrome_options = Options()
+
+    # Get the user's home directory dynamically
+    home_dir = os.path.expanduser("~")
+
+    # Construct the path to the Chrome user data directory
+    user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
+
+    # Add the user data directory to Chrome options
+    chrome_options.add_argument(f"user-data-dir={user_data_dir}")
+
+    # Optionally, specify the profile directory (e.g., "Default" for the default profile)
+    profile_dir = "Default"  # Change to the specific profile if needed
+    chrome_options.add_argument(f"profile-directory={profile_dir}")
+
+    # Add additional Chrome options to stabilize the launch process
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    # Initialize the Chrome driver with the specified options
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     wait = WebDriverWait(driver, 10)
     action_chains = ActionChains(driver)
     
@@ -307,7 +338,7 @@ def run_acura_script(excel_path):
                            ###################
                            #                 #
                            #      2014       #
-                           #                 #    ######################################### Start here and work down ##################################################
+                           #                 #    
                            ###################
         'year_page_xpath': '//*[@data-automationid="ListCell"][4]',  
             'models': {
@@ -339,11 +370,11 @@ def run_acura_script(excel_path):
                             'subdocuments': {
                                 'LKA 1': {
                                     'xpath': '//*[@data-automationid="ListCell"][2]',
-                                    'cell_address': 'L126'  # Specify the exact cell for the hyperlink
+                                    'cell_address': 'L126'  # Specify the exact cell for the hyperlink as a fall back
                                 },
                                 'LKA 2': {
                                     'xpath': '//*[@data-automationid="ListCell"][1]',
-                                    'cell_address': 'L127'  # Specify the exact cell for the hyperlink
+                                    'cell_address': 'L127'  # Specify the exact cell for the hyperlink as a fall back
                                 }
                             }
                         },
@@ -352,7 +383,7 @@ def run_acura_script(excel_path):
                     }
                 },        #to this time ^
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', ######################################### Start here and work down ##################################################
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
@@ -1360,12 +1391,35 @@ def run_acura_script(excel_path):
     try:
         # Navigate to the main SharePoint page for Acura
         print("Navigating to Acura's main SharePoint page...")
-        driver.get('https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/EjIo8sg9qXNEt6CDCKpeRGkBWevmI5I6jIqUgAXsOVKpSw')
+        driver.get('https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/EjIo8sg9qXNEt6CDCKpeRGkBj8fLo4MSiJe7w0h7hZ30rQ?e=hFT1RF')
+        
+        # Give the user up to 60 seconds to log in
+        max_wait_time = 60
+        start_time = time.time()
+
+        try:
+            # Wait until the element with the specified XPath is found, or until 60 seconds have passed
+            element = WebDriverWait(driver, max_wait_time).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@data-automationid="ListCell"][2]'))
+            )
+        except:
+            # If the element is not found within 60 seconds, print a message
+            print("The element was not found within 60 seconds.")
+
+        # Calculate the elapsed time
+        elapsed_time = time.time() - start_time
+
+        # If less than 60 seconds have passed and the element is found, continue with the rest of the code
+        if elapsed_time < max_wait_time:
+            # Continue with the code after successful login
+            print("Element found, continuing with the code...")
+        else:
+            # Handle the situation where the element was not found within the allotted time
+            print("Proceeding without finding the element...")
         
         # Clicks Acura
         print("Locating Acura link and clicking...")
-        acura = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="appRoot"]/div/div[2]/div/div/div[2]/div[2]/main/div/div/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div/div/div[3]/div/div[1]/span/span[1]/button')))
-        acura.click()
+        double_click_element(driver, wait, '//*[@data-automationid="ListCell"][2]')
         time.sleep(1)
         adas_last_row = {}
         wb = load_workbook(excel_path)
