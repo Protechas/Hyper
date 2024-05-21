@@ -383,7 +383,235 @@ def run_acura_script(excel_path):
                     }
                 },        #to this time ^
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', ######################################### Start here and work down ##################################################
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][3]', 
+                        'AEB': '//*[@data-automationid="ListCell"][5]',  
+                        'AHL': '//*[@data-automationid="ListCell"][4]',
+                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'BSW': '//*[@data-automationid="ListCell"][6]',
+                        'BUC': '//*[@data-automationid="ListCell"][1]',
+                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                    }
+                },
+                'RLX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][2]', 
+                        'AEB': '//*[@data-automationid="ListCell"][3]',  
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'LKA Folder': {
+                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'subdocuments': {
+                                'LKA 1': {
+                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'cell_address': 'L145'  # Specify the exact cell for the hyperlink as a fall back
+                                },
+                                'LKA 2': {
+                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'cell_address': 'L146'  # Specify the exact cell for the hyperlink as a fall back
+                                }
+                            }
+                        },
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                    }
+                },
+                'TL': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][4]', 
+                        'AEB': '//*[@data-automationid="ListCell"][6]',  
+                        'AHL': '//*[@data-automationid="ListCell"][5]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][1]',
+                        'BUC': '//*[@data-automationid="ListCell"][2]',
+                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                    }
+                },
+                'TSX': { 
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]', 
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][3]', 
+                        'AEB': '//*[@data-automationid="ListCell"][5]',  
+                        'AHL': '//*[@data-automationid="ListCell"][4]',
+                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'BSW': '//*[@data-automationid="ListCell"][6]',
+                        'BUC': '//*[@data-automationid="ListCell"][1]',
+                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                    }
+                },                
+            }
+        },
+        '2015': {
+                           ###################
+                           #                 #
+                           #      2015       #
+                           #                 #
+                           ###################  
+                                     
+        'year_page_xpath': '//*[@data-automationid="ListCell"][5]',  
+            'models': {
+                'ILX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][3]', 
+                        'AEB': '//*[@data-automationid="ListCell"][5]',  
+                        'AHL': '//*[@data-automationid="ListCell"][4]',
+                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'BSW': '//*[@data-automationid="ListCell"][6]',
+                        'BUC': '//*[@data-automationid="ListCell"][1]',
+                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                    }
+                },
+                'MDX': {   #copy this Line v
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][2]', 
+                        'AEB': '//*[@data-automationid="ListCell"][3]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'LKA Folder': {
+                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'subdocuments': {
+                                'LKA 1': {
+                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'cell_address': 'L182'  # Specify the exact cell for the hyperlink as a fall back
+                                },
+                                'LKA 2': {
+                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'cell_address': 'L183'  # Specify the exact cell for the hyperlink as a fall back
+                                }
+                            }
+                        },
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                    }
+                },        #to this time ^
+                'RDX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][3]', 
+                        'AEB': '//*[@data-automationid="ListCell"][5]',  
+                        'AHL': '//*[@data-automationid="ListCell"][4]',
+                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'BSW': '//*[@data-automationid="ListCell"][6]',
+                        'BUC': '//*[@data-automationid="ListCell"][1]',
+                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                    }
+                },
+                'RLX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][2]', 
+                        'AEB': '//*[@data-automationid="ListCell"][3]',  
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'LKA Folder': {
+                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'subdocuments': {
+                                'LKA 1': {
+                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'cell_address': 'L201'  # Specify the exact cell for the hyperlink as a fall back
+                                },
+                                'LKA 2': {
+                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'cell_address': 'L202'  # Specify the exact cell for the hyperlink as a fall back
+                                }
+                            }
+                        },
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                    }
+                },
+                'TLX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                    }
+                },                
+            }
+        },
+        '2016': {
+                           ###################
+                           #                 #
+                           #      2016       #                
+                           #                 #
+                           ###################
+            
+        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+            'models': {
+                'ILX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][6]',
+                        'BSW': '//*[@data-automationid="ListCell"][3]',
+                        'BUC': '//*[@data-automationid="ListCell"][4]',
+                        'LKA': '//*[@data-automationid="ListCell"][5]',
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
+                    }
+                },
+                'MDX': {   #copy this Line v
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',   ######################################### Start here and work down ##################################################
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][3]', 
+                        'AEB': '//*[@data-automationid="ListCell"][5]',  
+                        'AHL': '//*[@data-automationid="ListCell"][4]',
+                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'BSW': '//*[@data-automationid="ListCell"][6]',
+                        'BUC': '//*[@data-automationid="ListCell"][1]',
+                        'LKA Folder': {
+                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'subdocuments': {
+                                'LKA 1': {
+                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'cell_address': 'L201'  # Specify the exact cell for the hyperlink as a fall back
+                                },
+                                'LKA 2': {
+                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'cell_address': 'L230'  # Specify the exact cell for the hyperlink as a fall back
+                                },
+                                'LKA 3': {
+                                    'xpath': '//*[@data-automationid="ListCell"][3]',
+                                    'cell_address': 'L229'  # Specify the exact cell for the hyperlink as a fall back
+                                }
+                            }
+                        },
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                    }
+                },        #to this time ^
+                'RDX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
@@ -410,7 +638,7 @@ def run_acura_script(excel_path):
                         'SVC': '//*[@data-automationid="ListCell"][10]',  
                     }
                 },
-                'TL': {
+                'TLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
@@ -423,211 +651,7 @@ def run_acura_script(excel_path):
                         'NV': '//*[@data-automationid="ListCell"][8]',
                         'SVC': '//*[@data-automationid="ListCell"][10]',  
                     }
-                },
-                'TSX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
-                    }
-                },                
-            }
-        },
-        '2015': {
-                           ###################
-                           #                 #
-                           #      2015       #
-                           #                 #
-                           ###################  
-                                     
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
-            'models': {
-                'MDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
-                    }
-                },
-                'RDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },        #to this time ^
-                'RL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
-                    }
-                },
-                'TL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'TSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'ZDX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
-                    }
-                },                
-            }
-        },
-        '2016': {
-                           ###################
-                           #                 #
-                           #      2016       #
-                           #                 #
-                           ###################
-            
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
-            'models': {
-                'MDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
-                    }
-                },
-                'RDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },        #to this time ^
-                'RL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
-                    }
-                },
-                'TL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'TSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'ZDX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
-                    }
-                },                
+                },               
             }
         },
         '2017': {
@@ -1393,8 +1417,8 @@ def run_acura_script(excel_path):
         print("Navigating to Acura's main SharePoint page...")
         driver.get('https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/EjIo8sg9qXNEt6CDCKpeRGkBj8fLo4MSiJe7w0h7hZ30rQ?e=hFT1RF')
         
-        # Give the user up to 60 seconds to log in
-        max_wait_time = 60
+        # Give the user up to 120 seconds to log in
+        max_wait_time = 120
         start_time = time.time()
 
         try:
@@ -1403,7 +1427,7 @@ def run_acura_script(excel_path):
                 EC.presence_of_element_located((By.XPATH, '//*[@data-automationid="ListCell"][2]'))
             )
         except:
-            # If the element is not found within 60 seconds, print a message
+            # If the element is not found within 120 seconds, print a message
             print("The element was not found within 60 seconds.")
 
         # Calculate the elapsed time
