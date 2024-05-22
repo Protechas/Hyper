@@ -18,30 +18,59 @@ from PIL import Image
 import pytesseract
 import re
 import psutil
+import tkinter as tk
+from tkinter import messagebox
 
 # Set the path for Tesseract if not in PATH
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update this path as needed
  
+def process_subdocuments(driver, wait, ws, subdocuments, year, model, adas_last_row, parent_xpath):
+    for sub_doc_name, sub_doc_info in subdocuments.items():
+        if isinstance(sub_doc_info, dict) and 'folder_xpath' in sub_doc_info:
+            print(f"Accessing subfolder: {sub_doc_name}")
+            double_click_element(driver, wait, sub_doc_info['folder_xpath'])
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, sub_doc_info['folder_xpath']))
+            )
+            process_subdocuments(driver, wait, ws, sub_doc_info['subdocuments'], year, model, adas_last_row, sub_doc_info['folder_xpath'])
+            
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, parent_xpath))
+            )
+        elif isinstance(sub_doc_info, dict) and 'folder2_xpath' in sub_doc_info:
+            print(f"Accessing nested subfolder: {sub_doc_name}")
+            double_click_element(driver, wait, sub_doc_info['folder2_xpath'])
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, sub_doc_info['folder2_xpath']))
+            )
+            process_subdocuments(driver, wait, ws, sub_doc_info['subdocuments2'], year, model, adas_last_row, sub_doc_info['folder2_xpath'])
+            driver.back()
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, parent_xpath))
+            )
+        else:
+            print(f"Retrieving sub-document: {sub_doc_name}")
+            document_url = navigate_and_extract(driver, wait, sub_doc_info['xpath'])
+            update_excel(ws, year, model, sub_doc_name, document_url, adas_last_row, sub_doc_info.get('cell_address'))
+            
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.XPATH, parent_xpath))
+            )
+
 def process_documents(driver, wait, ws, model_data, year, model, adas_last_row):
     for doc_name, doc_info in model_data['documents'].items():
-        if isinstance(doc_info, dict):  # This is a folder
+        if isinstance(doc_info, dict) and 'folder_xpath' in doc_info:
             print(f"Accessing folder: {doc_name}")
             double_click_element(driver, wait, doc_info['folder_xpath'])
             WebDriverWait(driver, 10).until(
                 EC.visibility_of_element_located((By.XPATH, doc_info['folder_xpath']))
             )
-            for sub_doc_name, sub_doc_info in doc_info['subdocuments'].items():
-                print(f"Retrieving sub-document: {sub_doc_name}")
-                document_url = navigate_and_extract(driver, wait, sub_doc_info['xpath'])
-                update_excel(ws, year, model, sub_doc_name, document_url, adas_last_row, sub_doc_info.get('cell_address'))               
-                WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, doc_info['folder_xpath']))
-                )
+            process_subdocuments(driver, wait, ws, doc_info['subdocuments'], year, model, adas_last_row, doc_info['folder_xpath'])
             driver.back()
             WebDriverWait(driver, 10).until(
                 EC.visibility_of_element_located((By.XPATH, model_data['model_page_xpath']))
             )
-        else:  # This is a direct document link
+        else:
             print(f"Retrieving document: {doc_name}")
             document_url = navigate_and_extract(driver, wait, doc_info)
             update_excel(ws, year, model, doc_name, document_url, adas_last_row)
@@ -113,26 +142,45 @@ def check_if_chrome_running():
             return True
     return False
 
+def get_chrome_options(use_existing_profile):
+    chrome_options = Options()
+    if use_existing_profile:
+        # Get the user's home directory dynamically
+        home_dir = os.path.expanduser("~")
+        
+        # Construct the path to the Chrome user data directory
+        user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
+        
+        # Add the user data directory to Chrome options
+        chrome_options.add_argument(f"user-data-dir={user_data_dir}")
+        
+        # Optionally, specify the profile directory (e.g., "Default" for the default profile)
+        profile_dir = "Default"  # Change to the specific profile if needed
+        chrome_options.add_argument(f"profile-directory={profile_dir}")
+    return chrome_options
+
+def ask_user_choice():
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+
+    use_existing_profile = messagebox.askyesno(
+        "Chrome Instance",
+        "Would you like to use the currently installed version of Chrome?\n"
+        "Click 'Yes' for the currently installed version or 'No' for a new instance."
+    ) 
+    root.destroy()  # Destroy the main window
+    return use_existing_profile
+
 def run_acura_script(excel_path):
     
     if check_if_chrome_running():
         raise Exception("The program has detected an instance of Google Chrome running on your system. Please ensure that all Chrome instances are closed before proceeding.")
     
-    # Set up Chrome options
-    chrome_options = Options()
-
-    # Get the user's home directory dynamically
-    home_dir = os.path.expanduser("~")
-
-    # Construct the path to the Chrome user data directory
-    user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
-
-    # Add the user data directory to Chrome options
-    chrome_options.add_argument(f"user-data-dir={user_data_dir}")
-
-    # Optionally, specify the profile directory (e.g., "Default" for the default profile)
-    profile_dir = "Default"  # Change to the specific profile if needed
-    chrome_options.add_argument(f"profile-directory={profile_dir}")
+    # Ask user for their choice using a confirmation dialog box
+    use_existing_profile = ask_user_choice()
+    
+    # Get Chrome options based on user choice
+    chrome_options = get_chrome_options(use_existing_profile)
 
     # Add additional Chrome options to stabilize the launch process
     chrome_options.add_argument("--disable-gpu")
@@ -556,7 +604,7 @@ def run_acura_script(excel_path):
                     }
                 },                
             }
-        },
+        },        
         '2016': {
                            ###################
                            #                 #
@@ -564,50 +612,41 @@ def run_acura_script(excel_path):
                            #                 #
                            ###################
             
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
-            'models': {
-                'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+        'year_page_xpath': '//*[@data-automationid="ListCell"][6]',  
+            'models': {                                                                         
+                'MDX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][6]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][5]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
-                    }
-                },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',   ######################################### Start here and work down ##################################################
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
+                        'ACC': '//*[@data-automationid="ListCell"][2]',
+                        'AEB': '//*[@data-automationid="ListCell"][3]',
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][6]',
                         'LKA Folder': {
                             'folder_xpath': '//*[@data-automationid="ListCell"][1]',
                             'subdocuments': {
-                                'LKA 1': {
-                                    'xpath': '//*[@data-automationid="ListCell"][1]',
-                                    'cell_address': 'L201'  # Specify the exact cell for the hyperlink as a fall back
+                                'LKA Folder 2': {
+                                    'folder2_xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'subdocuments2': {
+                                        'LKA 1': {
+                                            'xpath': '//*[@data-automationid="ListCell"][1]',
+                                            'cell_address': 'L231'  # Specify the exact cell for the hyperlink as a fallback
+                                        }
+                                    }
                                 },
                                 'LKA 2': {
                                     'xpath': '//*[@data-automationid="ListCell"][2]',
-                                    'cell_address': 'L230'  # Specify the exact cell for the hyperlink as a fall back
+                                    'cell_address': 'L230'  # Specify the exact cell for the hyperlink as a fallback
                                 },
                                 'LKA 3': {
                                     'xpath': '//*[@data-automationid="ListCell"][3]',
-                                    'cell_address': 'L229'  # Specify the exact cell for the hyperlink as a fall back
+                                    'cell_address': 'L229'  # Specify the exact cell for the hyperlink as a fallback
                                 }
                             }
                         },
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'NV': '//*[@data-automationid="ListCell"][9]',                   ######################################### Start here and work down ##################################################
+                        'SVC': '//*[@data-automationid="ListCell"][7]',
                     }
                 },        #to this time ^
                 'RDX': {
@@ -1416,7 +1455,7 @@ def run_acura_script(excel_path):
         # Navigate to the main SharePoint page for Acura
         print("Navigating to Acura's main SharePoint page...")
         driver.get('https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/EjIo8sg9qXNEt6CDCKpeRGkBj8fLo4MSiJe7w0h7hZ30rQ?e=hFT1RF')
-        
+ 
         # Give the user up to 120 seconds to log in
         max_wait_time = 120
         start_time = time.time()
@@ -1444,7 +1483,7 @@ def run_acura_script(excel_path):
         # Clicks Acura
         print("Locating Acura link and clicking...")
         double_click_element(driver, wait, '//*[@data-automationid="ListCell"][2]')
-        time.sleep(1)
+        time.sleep(1)                       
         adas_last_row = {}
         wb = load_workbook(excel_path)
         ws = wb['Model Version']  # Correctly referencing the worksheet
