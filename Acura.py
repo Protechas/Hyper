@@ -613,7 +613,21 @@ def run_acura_script(excel_path):
                            ###################
             
         'year_page_xpath': '//*[@data-automationid="ListCell"][6]',  
-            'models': {                                                                         
+            'models': {  
+                'ILX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][6]',
+                        'BSW': '//*[@data-automationid="ListCell"][3]',
+                        'BUC': '//*[@data-automationid="ListCell"][4]',
+                        'LKA': '//*[@data-automationid="ListCell"][5]',
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                    }
+                },
                 'MDX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][2]',
                     'documents': {
@@ -645,7 +659,7 @@ def run_acura_script(excel_path):
                                 }
                             }
                         },
-                        'NV': '//*[@data-automationid="ListCell"][9]',                   ######################################### Start here and work down ##################################################
+                        'NV': '//*[@data-automationid="ListCell"][9]',                   
                         'SVC': '//*[@data-automationid="ListCell"][7]',
                     }
                 },        #to this time ^
@@ -654,11 +668,11 @@ def run_acura_script(excel_path):
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
                         'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
                         'SVC': '//*[@data-automationid="ListCell"][10]', 
                     }
@@ -666,29 +680,41 @@ def run_acura_script(excel_path):
                 'RLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'ACC': '//*[@data-automationid="ListCell"][2]', 
+                        'AEB': '//*[@data-automationid="ListCell"][3]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'LKA Folder': {
+                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'subdocuments': {
+                                'LKA 1': {
+                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'cell_address': 'L249'  # Specify the exact cell for the hyperlink as a fall back
+                                },
+                                'LKA 2': {
+                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'cell_address': 'L250'  # Specify the exact cell for the hyperlink as a fall back
+                                }
+                            }
+                        },
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },
                 'TLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },               
             }
@@ -701,88 +727,88 @@ def run_acura_script(excel_path):
                            ###################
         'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
             'models': {
-                'MDX': {
+                'ILX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][6]',
                         'BSW': '//*[@data-automationid="ListCell"][3]',
                         'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'LKA': '//*[@data-automationid="ListCell"][5]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
                         'SVC': '//*[@data-automationid="ListCell"][10]',                        
                     }
                 },
-                'RDX': {   #copy this Line v
+                'MDX': {   #copy this Line v
                     'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                    }
+                },        #to this time ^
+                'NSX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][3]', 
                         'AEB': '//*[@data-automationid="ListCell"][5]',  
                         'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'APA': '//*[@data-automationid="ListCell"][1]',
                         'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },        #to this time ^
-                'RL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][2]',
                         'LKA': '//*[@data-automationid="ListCell"][7]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
                         'SVC': '//*[@data-automationid="ListCell"][10]', 
                     }
                 },
-                'TL': {
+                'RDX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
                         'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
                         'LKA': '//*[@data-automationid="ListCell"][7]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'SVC': '//*[@data-automationid="ListCell"][9]',  
                     }
                 },
-                'TSX': {
+                'RLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },
-                'ZDX': { 
+                'TLX': { 
                     'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },                
             }
@@ -794,90 +820,90 @@ def run_acura_script(excel_path):
                            #                 #
                            ###################
             
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+        'year_page_xpath': '//*[@data-automationid="ListCell"][8]',  
             'models': {
-                'MDX': {
+                'ILX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][6]',
                         'BSW': '//*[@data-automationid="ListCell"][3]',
                         'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'LKA': '//*[@data-automationid="ListCell"][5]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
                     }
                 },
-                'RDX': {   #copy this Line v
+                'MDX': {   #copy this Line v
                     'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                    }
+                },        #to this time ^
+                'NSX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][3]', 
                         'AEB': '//*[@data-automationid="ListCell"][5]',  
                         'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'APA': '//*[@data-automationid="ListCell"][1]',
                         'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },        #to this time ^
-                'RL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][2]',
                         'LKA': '//*[@data-automationid="ListCell"][7]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
                         'SVC': '//*[@data-automationid="ListCell"][10]', 
                     }
                 },
-                'TL': {
+                'RDX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
                         'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
                         'SVC': '//*[@data-automationid="ListCell"][10]',  
                     }
                 },
-                'TSX': {
+                'RLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },
-                'ZDX': { 
+                'TLX': { 
                     'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },                
             }
@@ -888,90 +914,90 @@ def run_acura_script(excel_path):
                            #      2019       #
                            #                 #
                            ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+        'year_page_xpath': '//*[@data-automationid="ListCell"][9]',  
             'models': {
-                'MDX': {
+                'ILX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][6]',
                         'BSW': '//*[@data-automationid="ListCell"][3]',
                         'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'LKA': '//*[@data-automationid="ListCell"][5]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
                     }
                 },
-                'RDX': {   #copy this Line v
+                'MDX': {   #copy this Line v
                     'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                    }
+                },        #to this time ^
+                'NSX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][3]', 
                         'AEB': '//*[@data-automationid="ListCell"][5]',  
                         'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'APA': '//*[@data-automationid="ListCell"][1]',
                         'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },        #to this time ^
-                'RL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][2]',
                         'LKA': '//*[@data-automationid="ListCell"][7]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
                         'SVC': '//*[@data-automationid="ListCell"][10]', 
                     }
                 },
-                'TL': {
+                'RDX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
                         'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },
-                'TSX': {
+                'RLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'SVC': '//*[@data-automationid="ListCell"][9]',  
                     }
                 },
-                'ZDX': { 
+                'TLX': { 
                     'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },                
             }
@@ -982,90 +1008,90 @@ def run_acura_script(excel_path):
                            #      2020       #
                            #                 #
                            ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+        'year_page_xpath': '//*[@data-automationid="ListCell"][10]',                     ######################################### Start here and work down ##################################################
             'models': {
-                'MDX': {
+                'ILX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][6]',
                         'BSW': '//*[@data-automationid="ListCell"][3]',
                         'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'LKA': '//*[@data-automationid="ListCell"][5]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
                     }
                 },
-                'RDX': {   #copy this Line v
+                'MDX': {   #copy this Line v
                     'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][2]', 
+                        'AEB': '//*[@data-automationid="ListCell"][1]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                    }
+                },        #to this time ^
+                'NSX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][3]', 
                         'AEB': '//*[@data-automationid="ListCell"][5]',  
                         'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'APA': '//*[@data-automationid="ListCell"][1]',
                         'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },        #to this time ^
-                'RL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
-                    }
-                },
-                'TL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
                         'BUC': '//*[@data-automationid="ListCell"][2]',
                         'LKA': '//*[@data-automationid="ListCell"][7]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'SVC': '//*[@data-automationid="ListCell"][9]', 
                     }
                 },
-                'TSX': {
+                'RDX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                    }
+                },
+                'RLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },
-                'ZDX': { 
+                'TLX': { 
                     'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
+                        'ACC': '//*[@data-automationid="ListCell"][2]', 
+                        'AEB': '//*[@data-automationid="ListCell"][3]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][1]',  
                     }
                 },                
             }
@@ -1076,90 +1102,48 @@ def run_acura_script(excel_path):
                            #      2021       #
                            #                 #
                            ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+        'year_page_xpath': '//*[@data-automationid="ListCell"][11]',  
             'models': {
-                'MDX': {
+                'ILX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'AHL': '//*[@data-automationid="ListCell"][3]',
+                        'APA': '//*[@data-automationid="ListCell"][7]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
                     }
                 },
                 'RDX': {   #copy this Line v
                     'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][3]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][6]',
                         'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][8]',  
                     }
                 },        #to this time ^
-                'RL': {
+                'TLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
                         'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
-                    }
-                },
-                'TL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'TSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'ZDX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]', 
                     }
                 },                
             }
@@ -1171,90 +1155,76 @@ def run_acura_script(excel_path):
                            #                 #
                            ###################
             
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+        'year_page_xpath': '//*[@data-automationid="ListCell"][12]',  
             'models': {
-                'MDX': {
+                'ILX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][2]', 
+                        'AEB': '//*[@data-automationid="ListCell"][1]',  
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][6]',
+                        'BSW': '//*[@data-automationid="ListCell"][3]',
+                        'BUC': '//*[@data-automationid="ListCell"][4]',
+                        'LKA': '//*[@data-automationid="ListCell"][5]',
+                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
+                    }
+                },
+                'MDX': {   #copy this Line v
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
-                },
-                'RDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                },        #to this time ^
+                'NSX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][3]', 
                         'AEB': '//*[@data-automationid="ListCell"][5]',  
                         'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
+                        'APA': '//*[@data-automationid="ListCell"][1]',
                         'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },        #to this time ^
-                'RL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
-                    }
-                },
-                'TL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
                         'BUC': '//*[@data-automationid="ListCell"][2]',
                         'LKA': '//*[@data-automationid="ListCell"][7]',
                         'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'SVC': '//*[@data-automationid="ListCell"][9]', 
                     }
                 },
-                'TSX': {
+                'RDX': {
+                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'documents': {
+                        'ACC': '//*[@data-automationid="ListCell"][2]', 
+                        'AEB': '//*[@data-automationid="ListCell"][1]',  
+                        'AHL': '//*[@data-automationid="ListCell"][3]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'LKA': '//*[@data-automationid="ListCell"][7]',
+                        'NV': '//*[@data-automationid="ListCell"][10]',
+                        'SVC': '//*[@data-automationid="ListCell"][8]',  
+                    }
+                },
+                'TLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'ZDX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },                
             }
@@ -1266,92 +1236,64 @@ def run_acura_script(excel_path):
                            #                 #
                            ###################
             
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+        'year_page_xpath': '//*[@data-automationid="ListCell"][13]',  
             'models': {
-                'MDX': {
+                'Integra': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
                         'SVC': '//*[@data-automationid="ListCell"][10]',                        
                     }
                 },
-                'RDX': {   #copy this Line v
+                'MDX': {   #copy this Line v
                     'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][10]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },        #to this time ^
-                'RL': {
+                'RDX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
                         'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][10]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]', 
                     }
                 },
-                'TL': {
+                'TLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'TSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'ZDX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
-                },                
+                },               
             }
         },
         '2024': {
@@ -1360,90 +1302,62 @@ def run_acura_script(excel_path):
                            #      2024       #
                            #                 #
                            ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+        'year_page_xpath': '//*[@data-automationid="ListCell"][14]',  
             'models': {
-                'MDX': {
+                'Integra': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
                         'SVC': '//*[@data-automationid="ListCell"][10]',                        
                     }
                 },
-                'RDX': {   #copy this Line v
+                'MDX': {   #copy this Line v
                     'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'ACC': '//*[@data-automationid="ListCell"][1]', 
+                        'AEB': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][7]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][8]',
+                        'LKA': '//*[@data-automationid="ListCell"][5]',
+                        'NV': '//*[@data-automationid="ListCell"][10]',
+                        'SVC': '//*[@data-automationid="ListCell"][6]',  
                     }
                 },        #to this time ^
-                'RL': {
+                'RDX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'AHL': '//*[@data-automationid="ListCell"][3]',
+                        'APA': '//*[@data-automationid="ListCell"][4]',
+                        'BSW': '//*[@data-automationid="ListCell"][5]',
+                        'BUC': '//*[@data-automationid="ListCell"][8]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][10]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]', 
                     }
                 },
-                'TL': {
+                'TLX': {
                     'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'TSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
-                    'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
-                    }
-                },
-                'ZDX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
                     'documents': {
                         'ACC': '//*[@data-automationid="ListCell"][1]', 
                         'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][2]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][2]',
-                        'NV': '//*[@data-automationid="ListCell"][2]',
-                        'SVC': '//*[@data-automationid="ListCell"][2]',  
+                        'AHL': '//*[@data-automationid="ListCell"][8]',
+                        'APA': '//*[@data-automationid="ListCell"][3]',
+                        'BSW': '//*[@data-automationid="ListCell"][4]',
+                        'BUC': '//*[@data-automationid="ListCell"][5]',
+                        'LKA': '//*[@data-automationid="ListCell"][6]',
+                        'NV': '//*[@data-automationid="ListCell"][9]',
+                        'SVC': '//*[@data-automationid="ListCell"][7]',  
                     }
                 },                
             }
