@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-                             QComboBox, QMessageBox, QFileDialog, QCheckBox)
+                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox)
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 from threading import Thread
@@ -8,21 +8,28 @@ import subprocess
 import os
 
 class CustomButton(QPushButton):
-    def __init__(self, text, parent=None):
+    def __init__(self, text, color, parent=None):
         super().__init__(text, parent)
-        self.setStyleSheet("""
-            QPushButton {
-                background-color: #e63946;
+        self.color = color
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color};
                 color: white;
                 border: none;
                 padding: 10px;
                 font-size: 16px;
                 border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #d62828;
-            }
+            }}
+            QPushButton:hover {{
+                background-color: {self.darken_color(color)};
+            }}
         """)
+
+    def darken_color(self, color):
+        hex_color = color.lstrip('#')
+        rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        darkened_rgb = tuple(max(0, min(255, int(c * 0.85))) for c in rgb)
+        return '#{:02x}{:02x}{:02x}'.format(*darkened_rgb)
 
 class ToggleSwitch(QCheckBox):
     def __init__(self, parent=None):
@@ -85,7 +92,7 @@ class SeleniumAutomationApp(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.excel_path = ''
+        self.excel_paths = []
 
     def initUI(self):
         self.setWindowTitle('Hyperlink Automation')
@@ -93,21 +100,44 @@ class SeleniumAutomationApp(QWidget):
         layout = QVBoxLayout()
 
         # Excel file selection
-        self.select_file_button = CustomButton('Select Excel File', self)
-        self.select_file_button.clicked.connect(self.select_excel_file)
-        layout.addWidget(self.select_file_button)
-        
-        # Excel file path display
-        self.excel_path_label = QLabel('No file selected')
-        self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
-        layout.addWidget(self.excel_path_label)
+        file_selection_layout = QHBoxLayout()
+        self.select_file_button = CustomButton('Select Excel Files', '#e63946', self)
+        self.select_file_button.clicked.connect(self.select_excel_files)
+        file_selection_layout.addWidget(self.select_file_button)
 
-        # Manufacturer dropdown
-        self.manufacturer_dropdown = QComboBox(self)
-        self.manufacturer_dropdown.addItems(["Acura", "BMW", "Audi", "Chevrolet", "Chevy"])  # Add all your manufacturers here
-        self.manufacturer_dropdown.setStyleSheet("background-color: #3e3e3e; color: white; padding: 5px; border: 1px solid #555555; border-radius: 5px;")
-        layout.addWidget(self.manufacturer_dropdown)
-        
+        # Excel file path display
+        self.excel_path_label = QLabel('No files selected')
+        self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
+        file_selection_layout.addWidget(self.excel_path_label)
+
+        self.activate_full_automation_button = CustomButton('Activate Full Automation', '#e3b505', self)
+        self.activate_full_automation_button.clicked.connect(self.activate_full_automation)
+        file_selection_layout.addWidget(self.activate_full_automation_button)
+
+        layout.addLayout(file_selection_layout)
+
+        # Manufacturer tree widget with checkboxes
+        manufacturer_selection_layout = QHBoxLayout()
+        self.manufacturer_tree = QTreeWidget(self)
+        self.manufacturer_tree.setHeaderHidden(True)
+        self.manufacturer_tree.setStyleSheet("background-color: #3e3e3e; color: white; border: 1px solid #555555; border-radius: 5px;")
+        manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet", "Dodge", 
+                         "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Kia", "Lexus", 
+                         "Mazda", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", "Rolls Royce", "Subaru", "Toyota", 
+                         "Volkswagen", "Volvo"]
+        for manufacturer in manufacturers:
+            item = QTreeWidgetItem(self.manufacturer_tree)
+            item.setText(0, manufacturer)
+            item.setCheckState(0, Qt.Unchecked)
+        manufacturer_selection_layout.addWidget(self.manufacturer_tree)
+
+        # Select All button
+        self.select_all_button = CustomButton('Select All', '#e3b505', self)
+        self.select_all_button.clicked.connect(self.select_all)
+        manufacturer_selection_layout.addWidget(self.select_all_button)
+
+        layout.addLayout(manufacturer_selection_layout)
+
         # Theme switch section
         theme_switch_section = QHBoxLayout()
         
@@ -117,40 +147,92 @@ class SeleniumAutomationApp(QWidget):
         layout.addLayout(theme_switch_section)
         
         # Start button
-        self.start_button = CustomButton('Start Automation', self)
+        self.start_button = CustomButton('Start Automation', '#e63946', self)
         self.start_button.clicked.connect(self.start_automation)
         layout.addWidget(self.start_button)
         
         self.setLayout(layout)
-        self.resize(400, 300)
+        self.resize(600, 400)
 
-    def select_excel_file(self):
-        self.excel_path, _ = QFileDialog.getOpenFileName(self, 'Open file', 'C:/Users/', "Excel files (*.xlsx *.xls)")
-        if self.excel_path:
-            self.excel_path_label.setText(self.excel_path)
+    def select_excel_files(self):
+        self.excel_paths, _ = QFileDialog.getOpenFileNames(self, 'Open files', 'C:/Users/', "Excel files (*.xlsx *.xls)")
+        if self.excel_paths:
+            self.excel_path_label.setText("\n".join([f"{i + 1}. {os.path.basename(path)}" for i, path in enumerate(self.excel_paths)]))
         else:
-            self.excel_path_label.setText('No file selected')
+            self.excel_path_label.setText('No files selected')
 
     def toggle_theme(self):
         if self.theme_toggle.isChecked():
             self.setStyleSheet("background-color: #ffffff; color: black;")
-            self.manufacturer_dropdown.setStyleSheet("background-color: #f0f0f0; color: black; padding: 5px; border: 1px solid #cccccc; border-radius: 5px;")
+            self.manufacturer_tree.setStyleSheet("background-color: #f0f0f0; color: black; border: 1px solid #cccccc; border-radius: 5px;")
             self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #cccccc; border-radius: 5px; background-color: #f0f0f0;")
         else:
             self.setStyleSheet("background-color: #2e2e2e; color: white;")
-            self.manufacturer_dropdown.setStyleSheet("background-color: #3e3e3e; color: white; padding: 5px; border: 1px solid #555555; border-radius: 5px;")
+            self.manufacturer_tree.setStyleSheet("background-color: #3e3e3e; color: white; border: 1px solid #555555; border-radius: 5px;")
             self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
 
     def start_automation(self):
-        manufacturer = self.manufacturer_dropdown.currentText()
-        confirm_message = f"You have selected {manufacturer}. Are you sure? This can take some time. Please close your Google Chrome before continuing as it will crash the program, continue?"
+        selected_manufacturers = []
+        for i in range(self.manufacturer_tree.topLevelItemCount()):
+            item = self.manufacturer_tree.topLevelItem(i)
+            if item.checkState(0) == Qt.Checked:
+                selected_manufacturers.append(item.text(0))
+
+        if self.excel_paths and selected_manufacturers:
+            confirm_message = "You have selected the following manufacturers and Excel files:\n\n"
+            for i, manufacturer in enumerate(selected_manufacturers):
+                confirm_message += f"{i + 1}. {manufacturer}\n"
+            confirm_message += "\nPlease ensure the order is correct. Continue?"
+
+            confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+            if confirm == QMessageBox.Yes:
+                for excel_path in self.excel_paths:
+                    for manufacturer in selected_manufacturers:
+                        script_path = os.path.join(os.path.dirname(__file__), f"{manufacturer}.py")
+                        Thread(target=lambda: subprocess.run(["python", script_path, excel_path], check=True)).start()
+            else:
+                QMessageBox.warning(self, 'Warning', "Automation process canceled.", QMessageBox.Ok)
+        else:
+            QMessageBox.warning(self, 'Warning', "Please select Excel files and manufacturers first.", QMessageBox.Ok)
+
+    def activate_full_automation(self):
+        if not self.excel_paths:
+            QMessageBox.warning(self, 'Warning', "Please select Excel files first.", QMessageBox.Ok)
+            return
+
+        selected_manufacturers = []
+        for i in range(self.manufacturer_tree.topLevelItemCount()):
+            item = self.manufacturer_tree.topLevelItem(i)
+            if item.checkState(0) == Qt.Checked:
+                selected_manufacturers.append(item.text(0))
+        
+        if not selected_manufacturers:
+            QMessageBox.warning(self, 'Warning', "Please select manufacturers first.", QMessageBox.Ok)
+            return
+        
+        confirm_message = ("WARNING!!! This will take a LONG time to complete, ETA N/A as of yet. "
+                           "Please prepare to not touch your computer for a period of time. "
+                           "Also ensure that every Excel file is put in the proper order or this will mess all the Longsheets up. Continue?")
         confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-        if confirm == QMessageBox.Yes and self.excel_path:
-            script_path = os.path.join(os.path.dirname(__file__), f"{manufacturer}.py")
-            Thread(target=lambda: subprocess.run(["python", script_path, self.excel_path], check=True)).start()
-        elif not self.excel_path:
-            QMessageBox.warning(self, 'Warning', "Please select an Excel file first.", QMessageBox.Ok)
+        if confirm == QMessageBox.Yes:
+            for excel_path in self.excel_paths:
+                for manufacturer in selected_manufacturers:
+                    script_path = os.path.join(os.path.dirname(__file__), f"{manufacturer}.py")
+                    Thread(target=lambda: subprocess.run(["python", script_path, excel_path], check=True)).start()
+
+    def select_all(self):
+        select_all_checked = True
+        for i in range(self.manufacturer_tree.topLevelItemCount()):
+            item = self.manufacturer_tree.topLevelItem(i)
+            if item.checkState(0) != Qt.Checked:
+                select_all_checked = False
+                break
+        
+        for i in range(self.manufacturer_tree.topLevelItemCount()):
+            item = self.manufacturer_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
