@@ -1,29 +1,27 @@
 import sys
+import time
+import psutil
+import os
+import tkinter as tk
+from tkinter import messagebox
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font
 from selenium.webdriver.chrome.options import Options
-import os
-import time
-import io
 from PIL import Image
 import pytesseract
-import re
-import psutil
-import tkinter as tk
-from tkinter import messagebox
+import io
 
 # Set the path for Tesseract if not in PATH
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update this path as needed
- 
+
 def process_subdocuments(driver, wait, ws, subdocuments, year, model, adas_last_row, parent_xpath):
     for sub_doc_name, sub_doc_info in subdocuments.items():
         if isinstance(sub_doc_info, dict) and 'folder_xpath' in sub_doc_info:
@@ -44,20 +42,23 @@ def process_subdocuments(driver, wait, ws, subdocuments, year, model, adas_last_
                 EC.visibility_of_element_located((By.XPATH, sub_doc_info['folder2_xpath']))
             )
             process_subdocuments(driver, wait, ws, sub_doc_info['subdocuments2'], year, model, adas_last_row, sub_doc_info['folder2_xpath'])
+            time.sleep(2)
             driver.back()
+            time.sleep(2)
             WebDriverWait(driver, 10).until(
                 EC.visibility_of_element_located((By.XPATH, parent_xpath))
             )
         else:
             print(f"Retrieving sub-document: {sub_doc_name}")
+            time.sleep(2)
             document_url = navigate_and_extract(driver, wait, sub_doc_info['xpath'])
             update_excel(ws, year, model, sub_doc_name, document_url, adas_last_row, sub_doc_info.get('cell_address'))
-            
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, parent_xpath))
-            )
+            time.sleep(2)
+            driver.back()
+            time.sleep(2)  # Extra wait to ensure the page is fully loaded before the next action
 
-def process_documents(driver, wait, ws, model_data, year, model, adas_last_row):
+def process_documents(driver, wait, ws, model_data, year, model, adas_last_row, year_page_xpath):
+    model_page_xpath = model_data['model_page_xpath']
     for doc_name, doc_info in model_data['documents'].items():
         if isinstance(doc_info, dict) and 'folder_xpath' in doc_info:
             print(f"Accessing folder: {doc_name}")
@@ -66,14 +67,77 @@ def process_documents(driver, wait, ws, model_data, year, model, adas_last_row):
                 EC.visibility_of_element_located((By.XPATH, doc_info['folder_xpath']))
             )
             process_subdocuments(driver, wait, ws, doc_info['subdocuments'], year, model, adas_last_row, doc_info['folder_xpath'])
+            time.sleep(2)
             driver.back()
+            time.sleep(2)
             WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, model_data['model_page_xpath']))
+                EC.visibility_of_element_located((By.XPATH, model_page_xpath))
             )
         else:
             print(f"Retrieving document: {doc_name}")
             document_url = navigate_and_extract(driver, wait, doc_info)
             update_excel(ws, year, model, doc_name, document_url, adas_last_row)
+            time.sleep(2)
+            driver.back()
+            time.sleep(2)
+            
+            # Improved wait mechanism
+            for _ in range(10):  # Retry up to 10 times
+                try:
+                    wait.until(EC.visibility_of_element_located((By.XPATH, model_page_xpath)))
+                    break
+                except TimeoutException:
+                    time.sleep(1)  # Wait a bit longer if necessary
+            
+            time.sleep(2)  # Extra wait to ensure the page is fully loaded before the next action
+
+     # After processing all documents for a model, navigate back to the year page
+    time.sleep(2)       
+    driver.back()
+    time.sleep(2)
+    
+    # Improved wait mechanism
+    for _ in range(10):  # Retry up to 10 times
+        try:
+            wait.until(EC.visibility_of_element_located((By.XPATH, year_page_xpath)))
+            break
+        except TimeoutException:
+            time.sleep(1)  # Wait a bit longer if necessary
+    
+    time.sleep(2)  # Extra wait to ensure the page is fully loaded before the next action
+
+def navigate_and_extract(driver, wait, xpath):
+    double_click_element(driver, wait, xpath)
+    WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.TAG_NAME, "body"))  # Adjust to a reliable element
+    )
+    document_url = driver.current_url
+    time.sleep(2)
+    driver.back()
+    time.sleep(2)
+    # Improved wait mechanism
+    for _ in range(10):  # Retry up to 10 times
+        try:
+            wait.until(EC.visibility_of_element_located((By.XPATH, xpath)))
+            break
+        except TimeoutException:
+            time.sleep(1)  # Wait a bit longer if necessary
+
+    time.sleep(2)  # Allow extra time to ensure full navigation back
+
+    # Check if the specified XPath is present, if not, navigate forward
+    check_and_navigate_forward(driver, wait, '//*[@id="appRoot"]/div/div[2]/div[2]/div/div/div[2]/div[2]')
+    
+    return document_url
+
+def check_and_navigate_forward(driver, wait, check_xpath):
+    try:
+        wait = WebDriverWait(driver, 5)
+        wait.until(EC.visibility_of_element_located((By.XPATH, check_xpath)))
+    except TimeoutException:
+        driver.forward()
+        time.sleep(2)  # Wait to ensure forward navigation completes
+        print("Navigated forward as the specified XPath was not found")
 
 def update_excel(ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
     if cell_address:
@@ -117,15 +181,6 @@ def double_click_element(driver, wait, xpath):
     element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
     ActionChains(driver).double_click(element).perform()
     
-def navigate_and_extract(driver, wait, xpath):
-    double_click_element(driver, wait, xpath)
-    WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.TAG_NAME, "body"))  # Adjust to a reliable element
-    )
-    document_url = driver.current_url
-    driver.back()
-    return document_url
-
 def navigate_to_model(driver, wait, model_xpath):
      model_link = wait.until(EC.element_to_be_clickable((By.XPATH, model_xpath)))
      model_link.click()
@@ -172,1197 +227,853 @@ def ask_user_choice():
     return use_existing_profile
 
 def run_acura_script(excel_path):
-    
     if check_if_chrome_running():
         raise Exception("The program has detected an instance of Google Chrome running on your system. Please ensure that all Chrome instances are closed before proceeding.")
     
-    # Ask user for their choice using a confirmation dialog box
     use_existing_profile = ask_user_choice()
-    
-    # Get Chrome options based on user choice
     chrome_options = get_chrome_options(use_existing_profile)
-
-    # Add additional Chrome options to stabilize the launch process
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-extensions")  # Disable extensions to avoid conflicts
+    chrome_options.add_argument("--disable-infobars")  # Disable infobars
+    chrome_options.add_argument("--disable-browser-side-navigation")  # Disable side navigation issues
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Avoid detection as bot
 
-    # Initialize the Chrome driver with the specified options
+
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     wait = WebDriverWait(driver, 10)
-    action_chains = ActionChains(driver)
     
     # Your structured data
     years_models_documents = {
-                           ###################
-                           #                 #
-                           #      2012       #
-                           #                 #
-                           ###################
+        
         '2012': {
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+            'year_page_xpath': '//*[@data-grid-row="1"]/div[3]',
             'models': {
                 'MDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'ACC': '//*[@data-grid-row="0"]/div[3]',
+                        'AEB': '//*[@data-grid-row="1"]/div[3]',
+                        'BSW': '//*[@data-grid-row="2"]/div[3]',
+                        'BUC': '//*[@data-grid-row="3"]/div[3]'
                     }
                 },
-                'RDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'RDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'RL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]'
                     }
                 },
                 'TL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'BSW': '//*[@data-grid-row="1"]/div[3]',
+                        'BUC': '//*[@data-grid-row="2"]/div[3]'
                     }
                 },
                 'TSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
                 },
-                'ZDX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]', ########
+                'ZDX': {
+                    'model_page_xpath': '//*[@data-grid-row="5"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]'
                     }
-                },                
+                }
             }
         },
         '2013': {
-                           ###################
-                           #                 #
-                           #      2013       #
-                           #                 #
-                           ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][3]',  
+            'year_page_xpath': '//*[@data-grid-row="2"]/div[3]',
             'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][11]',                        
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][6]',
-                        'APA': '//*[@data-automationid="ListCell"][5]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        #'NV': '//*[@data-automationid="ListCell"][%]',   <------ Needs to be added
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
                 },
                 'TL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        #'NV': '//*[@data-automationid="ListCell"][%]',   <------ Needs to be added
-                        'SVC': '//*[@data-automationid="ListCell"][9]',  
+                        'BSW/RCTW': '//*[@data-grid-row="1"]/div[3]',
+                        'BUC': '//*[@data-grid-row="2"]/div[3]'
                     }
                 },
                 'TSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
                 },
-                'ZDX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]', 
+                'ZDX': {
+                    'model_page_xpath': '//*[@data-grid-row="5"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][6]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][5]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]',
+                        'LKA': '//*[@data-grid-row="5"]/div[3]'
                     }
-                },                
+                }
             }
         },
         '2014': {
-                           ###################
-                           #                 #
-                           #      2014       #
-                           #                 #    
-                           ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][4]',  
+            'year_page_xpath': '//*[@data-grid-row="3"]/div[3]',
             'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]', 
-                        'AEB': '//*[@data-automationid="ListCell"][3]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'BUC': '//*[@data-grid-row="6"]/div[3]',
                         'LKA Folder': {
-                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'folder_xpath': '//*[@data-grid-row="0"]/div[3]',
                             'subdocuments': {
                                 'LKA 1': {
-                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'xpath': '//*[@data-grid-row="1"]/div[3]',
                                     'cell_address': 'L126'  # Specify the exact cell for the hyperlink as a fall back
                                 },
                                 'LKA 2': {
-                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'xpath': '//*[@data-grid-row="0"]/div[3]',
                                     'cell_address': 'L127'  # Specify the exact cell for the hyperlink as a fall back
                                 }
                             }
                         },
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
                 },
                 'RLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]', 
-                        'AEB': '//*[@data-automationid="ListCell"][3]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'BUC': '//*[@data-grid-row="6"]/div[3]',
                         'LKA Folder': {
-                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'folder_xpath': '//*[@data-grid-row="0"]/div[3]',
                             'subdocuments': {
                                 'LKA 1': {
-                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'xpath': '//*[@data-grid-row="1"]/div[3]',
                                     'cell_address': 'L145'  # Specify the exact cell for the hyperlink as a fall back
                                 },
                                 'LKA 2': {
-                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'xpath': '//*[@data-grid-row="0"]/div[3]',
                                     'cell_address': 'L146'  # Specify the exact cell for the hyperlink as a fall back
                                 }
                             }
-                        },
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        }
                     }
                 },
                 'TL': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][4]', 
-                        'AEB': '//*[@data-automationid="ListCell"][6]',  
-                        'AHL': '//*[@data-automationid="ListCell"][5]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][1]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'BSW/RCTW': '//*[@data-grid-row="1"]/div[3]',
+                        'BUC': '//*[@data-grid-row="2"]/div[3]'
                     }
                 },
-                'TSX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]', 
+                'TSX': {
+                    'model_page_xpath': '//*[@data-grid-row="5"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
-                },                
+                }
             }
         },
         '2015': {
-                           ###################
-                           #                 #
-                           #      2015       #
-                           #                 #
-                           ###################  
-                                     
-        'year_page_xpath': '//*[@data-automationid="ListCell"][5]',  
+            'year_page_xpath': '//*[@data-grid-row="4"]/div[3]',
             'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]', 
-                        'AEB': '//*[@data-automationid="ListCell"][3]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'BUC': '//*[@data-grid-row="6"]/div[3]',
                         'LKA Folder': {
-                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'folder_xpath': '//*[@data-grid-row="0"]/div[3]',
                             'subdocuments': {
                                 'LKA 1': {
-                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'xpath': '//*[@data-grid-row="1"]/div[3]',
                                     'cell_address': 'L182'  # Specify the exact cell for the hyperlink as a fall back
                                 },
                                 'LKA 2': {
-                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'xpath': '//*[@data-grid-row="0"]/div[3]',
                                     'cell_address': 'L183'  # Specify the exact cell for the hyperlink as a fall back
                                 }
                             }
                         },
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][2]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][1]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'BUC': '//*[@data-grid-row="1"]/div[3]'
                     }
                 },
                 'RLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]', 
-                        'AEB': '//*[@data-automationid="ListCell"][3]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'BUC': '//*[@data-grid-row="6"]/div[3]',
                         'LKA Folder': {
-                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'folder_xpath': '//*[@data-grid-row="0"]/div[3]',
                             'subdocuments': {
                                 'LKA 1': {
-                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'xpath': '//*[@data-grid-row="1"]/div[3]',
                                     'cell_address': 'L201'  # Specify the exact cell for the hyperlink as a fall back
                                 },
                                 'LKA 2': {
-                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'xpath': '//*[@data-grid-row="0"]/div[3]',
                                     'cell_address': 'L202'  # Specify the exact cell for the hyperlink as a fall back
                                 }
                             }
-                        },
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        }
                     }
                 },
                 'TLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },                
+                }
             }
-        },        
+        },
         '2016': {
-                           ###################
-                           #                 #
-                           #      2016       #                
-                           #                 #
-                           ###################
-            
-        'year_page_xpath': '//*[@data-automationid="ListCell"][6]',  
-            'models': {  
+            'year_page_xpath': '//*[@data-grid-row="5"]/div[3]',
+            'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][6]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][5]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]',
+                        'LKA': '//*[@data-grid-row="5"]/div[3]'
                     }
                 },
                 'MDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]',
-                        'AEB': '//*[@data-automationid="ListCell"][3]',
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'BUC': '//*[@data-grid-row="6"]/div[3]',
                         'LKA Folder': {
-                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'folder_xpath': '//*[@data-grid-row="0"]/div[3]',
                             'subdocuments': {
                                 'LKA Folder 2': {
-                                    'folder2_xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'folder2_xpath': '//*[@data-grid-row="0"]/div[3]',
                                     'subdocuments2': {
                                         'LKA 1': {
-                                            'xpath': '//*[@data-automationid="ListCell"][1]',
+                                            'xpath': '//*[@data-grid-row="0"]/div[3]',
                                             'cell_address': 'L231'  # Specify the exact cell for the hyperlink as a fallback
                                         }
                                     }
                                 },
                                 'LKA 2': {
-                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'xpath': '//*[@data-grid-row="1"]/div[3]',
                                     'cell_address': 'L230'  # Specify the exact cell for the hyperlink as a fallback
                                 },
                                 'LKA 3': {
-                                    'xpath': '//*[@data-automationid="ListCell"][3]',
+                                    'xpath': '//*[@data-grid-row="2"]/div[3]',
                                     'cell_address': 'L229'  # Specify the exact cell for the hyperlink as a fallback
                                 }
                             }
                         },
-                        'NV': '//*[@data-automationid="ListCell"][9]',                   
-                        'SVC': '//*[@data-automationid="ListCell"][7]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]'
                     }
                 },
                 'RLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]', 
-                        'AEB': '//*[@data-automationid="ListCell"][3]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][6]',
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'BUC': '//*[@data-grid-row="6"]/div[3]',
                         'LKA Folder': {
-                            'folder_xpath': '//*[@data-automationid="ListCell"][1]',
+                            'folder_xpath': '//*[@data-grid-row="0"]/div[3]',
                             'subdocuments': {
                                 'LKA 1': {
-                                    'xpath': '//*[@data-automationid="ListCell"][1]',
+                                    'xpath': '//*[@data-grid-row="0"]/div[3]',
                                     'cell_address': 'L249'  # Specify the exact cell for the hyperlink as a fall back
                                 },
                                 'LKA 2': {
-                                    'xpath': '//*[@data-automationid="ListCell"][2]',
+                                    'xpath': '//*[@data-grid-row="1"]/div[3]',
                                     'cell_address': 'L250'  # Specify the exact cell for the hyperlink as a fall back
                                 }
                             }
                         },
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
                 },
                 'TLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },               
+                }
             }
         },
         '2017': {
-                           ###################
-                           #                 #
-                           #      2017       #
-                           #                 #
-                           ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+            'year_page_xpath': '//*[@data-grid-row="6"]/div[3]',
             'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][6]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][5]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]',
+                        'LKA': '//*[@data-grid-row="5"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'NSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][1]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'APA': '//*[@data-grid-row="1"]/div[3]',
+                        'BUC': '//*[@data-grid-row="2"]/div[3]'
                     }
                 },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]'
                     }
                 },
                 'RLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="0"]/div[3]',
+                        'AEB': '//*[@data-grid-row="1"]/div[3]',
+                        'APA': '//*[@data-grid-row="2"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]',
+                        'LKA': '//*[@data-grid-row="5"]/div[3]',
+                        'SVC': '//*[@data-grid-row="6"]/div[3]'
                     }
                 },
-                'TLX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
+                'TLX': {
+                    'model_page_xpath': '//*[@data-grid-row="5"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },                
+                }
             }
         },
         '2018': {
-                           ###################
-                           #                 #
-                           #      2018       #
-                           #                 #
-                           ###################
-            
-        'year_page_xpath': '//*[@data-automationid="ListCell"][8]',  
+            'year_page_xpath': '//*[@data-grid-row="7"]/div[3]',
             'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][6]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][5]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]',
+                        'LKA': '//*[@data-grid-row="5"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="0"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'NSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][1]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'APA': '//*[@data-grid-row="1"]/div[3]',
+                        'BUC': '//*[@data-grid-row="2"]/div[3]'
                     }
                 },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',  
+                        'ACC': '//*[@data-grid-row="0"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]'
                     }
                 },
                 'RLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
                 },
-                'TLX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
+                'TLX': {
+                    'model_page_xpath': '//*[@data-grid-row="5"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },                
+                }
             }
         },
         '2019': {
-                           ###################
-                           #                 #
-                           #      2019       #
-                           #                 #
-                           ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][9]',  
+            'year_page_xpath': '//*[@data-grid-row="8"]/div[3]',
             'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][6]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][5]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]',
+                        'LKA': '//*[@data-grid-row="5"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'NSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][1]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]', 
+                        'APA': '//*[@data-grid-row="1"]/div[3]',
+                        'BUC': '//*[@data-grid-row="2"]/div[3]'
                     }
                 },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
                 },
                 'RLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]'
                     }
                 },
-                'TLX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
+                'TLX': {
+                    'model_page_xpath': '//*[@data-grid-row="5"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },                
+                }
             }
         },
         '2020': {
-                           ###################
-                           #                 #
-                           #      2020       #
-                           #                 #
-                           ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][10]',                     ######################################### Start here and work down ##################################################
+            'year_page_xpath': '//*[@data-grid-row="9"]/div[3]',
             'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][6]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][5]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]',
+                        'LKA': '//*[@data-grid-row="5"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]', 
-                        'AEB': '//*[@data-automationid="ListCell"][1]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="0"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'NSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][1]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]', 
+                        'APA': '//*[@data-grid-row="1"]/div[3]',
+                        'BUC': '//*[@data-grid-row="2"]/div[3]'
                     }
                 },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
                 },
                 'RLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]'
                     }
                 },
-                'TLX': { 
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][6]',
+                'TLX': {
+                    'model_page_xpath': '//*[@data-grid-row="5"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]', 
-                        'AEB': '//*[@data-automationid="ListCell"][3]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][6]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][1]',  
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'BUC': '//*[@data-grid-row="6"]/div[3]',
+                        'LKA': '//*[@data-grid-row="7"]/div[3]',
+                        'SVC': '//*[@data-grid-row="0"]/div[3]'
                     }
-                },                
+                }
             }
         },
         '2021': {
-                           ###################
-                           #                 #
-                           #      2021       #
-                           #                 #
-                           ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][11]',  
+            'year_page_xpath': '//*[@data-grid-row="10"]/div[3]',
             'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][3]',
-                        'APA': '//*[@data-automationid="ListCell"][7]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'AHL': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]'
                     }
                 },
-                'RDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'RDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][3]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][6]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][8]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'AHL': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'BUC': '//*[@data-grid-row="6"]/div[3]',
+                        'LKA': '//*[@data-grid-row="7"]/div[3]',
+                        'SVC': '//*[@data-grid-row="8"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'TLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]', 
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },                
+                }
             }
         },
         '2022': {
-                           ###################
-                           #                 #
-                           #      2022       #
-                           #                 #
-                           ###################
-            
-        'year_page_xpath': '//*[@data-automationid="ListCell"][12]',  
+            'year_page_xpath': '//*[@data-grid-row="11"]/div[3]',
             'models': {
                 'ILX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]', 
-                        'AEB': '//*[@data-automationid="ListCell"][1]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][6]',
-                        'BSW': '//*[@data-automationid="ListCell"][3]',
-                        'BUC': '//*[@data-automationid="ListCell"][4]',
-                        'LKA': '//*[@data-automationid="ListCell"][5]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]',                        
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="0"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="3"]/div[3]',
+                        'BUC': '//*[@data-grid-row="4"]/div[3]',
+                        'LKA': '//*[@data-grid-row="5"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'NSX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][3]', 
-                        'AEB': '//*[@data-automationid="ListCell"][5]',  
-                        'AHL': '//*[@data-automationid="ListCell"][4]',
-                        'APA': '//*[@data-automationid="ListCell"][1]',
-                        'BSW': '//*[@data-automationid="ListCell"][6]',
-                        'BUC': '//*[@data-automationid="ListCell"][2]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][8]',
-                        'SVC': '//*[@data-automationid="ListCell"][9]', 
+                        'APA': '//*[@data-grid-row="1"]/div[3]',
+                        'BUC': '//*[@data-grid-row="2"]/div[3]'
                     }
                 },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][2]', 
-                        'AEB': '//*[@data-automationid="ListCell"][1]',  
-                        'AHL': '//*[@data-automationid="ListCell"][3]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][6]',
-                        'LKA': '//*[@data-automationid="ListCell"][7]',
-                        'NV': '//*[@data-automationid="ListCell"][10]',
-                        'SVC': '//*[@data-automationid="ListCell"][8]',  
+                        'ACC': '//*[@data-grid-row="2"]/div[3]',
+                        'AEB': '//*[@data-grid-row="0"]/div[3]',
+                        'AHL': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'BUC': '//*[@data-grid-row="6"]/div[3]',
+                        'LKA': '//*[@data-grid-row="7"]/div[3]',
+                        'SVC': '//*[@data-grid-row="8"]/div[3]'
                     }
                 },
                 'TLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][5]',
+                    'model_page_xpath': '//*[@data-grid-row="4"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },                
+                }
             }
         },
         '2023': {
-                           ###################
-                           #                 #
-                           #      2023       #
-                           #                 #
-                           ###################
-            
-        'year_page_xpath': '//*[@data-automationid="ListCell"][13]',  
+            'year_page_xpath': '//*[@data-grid-row="12"]/div[3]',
             'models': {
                 'Integra': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][10]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][10]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]', 
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
                 },
                 'TLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },               
+                }
             }
         },
         '2024': {
-                           ###################
-                           #                 #
-                           #      2024       #
-                           #                 #
-                           ###################
-        'year_page_xpath': '//*[@data-automationid="ListCell"][14]',  
+            'year_page_xpath': '//*[@data-grid-row="13"]/div[3]',
             'models': {
                 'Integra': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][1]',  
+                    'model_page_xpath': '//*[@data-grid-row="0"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][10]',                        
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]'
                     }
                 },
-                'MDX': {   #copy this Line v
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][2]',  
+                'MDX': {
+                    'model_page_xpath': '//*[@data-grid-row="1"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][7]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][8]',
-                        'LKA': '//*[@data-automationid="ListCell"][5]',
-                        'NV': '//*[@data-automationid="ListCell"][10]',
-                        'SVC': '//*[@data-automationid="ListCell"][6]',  
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'LKA': '//*[@data-grid-row="5"]/div[3]',
+                        'SVC': '//*[@data-grid-row="6"]/div[3]'
                     }
-                },        #to this time ^
+                },
                 'RDX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][3]', 
+                    'model_page_xpath': '//*[@data-grid-row="2"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][3]',
-                        'APA': '//*[@data-automationid="ListCell"][4]',
-                        'BSW': '//*[@data-automationid="ListCell"][5]',
-                        'BUC': '//*[@data-automationid="ListCell"][8]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][10]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]', 
+                        'ACC': '//*[@data-grid-row="1"]/div[3]',
+                        'AEB': '//*[@data-grid-row="2"]/div[3]',
+                        'AHL': '//*[@data-grid-row="3"]/div[3]',
+                        'APA': '//*[@data-grid-row="4"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
                 },
                 'TLX': {
-                    'model_page_xpath': '//*[@data-automationid="ListCell"][4]', 
+                    'model_page_xpath': '//*[@data-grid-row="3"]/div[3]',
                     'documents': {
-                        'ACC': '//*[@data-automationid="ListCell"][1]', 
-                        'AEB': '//*[@data-automationid="ListCell"][2]',  
-                        'AHL': '//*[@data-automationid="ListCell"][8]',
-                        'APA': '//*[@data-automationid="ListCell"][3]',
-                        'BSW': '//*[@data-automationid="ListCell"][4]',
-                        'BUC': '//*[@data-automationid="ListCell"][5]',
-                        'LKA': '//*[@data-automationid="ListCell"][6]',
-                        'NV': '//*[@data-automationid="ListCell"][9]',
-                        'SVC': '//*[@data-automationid="ListCell"][7]',  
+                        'ACC': '//*[@data-grid-row="0"]/div[3]',
+                        'AEB': '//*[@data-grid-row="1"]/div[3]',
+                        'APA': '//*[@data-grid-row="3"]/div[3]',
+                        'BSW/RCTW': '//*[@data-grid-row="4"]/div[3]',
+                        'BUC': '//*[@data-grid-row="5"]/div[3]',
+                        'LKA': '//*[@data-grid-row="6"]/div[3]',
+                        'SVC': '//*[@data-grid-row="7"]/div[3]'
                     }
-                },                
+                }
             }
-        },
-        # Copy New Years here, where the "#" is
+        }
     }
 
     try:
@@ -1377,11 +1088,11 @@ def run_acura_script(excel_path):
         try:
             # Wait until the element with the specified XPath is found, or until 60 seconds have passed
             element = WebDriverWait(driver, max_wait_time).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@data-automationid="ListCell"][2]'))
+                EC.presence_of_element_located((By.XPATH, '//*[@data-grid-row="1"]/div[3]'))
             )
         except:
             # If the element is not found within 120 seconds, print a message
-            print("The element was not found within 60 seconds.")
+            print("The element was not found within 120 seconds.")
 
         # Calculate the elapsed time
         elapsed_time = time.time() - start_time
@@ -1396,19 +1107,25 @@ def run_acura_script(excel_path):
         
         # Clicks Acura
         print("Locating Acura link and clicking...")
-        double_click_element(driver, wait, '//*[@data-automationid="ListCell"][2]')
+        double_click_element(driver, wait, '//*[@data-grid-row="1"]/div[3]')
         time.sleep(1)                       
         adas_last_row = {}
-        wb = load_workbook(excel_path)
-        ws = wb['Model Version']  # Correctly referencing the worksheet
-      
+        
+        # Ensure the Excel file is valid and can be opened
+        try:
+            wb = load_workbook(excel_path)
+            ws = wb['Model Version']  # Correctly referencing the worksheet
+            print(f"Workbook loaded successfully: {excel_path}")
+        except Exception as e:
+            print(f"Failed to open the Excel file: {e}")
+            return
 
-        print(f"Workbook loaded successfully: {excel_path}")
-    
         for year, data in years_models_documents.items():
             print(f"Processing year: {year}")
             year_page_xpath = data['year_page_xpath']
+            time.sleep(2)
             double_click_element(driver, wait, year_page_xpath)
+            time.sleep(2)
             WebDriverWait(driver, 10).until(
                 EC.visibility_of_element_located((By.XPATH, year_page_xpath))
             )
@@ -1416,20 +1133,27 @@ def run_acura_script(excel_path):
             for model, model_data in data['models'].items():
                 print(f"Accessing model: {model}")
                 model_page_xpath = model_data['model_page_xpath']
+                time.sleep(2)
                 double_click_element(driver, wait, model_page_xpath)
+                time.sleep(2)
                 WebDriverWait(driver, 10).until(
                     EC.visibility_of_element_located((By.XPATH, model_page_xpath))
                 )
                 adas_last_row = {}  # Reset ADAS last row tracker for each model
-                process_documents(driver, wait, ws, model_data, year, model, adas_last_row)
-                driver.back()
-                WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, year_page_xpath))
-                )
+                process_documents(driver, wait, ws, model_data, year, model, adas_last_row, year_page_xpath)
+                
+            time.sleep(2)
             driver.back()
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, '//*[@id="appRoot"]/div/div[2]/div/div/div[2]/div[2]/main/div/div/div[2]/div/div/div/div/div[2]/div/div/div/div[2]/div/div/div[3]/div/div[1]/span/span[1]/button'))
-            )
+            time.sleep(2)
+            
+            # Improved wait mechanism
+            for _ in range(10):  # Retry up to 10 times
+                try:
+                    wait.until(EC.visibility_of_element_located((By.XPATH, '//*[@data-grid-row="1"]/div[3]')))
+                    break
+                except TimeoutException:
+                    time.sleep(1)  # Wait a bit longer if necessary
+
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
