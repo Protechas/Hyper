@@ -27,92 +27,59 @@ def process_subdocuments(driver, wait, ws, subdocuments, year, model, adas_last_
         if isinstance(sub_doc_info, dict) and 'folder_xpath' in sub_doc_info:
             print(f"Accessing subfolder: {sub_doc_name}")
             double_click_element(driver, wait, sub_doc_info['folder_xpath'])
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, sub_doc_info['folder_xpath']))
-            )
+            wait.until(EC.visibility_of_element_located((By.XPATH, sub_doc_info['folder_xpath'])))
+            time.sleep(2)
             process_subdocuments(driver, wait, ws, sub_doc_info['subdocuments'], year, model, adas_last_row, sub_doc_info['folder_xpath'])
-            
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, parent_xpath))
-            )
+            navigate_back_to_element(driver, wait, parent_xpath)
+            time.sleep(2)
+            navigate_back_to_element(driver, wait, parent_xpath)
+            time.sleep(2) # Go back one more time to ensure stability
         elif isinstance(sub_doc_info, dict) and 'folder2_xpath' in sub_doc_info:
             print(f"Accessing nested subfolder: {sub_doc_name}")
             double_click_element(driver, wait, sub_doc_info['folder2_xpath'])
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, sub_doc_info['folder2_xpath']))
-            )
+            wait.until(EC.visibility_of_element_located((By.XPATH, sub_doc_info['folder2_xpath'])))
+            time.sleep(2)
             process_subdocuments(driver, wait, ws, sub_doc_info['subdocuments2'], year, model, adas_last_row, sub_doc_info['folder2_xpath'])
             time.sleep(2)
-            driver.back()
+            navigate_back_to_element(driver, wait, parent_xpath)  # Go back one more time to ensure stability
             time.sleep(2)
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, parent_xpath))
-            )
+            navigate_back_to_element(driver, wait, parent_xpath)
         else:
             print(f"Retrieving sub-document: {sub_doc_name}")
-            time.sleep(2)
             document_url = navigate_and_extract(driver, wait, sub_doc_info['xpath'])
+            time.sleep(2)
             update_excel(ws, year, model, sub_doc_name, document_url, adas_last_row, sub_doc_info.get('cell_address'))
             time.sleep(2)
-            driver.back()
-            time.sleep(2)  # Extra wait to ensure the page is fully loaded before the next action
+            navigate_back_to_element(driver, wait, parent_xpath) # Go back one more time to ensure stability
 
-def process_documents(driver, wait, ws, model_data, year, model, adas_last_row, year_page_xpath):
-    model_page_xpath = model_data['model_page_xpath']
+
+def process_documents(driver, wait, ws, model_data, year, model, adas_last_row):
     for doc_name, doc_info in model_data['documents'].items():
         if isinstance(doc_info, dict) and 'folder_xpath' in doc_info:
             print(f"Accessing folder: {doc_name}")
             double_click_element(driver, wait, doc_info['folder_xpath'])
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, doc_info['folder_xpath']))
-            )
+            wait.until(EC.visibility_of_element_located((By.XPATH, doc_info['folder_xpath'])))
+            time.sleep(2)
             process_subdocuments(driver, wait, ws, doc_info['subdocuments'], year, model, adas_last_row, doc_info['folder_xpath'])
+            navigate_back_to_element(driver, wait, model_data['model_page_xpath'])
             time.sleep(2)
-            driver.back()
+            navigate_back_to_element(driver, wait, model_data['model_page_xpath'])  # Go back one more time to ensure stability
             time.sleep(2)
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, model_page_xpath))
-            )
         else:
             print(f"Retrieving document: {doc_name}")
             document_url = navigate_and_extract(driver, wait, doc_info)
+            time.sleep(2)
             update_excel(ws, year, model, doc_name, document_url, adas_last_row)
             time.sleep(2)
-            driver.back()
-            time.sleep(2)
-            
-            # Improved wait mechanism
-            for _ in range(10):  # Retry up to 10 times
-                try:
-                    wait.until(EC.visibility_of_element_located((By.XPATH, model_page_xpath)))
-                    break
-                except TimeoutException:
-                    time.sleep(1)  # Wait a bit longer if necessary
-            
-            time.sleep(2)  # Extra wait to ensure the page is fully loaded before the next action
-
-     # After processing all documents for a model, navigate back to the year page
-    time.sleep(2)       
-    driver.back()
-    time.sleep(2)
-    
-    # Improved wait mechanism
-    for _ in range(10):  # Retry up to 10 times
-        try:
-            wait.until(EC.visibility_of_element_located((By.XPATH, year_page_xpath)))
-            break
-        except TimeoutException:
-            time.sleep(1)  # Wait a bit longer if necessary
-    
-    time.sleep(2)  # Extra wait to ensure the page is fully loaded before the next action
+            navigate_back_to_element(driver, wait, model_data['model_page_xpath'])
 
 def navigate_and_extract(driver, wait, xpath):
     double_click_element(driver, wait, xpath)
     WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.TAG_NAME, "body"))  # Adjust to a reliable element
     )
+    time.sleep(1)
     document_url = driver.current_url
-    time.sleep(2)
     driver.back()
     time.sleep(2)
     # Improved wait mechanism
@@ -126,9 +93,13 @@ def navigate_and_extract(driver, wait, xpath):
     time.sleep(2)  # Allow extra time to ensure full navigation back
 
     # Check if the specified XPath is present, if not, navigate forward
-    check_and_navigate_forward(driver, wait, '//*[@id="appRoot"]/div/div[2]/div[2]/div/div/div[2]/div[2]')
+    check_and_navigate_forward(driver, wait, '//*[@id="closeCommand"]/span/i')
     
     return document_url
+
+def navigate_back_to_element(driver, wait, xpath):
+    driver.back()
+    time.sleep(3)  # Ensure the page fully loads
 
 def check_and_navigate_forward(driver, wait, check_xpath):
     try:
@@ -161,12 +132,6 @@ def update_excel(ws, year, model, doc_name, document_url, adas_last_row, cell_ad
     ws.parent.save(excel_file_path)
     print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
 
-def screenshot_and_get_text(driver):
-    screenshot = driver.get_screenshot_as_png()
-    image = Image.open(io.BytesIO(screenshot))
-    text = pytesseract.image_to_string(image)
-    return text
-
 def find_row_in_excel(ws, year, make, model, adas_system):
     for row in ws.iter_rows(min_row=2, max_col=8):
         year_cell, make_cell, model_cell, adas_cell = row[0], row[1], row[2], row[7]
@@ -180,15 +145,6 @@ def find_row_in_excel(ws, year, make, model, adas_system):
 def double_click_element(driver, wait, xpath):
     element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
     ActionChains(driver).double_click(element).perform()
-    
-def navigate_to_model(driver, wait, model_xpath):
-     model_link = wait.until(EC.element_to_be_clickable((By.XPATH, model_xpath)))
-     model_link.click()
-     time.sleep(2)  # Wait for the model's page to load
-
-def navigate_to_year(driver, wait, year_xpath):
-     year_link = wait.until(EC.element_to_be_clickable((By.XPATH, year_xpath)))
-     year_link.click()
 
 def check_if_chrome_running():
     """Check if any Chrome instances are running."""
@@ -1123,37 +1079,20 @@ def run_acura_script(excel_path):
         for year, data in years_models_documents.items():
             print(f"Processing year: {year}")
             year_page_xpath = data['year_page_xpath']
-            time.sleep(2)
             double_click_element(driver, wait, year_page_xpath)
             time.sleep(2)
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, year_page_xpath))
-            )
+            wait.until(EC.visibility_of_element_located((By.XPATH, year_page_xpath)))
 
             for model, model_data in data['models'].items():
                 print(f"Accessing model: {model}")
                 model_page_xpath = model_data['model_page_xpath']
-                time.sleep(2)
                 double_click_element(driver, wait, model_page_xpath)
                 time.sleep(2)
-                WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, model_page_xpath))
-                )
+                wait.until(EC.visibility_of_element_located((By.XPATH, model_page_xpath)))
                 adas_last_row = {}  # Reset ADAS last row tracker for each model
-                process_documents(driver, wait, ws, model_data, year, model, adas_last_row, year_page_xpath)
-                
-            time.sleep(2)
-            driver.back()
-            time.sleep(2)
-            
-            # Improved wait mechanism
-            for _ in range(10):  # Retry up to 10 times
-                try:
-                    wait.until(EC.visibility_of_element_located((By.XPATH, '//*[@data-grid-row="1"]/div[3]')))
-                    break
-                except TimeoutException:
-                    time.sleep(1)  # Wait a bit longer if necessary
-
+                process_documents(driver, wait, ws, model_data, year, model, adas_last_row)
+                navigate_back_to_element(driver, wait, year_page_xpath)  # Go back one more time to ensure stability
+            navigate_back_to_element(driver, wait, '//*[@data-grid-row="1"]/div[3]')
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
