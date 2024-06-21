@@ -1,4 +1,3 @@
-# Imports for the SharepointExtractor class object
 import os
 import re
 import time
@@ -20,8 +19,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 
-#####################################################################################################################################################
-
 class SharepointExtractor: 
     """
     Class definition for a SharepointExtractor. 
@@ -37,13 +34,22 @@ class SharepointExtractor:
     
     # Configuration attributes for the sharepoint module names and timeouts
     __MAX_WAIT_TIME__ = 120
-    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW', 'BUC', 'LKA', 'NV', 'SVC', 'LW' ]
+    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW', 'BUC', 'LKA', 'NV', 'SVC', 'LW', 'LKAS', 'Multipurpose' ]
 
     # Locators used to find objects on the sharepoint folder pages
     __ONEDRIVE_PAGE_NAME_LOCATOR__ = "//li[contains(@data-automationid, 'breadcrumb-listitem')]"
     __ONEDRIVE_TABLE_LOCATOR__ = "//div[@data-automationid='list-pages']/div[contains(@id, 'virtualized-list')]"  
     __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[contains(@data-automationid, 'row') and contains(@id, 'virtualized-list')]"
     __ONEDRIVE_TABLE_ROW_COLUMN_LOCATOR__ = "./div[@role='gridcell' and contains(@data-automationid, '$FIELD_NAME')]"
+
+    # Whitelisted ADAS system names
+    __ADAS_SYSTEMS_WHITELIST__ = [
+        'Forward Collision Warning/Lane Departure Warning',
+        'Multipurpose Camera',
+        'Cross Traffic Alert',
+        'Surround Vision Camera',
+        'Video Processing'
+    ]
 
     #################################################################################################################################################
 
@@ -129,7 +135,7 @@ class SharepointExtractor:
         """
         
         # Index and store base folders and files here then iterate them all
-        sharepoint_folders, sharepoint_files = get_folder_results = self.__get_folder_rows__()
+        sharepoint_folders, sharepoint_files = self.__get_folder_rows__()
 
         # Iterate the contents of the base folders list as long as it has contents
         start_time = time.time()
@@ -147,12 +153,13 @@ class SharepointExtractor:
             print(f'{len(sharepoint_folders)} Folders Remain | {len(sharepoint_files)} Files Indexed')
 
             # BREAK HERE FOR TESTING
-            # if len(sharepoint_files) >= 10: break            
+            if len(sharepoint_files) >= 50: break            
 
         # Build return lists for contents of folders and files        
         elapsed_time = time.time() - start_time
         print(f"Indexing routine took {elapsed_time} to complete")
         return [ sharepoint_folders, sharepoint_files ]
+    
     def populate_excel_file(self, file_entries: list) -> None:
         """
         Populates the excel file for the current make and stores all hyperlinks built in correct 
@@ -234,6 +241,7 @@ class SharepointExtractor:
         
         # Return the updated options object
         return chrome_options    
+    
     def __is_row_folder__(self, row_element: WebElement) -> bool:
             
         # Find the icon element and check if it's a folder or file
@@ -243,10 +251,12 @@ class SharepointExtractor:
             
         # Return true if this folder is in the name, false if it is not
         return "folder" in icon_element.accessible_name
+    
     def __get_row_name__(self, row_element: WebElement) -> str:
             
         # Find the name column element and return the name for the row in use
         return row_element.get_attribute("aria-label").strip()
+    
     def __get_folder_link__(self, row_element: WebElement) -> str:
             
         # Build and return a new URL for this row entry
@@ -256,6 +266,7 @@ class SharepointExtractor:
 
         # Return the built URL here
         return row_link
+    
     def __get_file_link__(self, row_element: WebElement) -> str:
 
         # Define some local helper functions to perform clipboard operations
@@ -336,6 +347,7 @@ class SharepointExtractor:
 
         # Return the stored link from the clipboard
         return encrypted_file_link
+    
     def __get_entry_heirarchy__(self, row_element: WebElement) -> str:
             
         # Find all of our title elements and check for the index of our make. Pull all values after that
@@ -350,56 +362,56 @@ class SharepointExtractor:
         
         # Return the built heirarchy name value here
         return entry_heirarchy
-    def __get_folder_rows__(self, row_link: str = None) -> tuple[list, list]:
-            
-        # Navigate to the next link if needed and find the title of the page
-        if row_link != None: self.selenium_driver.get(row_link)
-            
-        # Find the parent table element and find all child rows in it
-        table_element = WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__)\
-            .until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))
-        table_elements = table_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-
-        # Find our page title once the table content has appeard and see if this is a year or model page
-        page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
-        is_year_folder = re.search("\\d{4}", page_title) != None        
-
-        # Setup lists for the output files and folders
-        indexed_files = [ ] 
-        indexed_folders = [ ]       
-
-        # Iterate all the rows and get link URLs for each one
-        for row_element in table_elements:
-
-            # Pull our row name before testing to filter rows we don't want
-            entry_name = self.__get_row_name__(row_element)
-            if "no" in entry_name.lower(): continue
-            if "old" in entry_name.lower(): continue
-                       
-            # Check if this is a folder entry or not and make sure the name of the folder is a four digit year
-            if not self.__is_row_folder__(row_element):
-
-                # Confirm the file name matches/contains one of the requested modules
-                if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) == None: continue
     
-                # Pull the link to our file and store the heirarchy for the entry
-                file_link = self.__get_file_link__(row_element)
-                file_heirarchy = self.__get_entry_heirarchy__(row_element)
-                indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, file_heirarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY))
-                continue
+    def __get_folder_rows__(self, row_link: str = None) -> tuple[list, list]:
+        if row_link is not None:
+            self.selenium_driver.get(row_link)
+    
+        retries = 3
+        while retries > 0:
+            try:
+                table_element = WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__)\
+                    .until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))
+                table_elements = table_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
 
-            # Before pulling a folder link, make sure it's either a Model or Year folder
-            # Some models have a space in them to see if this is a year page or not first
-            if not is_year_folder and ' ' in entry_name: continue
-            if re.search("\\d{4}|[^ \\n]+", entry_name) == None: continue
+                page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
+                is_year_folder = re.search("\\d{4}", page_title) is not None        
 
-            # Store the URL for the row entry on our list and move on
-            folder_link = self.__get_folder_link__(row_element)
-            folder_heirarchy = self.__get_entry_heirarchy__(row_element)
-            indexed_folders.append(SharepointExtractor.SharepointEntry(entry_name, folder_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
+                indexed_files = [] 
+                indexed_folders = []       
 
-        # Return our built list of indexed rows and elements here
-        return [indexed_folders, indexed_files]       
+                for row_element in table_elements:
+                    entry_name = self.__get_row_name__(row_element)
+                    if "no" in entry_name.lower() or "old" in entry_name.lower():
+                        continue
+
+                    if not self.__is_row_folder__(row_element):
+                        if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is None:
+                            continue
+
+                        file_link = self.__get_file_link__(row_element)
+                        file_heirarchy = self.__get_entry_heirarchy__(row_element)
+                        indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, file_heirarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY))
+                        continue
+
+                    folder_link = self.__get_folder_link__(row_element)
+                    folder_heirarchy = self.__get_entry_heirarchy__(row_element)
+                    indexed_folders.append(SharepointExtractor.SharepointEntry(entry_name, folder_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
+
+                # Process folders after processing files
+                for folder_entry in indexed_folders:
+                    if re.search("|".join(self.__DEFINED_MODULE_NAMES__), folder_entry.entry_name):
+                        child_folders, child_files = self.__get_folder_rows__(folder_entry.entry_link)
+                        indexed_files.extend(child_files)
+                        indexed_folders.extend(child_folders)
+
+                return [indexed_folders, indexed_files]
+            except Exception as e:
+                print(f"Error: {str(e)}. Retrying...")
+                retries -= 1
+                if retries == 0:
+                    raise e
+                time.sleep(1)
 
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
         if cell_address:
@@ -421,56 +433,93 @@ class SharepointExtractor:
         cell.font = Font(color="0000FF", underline='single')
         adas_last_row[doc_name] = cell.row
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
-    def __find_row_in_excel__(self, ws, year, make, model, file_name):
-        
-        # Iterate the rows in the worksheet for the given column range starting at row 2
-        for row in ws.iter_rows(min_row=2, max_col=8):
 
-            # Store the properties for the current row and check if this file is for the row
+    def __find_row_in_excel__(self, ws, year, make, model, file_name):
+        for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip()
             make_value = str(row[1].value).strip()
             model_value = str(row[2].value).strip()
-            adas_value = str(row[7].value).strip()          
+            adas_value = str(row[7].value).strip()
 
-            # Format the file and module name for correct ADAS module comparison routines
             adas_value = adas_value.replace("(", "").replace(")", "").upper().replace("-", "/").strip()
             adas_file_name = file_name.upper().replace("(", "").replace(")", "").replace("-", "/").strip()
 
-            # Compare our values for the row to the given argument values
             if year_value != year: continue
             if make_value != make: continue
             if model_value != model: continue
             if adas_value not in adas_file_name: continue
 
-            # Return the cell for the current row if all conditions are met
             row_number = row[0].row
             return ws.cell(row=row_number, column=12)
-
-        # Return none if the requested values are not matched
         return None
 
-#####################################################################################################################################################
+    def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
+        """
+        Update the Excel sheet with the hyperlink if the entry name matches the whitelist.
+        """
+        for row in ws.iter_rows(min_row=2, min_col=4, max_col=4):
+            cell_value = str(row[0].value).strip()
+            if cell_value in self.__ADAS_SYSTEMS_WHITELIST__ and cell_value.lower() in entry_name.lower():
+                cell = ws.cell(row=row[0].row, column=12)
+                cell.hyperlink = document_url
+                cell.value = document_url
+                cell.font = Font(color="0000FF", underline='single')
+                print(f"Hyperlink for {entry_name} added at {cell.coordinate}")
+                return True
+        return False
 
+    def populate_excel_file(self, file_entries: list) -> None:
+        """
+        Populates the Excel file for the current make and stores all hyperlinks in the correct locations.
+        """
+        start_time = time.time()
+        model_workbook = openpyxl.load_workbook(self.excel_file_path)
+        model_worksheet = model_workbook['Model Version']  
+        print(f"Workbook loaded successfully: {self.excel_file_path}")
+
+        current_model = ""
+        adas_last_row = { }
+        
+        for file_entry in file_entries:
+            file_name = file_entry.entry_name
+            file_model = file_entry.entry_heirarchy.split('\\')[-2]
+            file_year = file_entry.entry_heirarchy.split('\\')[-3]
+
+            if file_model != current_model:
+                current_model = file_model
+                adas_last_row = { }
+
+            if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
+                continue
+
+            self.__update_excel__(model_worksheet, file_year, file_model, file_name, file_entry.entry_link, adas_last_row, None)
+
+        print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
+        model_workbook.save(self.excel_file_path)
+        model_workbook.close()
+
+        elapsed_time = time.time() - start_time
+        print(f"Sheet population routine took {elapsed_time} to complete")
+
+    def __process_whitelisted_entries__(self, child_files, ws, adas_last_row):
+        whitelisted_names = ['Forward Collision Warning/Lane Departure Warning', 'Multipurpose Camera', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing']
+        for file_entry in child_files:
+            if any(whitelisted_name.lower() in file_entry.entry_name.lower() for whitelisted_name in whitelisted_names):
+                doc_name = file_entry.entry_name
+                document_url = file_entry.entry_link
+                year, model = file_entry.entry_heirarchy.split('\\')[-3], file_entry.entry_heirarchy.split('\\')[-2]
+                self.__update_excel__(ws, year, model, doc_name, document_url, adas_last_row)
+              
 if __name__ == '__main__':
-    """
-    Main entry point for a new SharepointExtractor. Takes the link and path to the excel file we need to use 
-    for extracting content for the given make
-    """
-    
-    # Build a test extractor and make sure everything can be setup correctly
-    # TODO: Change the excel_file_path and sharepoint_link values to be pulled from sys.argv[x]
     excel_file_path = r'C:\Users\DRomero3\OneDrive - Caliber Collision\Acura Pre-Qual Long Sheet v5.44.xlsx'
     sharepoint_link = 'https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/El_B5eO677JOrCJs2XdDenEBfomiRKHT0bPKBAhrmEYCrA?e=URjvLR'
     extractor = SharepointExtractor(sharepoint_link, excel_file_path)
 
-    # Exrtact our contents and return them here
     print("="*100)
     extracted_folders, extracted_files = extractor.extract_contents()   
 
-    # Populate our excel file
     print("="*100)
     extractor.populate_excel_file(extracted_files)
 
-    # Log out extraction is completed and exit this script
     print("="*100)
     print(f"Extraction and population for {extractor.sharepoint_make} is complete!")
