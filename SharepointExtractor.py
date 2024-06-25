@@ -158,8 +158,7 @@ class SharepointExtractor:
         # Build return lists for contents of folders and files        
         elapsed_time = time.time() - start_time
         print(f"Indexing routine took {elapsed_time} to complete")
-        return [ sharepoint_folders, sharepoint_files ]
-    
+        return [ sharepoint_folders, sharepoint_files ]    
     def populate_excel_file(self, file_entries: list) -> None:
         """
         Populates the excel file for the current make and stores all hyperlinks built in correct 
@@ -184,18 +183,20 @@ class SharepointExtractor:
             
             # Pull the year and model for the file from the heirarchy
             # Acura\\2015\\RDX\\FileName.ext
-            file_name = file_entry.entry_name                           # FileName.ext
-            file_model = file_entry.entry_heirarchy.split('\\')[-2]     # RDX
-            file_year = file_entry.entry_heirarchy.split('\\')[-3]      # 2015
-
+            # Acura\\2014\\MDX\\2014 Acura MDX (LKA 1)\\FileName.ext
+            file_name = file_entry.entry_name                                                   
+            file_model = file_entry.entry_heirarchy.split('\\')[2]       
+            file_year = file_entry.entry_heirarchy.split('\\')[1]      
+            
             # Check if ADAS last row needs to be reset or not
             if file_model != current_model:
                 current_model = file_model
                 adas_last_row = { }
 
             # Now update our excel file based on the values given for this entry
+            if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link): continue
             self.__update_excel__(model_worksheet, file_year, file_model, file_name, file_entry.entry_link, adas_last_row, None)
-
+ 
         # Close the workbook once done populating information
         print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
         model_workbook.save(self.excel_file_path)
@@ -250,13 +251,11 @@ class SharepointExtractor:
             .until(EC.presence_of_element_located((By.XPATH, icon_element_locator)))
             
         # Return true if this folder is in the name, false if it is not
-        return "folder" in icon_element.accessible_name
-    
+        return "folder" in icon_element.accessible_name    
     def __get_row_name__(self, row_element: WebElement) -> str:
             
         # Find the name column element and return the name for the row in use
-        return row_element.get_attribute("aria-label").strip()
-    
+        return row_element.get_attribute("aria-label").strip()   
     def __get_folder_link__(self, row_element: WebElement) -> str:
             
         # Build and return a new URL for this row entry
@@ -265,8 +264,7 @@ class SharepointExtractor:
         row_link = base_url + "%2F" + row_name                              # Relative folder URL based on drive layout
 
         # Return the built URL here
-        return row_link
-    
+        return row_link    
     def __get_file_link__(self, row_element: WebElement) -> str:
 
         # Define some local helper functions to perform clipboard operations
@@ -346,8 +344,7 @@ class SharepointExtractor:
             return self.__get_file_link__(row_element)
 
         # Return the stored link from the clipboard
-        return encrypted_file_link
-    
+        return encrypted_file_link    
     def __get_entry_heirarchy__(self, row_element: WebElement) -> str:
             
         # Find all of our title elements and check for the index of our make. Pull all values after that
@@ -361,8 +358,7 @@ class SharepointExtractor:
         entry_heirarchy += self.__get_row_name__(row_element)
         
         # Return the built heirarchy name value here
-        return entry_heirarchy
-    
+        return entry_heirarchy    
     def __get_folder_rows__(self, row_link: str = None) -> tuple[list, list]:
         if row_link is not None:
             self.selenium_driver.get(row_link)
@@ -414,45 +410,61 @@ class SharepointExtractor:
                 time.sleep(1)
 
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
-        if cell_address:
-            cell = ws[cell_address]
-        else:
-            cell = self.__find_row_in_excel__(ws, year, self.sharepoint_make, model, doc_name)
-            if cell:
-                row = cell.row
+        # Try to find the correct row considering the Column D value
+        cell = self.__find_row_in_excel__(ws, year, self.sharepoint_make, model, doc_name)
+
+        if not cell:
+            if cell_address:
+                cell = ws[cell_address]
             else:
                 row = ws.max_row + 1
-            if doc_name in adas_last_row:
-                row = adas_last_row[doc_name] + 1
-            else:
-                adas_last_row[doc_name] = row
-            cell = ws.cell(row=row, column=12)
+                if doc_name in adas_last_row:
+                    row = adas_last_row[doc_name] + 1
+                else:
+                    adas_last_row[doc_name] = row
+                cell = ws.cell(row=row, column=12)
 
         cell.hyperlink = document_url
         cell.value = document_url
         cell.font = Font(color="0000FF", underline='single')
         adas_last_row[doc_name] = cell.row
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
-
+    def __find_row_by_name__(self, ws, search_name) -> int:
+        """
+        Finds the row number in the worksheet where the cell in Column D matches or semi-matches the search_name.
+    
+        search_name: str
+            The name to search for in Column D.
+    
+        Returns:
+            int: The row number where the match is found, or None if no match is found.
+        """
+        for row in ws.iter_rows(min_row=2, min_col=4, max_col=4):  # Only look in Column D
+            cell_value = str(row[0].value).strip().upper()
+            if search_name.upper() in cell_value:
+                return row[0].row
+        return None        
     def __find_row_in_excel__(self, ws, year, make, model, file_name):
+        search_terms = ['[FCW/LDW]', '[LKAS]', 'Multipurpose Camera', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing']
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip()
             make_value = str(row[1].value).strip()
             model_value = str(row[2].value).strip()
             adas_value = str(row[7].value).strip()
+            column_d_value = str(row[3].value).strip().upper()
 
             adas_value = adas_value.replace("(", "").replace(")", "").upper().replace("-", "/").strip()
             adas_file_name = file_name.upper().replace("(", "").replace(")", "").replace("-", "/").strip()
 
-            if year_value != year: continue
-            if make_value != make: continue
-            if model_value != model: continue
-            if adas_value not in adas_file_name: continue
+            # Check if year, make, model, and adas_value match
+            if year_value == year and make_value == make and model_value == model and adas_value in adas_file_name:
+                # Additional check for Column D text if the file name contains specific keywords
+                for term in search_terms:
+                    if term.upper() in file_name.upper() and term.upper() in column_d_value:
+                        return ws.cell(row=row[0].row, column=12)
 
-            row_number = row[0].row
-            return ws.cell(row=row_number, column=12)
+                return ws.cell(row=row[0].row, column=12)
         return None
-
     def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
         """
         Update the Excel sheet with the hyperlink if the entry name matches the whitelist.
@@ -467,51 +479,17 @@ class SharepointExtractor:
                 print(f"Hyperlink for {entry_name} added at {cell.coordinate}")
                 return True
         return False
-
-    def populate_excel_file(self, file_entries: list) -> None:
-        """
-        Populates the Excel file for the current make and stores all hyperlinks in the correct locations.
-        """
-        start_time = time.time()
-        model_workbook = openpyxl.load_workbook(self.excel_file_path)
-        model_worksheet = model_workbook['Model Version']  
-        print(f"Workbook loaded successfully: {self.excel_file_path}")
-
-        current_model = ""
-        adas_last_row = { }
-        
-        for file_entry in file_entries:
-            file_name = file_entry.entry_name
-            file_model = file_entry.entry_heirarchy.split('\\')[-2]
-            file_year = file_entry.entry_heirarchy.split('\\')[-3]
-
-            if file_model != current_model:
-                current_model = file_model
-                adas_last_row = { }
-
-            if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
-                continue
-
-            self.__update_excel__(model_worksheet, file_year, file_model, file_name, file_entry.entry_link, adas_last_row, None)
-
-        print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
-        model_workbook.save(self.excel_file_path)
-        model_workbook.close()
-
-        elapsed_time = time.time() - start_time
-        print(f"Sheet population routine took {elapsed_time} to complete")
-
     def __process_whitelisted_entries__(self, child_files, ws, adas_last_row):
-        whitelisted_names = ['Forward Collision Warning/Lane Departure Warning', 'Multipurpose Camera', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing']
+        whitelisted_names = ['Forward Collision Warning/Lane Departure Warning', 'Multipurpose Camera', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing', 'FCW/LDW', 'LKAS']
         for file_entry in child_files:
             if any(whitelisted_name.lower() in file_entry.entry_name.lower() for whitelisted_name in whitelisted_names):
                 doc_name = file_entry.entry_name
                 document_url = file_entry.entry_link
                 year, model = file_entry.entry_heirarchy.split('\\')[-3], file_entry.entry_heirarchy.split('\\')[-2]
                 self.__update_excel__(ws, year, model, doc_name, document_url, adas_last_row)
-              
+ 
 if __name__ == '__main__':
-    excel_file_path = r'C:\Users\DRomero3\OneDrive - Caliber Collision\Acura Pre-Qual Long Sheet v5.44.xlsx'
+    excel_file_path = r'C:\Users\dromero3\OneDrive - Caliber Collision\Downloads\Acura Pre-Qual Long Sheet v5.4.xlsx'
     sharepoint_link = 'https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/El_B5eO677JOrCJs2XdDenEBfomiRKHT0bPKBAhrmEYCrA?e=URjvLR'
     extractor = SharepointExtractor(sharepoint_link, excel_file_path)
 
