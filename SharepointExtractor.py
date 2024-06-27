@@ -34,7 +34,7 @@ class SharepointExtractor:
     
     # Configuration attributes for the sharepoint module names and timeouts
     __MAX_WAIT_TIME__ = 120
-    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW', 'BUC', 'LKA', 'NV', 'SVC', 'LW', 'LKAS', 'Multipurpose' ]
+    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW', 'BUC', 'LKA', 'NV', 'SVC', 'LW' ]
 
     # Locators used to find objects on the sharepoint folder pages
     __ONEDRIVE_PAGE_NAME_LOCATOR__ = "//li[contains(@data-automationid, 'breadcrumb-listitem')]"
@@ -44,7 +44,8 @@ class SharepointExtractor:
 
     # Whitelisted ADAS system names
     __ADAS_SYSTEMS_WHITELIST__ = [
-        'Forward Collision Warning/Lane Departure Warning',
+        'FCW/LDW',
+        'FCW-LDW',
         'Multipurpose Camera',
         'Cross Traffic Alert',
         'Surround Vision Camera',
@@ -154,7 +155,7 @@ class SharepointExtractor:
 
             # BREAK HERE FOR TESTING
             if len(sharepoint_files) >= 50: break            
-
+        
         # Build return lists for contents of folders and files        
         elapsed_time = time.time() - start_time
         print(f"Indexing routine took {elapsed_time} to complete")
@@ -429,6 +430,7 @@ class SharepointExtractor:
         cell.font = Font(color="0000FF", underline='single')
         adas_last_row[doc_name] = cell.row
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
+        
     def __find_row_by_name__(self, ws, search_name) -> int:
         """
         Finds the row number in the worksheet where the cell in Column D matches or semi-matches the search_name.
@@ -443,44 +445,53 @@ class SharepointExtractor:
             cell_value = str(row[0].value).strip().upper()
             if search_name.upper() in cell_value:
                 return row[0].row
-        return None        
+        return None  
+    
     def __find_row_in_excel__(self, ws, year, make, model, file_name):
-        search_terms = ['[FCW/LDW]', '[LKAS]', 'Multipurpose Camera', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing']
+        search_terms = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing']
+        normalized_file_name = file_name.upper().replace("(", "").replace(")", "").replace("-", "/").strip()
+    
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip()
             make_value = str(row[1].value).strip()
             model_value = str(row[2].value).strip()
-            adas_value = str(row[7].value).strip()
-            column_d_value = str(row[3].value).strip().upper()
+            adas_value = str(row[7].value).strip().upper().replace("(", "").replace(")", "").replace("-", "/").strip()
 
-            adas_value = adas_value.replace("(", "").replace(")", "").upper().replace("-", "/").strip()
-            adas_file_name = file_name.upper().replace("(", "").replace(")", "").replace("-", "/").strip()
-
-            # Check if year, make, model, and adas_value match
-            if year_value == year and make_value == make and model_value == model and adas_value in adas_file_name:
-                # Additional check for Column D text if the file name contains specific keywords
-                for term in search_terms:
-                    if term.upper() in file_name.upper() and term.upper() in column_d_value:
-                        return ws.cell(row=row[0].row, column=12)
-
+            if year_value == year and make_value == make and model_value == model and adas_value in normalized_file_name:
+                for term_index, term in enumerate(search_terms):
+                    
+                    # If the term is found add the index of the term to the row number
+                    if term.upper() in normalized_file_name:                        
+                        return ws.cell(row=row[0].row + term_index, column=12)
+                
                 return ws.cell(row=row[0].row, column=12)
+        
         return None
+    
     def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
-        """
-        Update the Excel sheet with the hyperlink if the entry name matches the whitelist.
-        """
+        normalized_entry_name = entry_name.upper().replace("(", "").replace(")", "").replace("-", "/").strip()
         for row in ws.iter_rows(min_row=2, min_col=4, max_col=4):
             cell_value = str(row[0].value).strip()
-            if cell_value in self.__ADAS_SYSTEMS_WHITELIST__ and cell_value.lower() in entry_name.lower():
+            if cell_value in self.__ADAS_SYSTEMS_WHITELIST__ and cell_value.lower() in normalized_entry_name.lower():
                 cell = ws.cell(row=row[0].row, column=12)
+            
                 cell.hyperlink = document_url
                 cell.value = document_url
                 cell.font = Font(color="0000FF", underline='single')
                 print(f"Hyperlink for {entry_name} added at {cell.coordinate}")
                 return True
         return False
+    
     def __process_whitelisted_entries__(self, child_files, ws, adas_last_row):
-        whitelisted_names = ['Forward Collision Warning/Lane Departure Warning', 'Multipurpose Camera', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing', 'FCW/LDW', 'LKAS']
+        whitelisted_names = [
+            'Forward Collision Warning/Lane Departure Warning',
+            'Multipurpose Camera',
+            'Cross Traffic Alert',
+            'Surround Vision Camera',
+            'Video Processing',
+            'FCW/LDW',
+            'LKAS'
+        ]
         for file_entry in child_files:
             if any(whitelisted_name.lower() in file_entry.entry_name.lower() for whitelisted_name in whitelisted_names):
                 doc_name = file_entry.entry_name
