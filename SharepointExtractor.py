@@ -37,12 +37,11 @@ class SharepointExtractor:
     __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW', 'BUC', 'LKA', 'NV', 'SVC', 'LW' ]
 
     # Locators used to find objects on the sharepoint folder pages
-    __ONEDRIVE_PAGE_NAME_LOCATOR__ = "//li[contains(@data-automationid, 'breadcrumb-listitem')]"
-    __ONEDRIVE_TABLE_LOCATOR__ = "//div[@data-automationid='list-pages']/div[contains(@id, 'virtualized-list')]"  
-    __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[contains(@data-automationid, 'row') and contains(@id, 'virtualized-list')]"
-    __ONEDRIVE_TABLE_ROW_COLUMN_LOCATOR__ = "./div[@role='gridcell' and contains(@data-automationid, '$FIELD_NAME')]"
+    __ONEDRIVE_PAGE_NAME_LOCATOR__ = "//li//div[contains(@class, 'ms-TooltipHost') and @role='none']/div[@hidden]"
+    __ONEDRIVE_TABLE_LOCATOR__ = ".//div[@role='presentation']/div[contains(@class, 'ms-List-page')]"  
+    __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[contains(@class, 'ms-List-cell') and contains(@role, 'presentation') and @data-list-index]"
 
-    # Whitelisted ADAS system names
+     # Whitelisted ADAS system names
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
         'FCW-LDW',
@@ -247,20 +246,25 @@ class SharepointExtractor:
     def __is_row_folder__(self, row_element: WebElement) -> bool:
             
         # Find the icon element and check if it's a folder or file
-        icon_element_locator = self.__ONEDRIVE_TABLE_ROW_COLUMN_LOCATOR__.replace("$FIELD_NAME", "field-DocIcon")
+        icon_element_locator = ".//div[contains(@class, 'fileTypeIconColumn')]//i"
         icon_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__)\
             .until(EC.presence_of_element_located((By.XPATH, icon_element_locator)))
             
         # Return true if this folder is in the name, false if it is not
-        return "folder" in icon_element.accessible_name    
+        icon_class = icon_element.get_attribute("class")
+        return "Folder" in icon_class
+    
     def __get_row_name__(self, row_element: WebElement) -> str:
             
         # Find the name column element and return the name for the row in use
-        return row_element.get_attribute("aria-label").strip()   
+        row_name_locator = ".//button[@data-automationid='FieldRenderer-name']"
+        row_name_element = row_element.find_element(By.XPATH, row_name_locator)
+        return row_name_element.text.strip() 
+        
     def __get_folder_link__(self, row_element: WebElement) -> str:
-            
-        # Build and return a new URL for this row entry
-        base_url = self.selenium_driver.current_url.replace("&ga=1", "")    # Base URL for the current page
+        
+        # Pull the folder name and add the name of it to our URL name
+        base_url = self.selenium_driver.current_url.split("&p=true")[0]     # Current URL Split up for the path of the current folder
         row_name = self.__get_row_name__(row_element)                       # The name we're looking to open
         row_link = base_url + "%2F" + row_name                              # Relative folder URL based on drive layout
 
@@ -302,14 +306,10 @@ class SharepointExtractor:
         starting_clipboard_content = __get_clipboard_content__()
 
         # Find the selector element and try to click it here
-        selector_element_locator = self.__ONEDRIVE_TABLE_LOCATOR__.replace("$FIELD_NAME", "row-selection")
+        selector_element_locator = ".//div[@data-selection-toggle='true']"
         selector_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__)\
             .until(EC.presence_of_element_located((By.XPATH, selector_element_locator)))            
-            
-        # Pull the name element from the row and find child buttons for it
-        name_element_locator = self.__ONEDRIVE_TABLE_ROW_COLUMN_LOCATOR__.replace("$FIELD_NAME", "field-LinkFilename")
-        name_element = row_element.find_element(By.XPATH, name_element_locator) 
-        ActionChains(self.selenium_driver).move_to_element_with_offset(name_element, 50, 0).perform()
+        selector_element.click()    
             
         # Attempt the share routine in a loop to retry when buttons don't appear correctly
         for retry_count in range(3):
@@ -317,14 +317,14 @@ class SharepointExtractor:
             try: 
                 
                 # Find the share button element and click it here. Setup share settings and copy the link to the clipboard
-                name_element.find_element(By.XPATH, ".//button[@data-automationid='shareHeroId']").click()
+                row_element.find_element(By.XPATH, ".//button[@data-automationid='FieldRender-ShareHero']").click()
                 time.sleep(0.75)
                 ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()
                 time.sleep(0.75)
-                ActionChains(self.selenium_driver).send_keys(Keys.ARROW_DOWN, Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.ENTER).perform()           
+                ActionChains(self.selenium_driver).send_keys(Keys.ARROW_DOWN, Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()           
                 time.sleep(1.00)
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()  
-                time.sleep(0.75)
+                time.sleep(1.00)
                 ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()                                     
 
                 # Break this loop if this logic completes correctly
@@ -338,6 +338,10 @@ class SharepointExtractor:
                 
                 # Wait a moment before retrying to open the clipboard 
                 time.sleep(1.0)
+
+        # Unselect the element for the row 
+        time.sleep(0.50)        
+        selector_element.click()               
                 
         # Make sure the link value is changed here. If it's not, run this routine again
         encrypted_file_link = __get_clipboard_content__()
@@ -350,7 +354,7 @@ class SharepointExtractor:
             
         # Find all of our title elements and check for the index of our make. Pull all values after that
         title_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)   
-        title_index = title_elements.index(next(title_element for title_element in title_elements if title_element.text == self.sharepoint_make))       
+        title_index = title_elements.index(next(title_element for title_element in title_elements if title_element.get_attribute("innerText") == self.sharepoint_make))       
         child_elements = title_elements[title_index:]
         
         # Combine the name of the current folder plus the entry name for our output value
@@ -366,13 +370,13 @@ class SharepointExtractor:
     
         retries = 3
         while retries > 0:
+            
             try:
                 table_element = WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__)\
                     .until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))
                 table_elements = table_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
 
                 page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
-                is_year_folder = re.search("\\d{4}", page_title) is not None        
 
                 indexed_files = [] 
                 indexed_folders = []       
@@ -391,10 +395,13 @@ class SharepointExtractor:
                         indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, file_heirarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY))
                         continue
 
+                    if page_title == self.sharepoint_make and re.search("\\d{4}", entry_name) is None: 
+                        continue
+            
                     folder_link = self.__get_folder_link__(row_element)
                     folder_heirarchy = self.__get_entry_heirarchy__(row_element)
-                    indexed_folders.append(SharepointExtractor.SharepointEntry(entry_name, folder_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
-
+                    indexed_folders.append(SharepointExtractor.SharepointEntry(entry_name, folder_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))            
+            
                 # Process folders after processing files
                 for folder_entry in indexed_folders:
                     if re.search("|".join(self.__DEFINED_MODULE_NAMES__), folder_entry.entry_name):
@@ -403,13 +410,14 @@ class SharepointExtractor:
                         indexed_folders.extend(child_folders)
 
                 return [indexed_folders, indexed_files]
+            
             except Exception as e:
                 print(f"Error: {str(e)}. Retrying...")
                 retries -= 1
                 if retries == 0:
                     raise e
                 time.sleep(1)
-
+                
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
         # Try to find the correct row considering the Column D value
         cell = self.__find_row_in_excel__(ws, year, self.sharepoint_make, model, doc_name)
@@ -447,6 +455,7 @@ class SharepointExtractor:
                 return row[0].row
         return None  
     
+    #Below in the Search terms is the proper area thats used for File Name Addons, so if its 2014 Acura MDX LKA LKAS, it will put it in the Proper Cell
     def __find_row_in_excel__(self, ws, year, make, model, file_name):
         search_terms = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing']
         normalized_file_name = file_name.upper().replace("(", "").replace(")", "").replace("-", "/").strip()
@@ -501,7 +510,7 @@ class SharepointExtractor:
  
 if __name__ == '__main__':
     excel_file_path = r'C:\Users\dromero3\OneDrive - Caliber Collision\Downloads\Acura Pre-Qual Long Sheet v5.4.xlsx'
-    sharepoint_link = 'https://calibercollision-my.sharepoint.com/:f:/g/personal/mark_klingenhofer_protechdfw_com/El_B5eO677JOrCJs2XdDenEBfomiRKHT0bPKBAhrmEYCrA?e=URjvLR'
+    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EtetWrU5ozVMv1Va2dScUQMBFLwBg6F6UGIA7dk4_kO_LQ?e=Tttgf4'
     extractor = SharepointExtractor(sharepoint_link, excel_file_path)
 
     print("="*100)
