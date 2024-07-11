@@ -45,7 +45,7 @@ class SharepointExtractor:
 
     # Collections of system names used for finding correct files and row locations
     __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW', 'BUC', 'LKA', 'NV', 'SVC', 'LW' ]
-    __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing']
+    __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research']
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
         'FCW-LDW',
@@ -300,8 +300,8 @@ class SharepointExtractor:
                 row_element.find_element(By.XPATH, ".//button[@data-automationid='FieldRender-ShareHero']").click()
                 time.sleep(0.75)
                 ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()
-                time.sleep(0.75)
-                ActionChains(self.selenium_driver).send_keys(Keys.ARROW_DOWN, Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()           
+                time.sleep(1.00)
+                ActionChains(self.selenium_driver).send_keys(Keys.ARROW_DOWN, Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER, Keys.TAB, Keys.ENTER).perform()           
                 time.sleep(1.00)
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()  
                 time.sleep(1.00)
@@ -427,7 +427,7 @@ class SharepointExtractor:
                             self.selenium_driver.switch_to.window(self.selenium_driver.window_handles[0])
                            
                             # If any of the child files have part in the name, store this folder as a file
-                            if any("part" in sub_entry_name for sub_entry_name in sub_table_entries):  
+                            if any("part" in sub_entry_name or any(char.isdigit() for char in sub_entry_name) for sub_entry_name in sub_table_entries):
                                 folder_link = self.__get_encrypted_link__(row_element)
                                 indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))                           
                                 continue
@@ -493,7 +493,8 @@ class SharepointExtractor:
         cell.value = document_url
         cell.font = Font(color="0000FF", underline='single')
         adas_last_row[doc_name] = cell.row
-        print(f"Hyperlink for {doc_name} added at {cell.coordinate}")   
+        print(f"Hyperlink for {doc_name} added at {cell.coordinate}")  
+        
     def __find_row_in_excel__(self, ws, year, make, model, file_name):
         """
         Below in the Search terms is the proper area thats used for File Name Addons.
@@ -506,7 +507,7 @@ class SharepointExtractor:
             year_value = str(row[0].value).strip()
             make_value = str(row[1].value).strip()
             model_value = str(row[2].value).strip()
-            adas_value = str(row[7].value).strip().upper().replace("(", "").replace(")", "").replace("-", "/").strip()
+            adas_value = str(row[4].value).strip().upper().replace("%", "").replace("-", "/").strip()
 
             if year_value == year and make_value == make and model_value == model and adas_value in normalized_file_name:
                 for term_index, term in enumerate(self.__ROW_SEARCH_TERMS__):
@@ -517,16 +518,16 @@ class SharepointExtractor:
                 return ws.cell(row=row[0].row, column=12)       
 
         # Throw an exception when we fail to find a row for the current file name given
-        raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
+        #raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
 
 #####################################################################################################################################################
 
 if __name__ == '__main__':   
     
     # These values will be pulled from the call made by Hyper to boot this scripts
-    excel_file_path = r'C:\Users\dromero3\OneDrive - Caliber Collision\Downloads\Acura Pre-Qual Long Sheet v5.4.xlsx'
-    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EtetWrU5ozVMv1Va2dScUQMBFLwBg6F6UGIA7dk4_kO_LQ?e=Tttgf4'
-    debug_run = False
+    excel_file_path = r'C:\Users\dromero3\OneDrive - Caliber Collision\Downloads\Alfa Romeo Pre-Qual Long Sheet v6.3.xlsx'
+    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EgiPVULtsVBPspRrox0ZLMMBhZETVf-4ys0BnYCTCVR4WA?e=D8lAex'
+    debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
