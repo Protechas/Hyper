@@ -37,6 +37,7 @@ class SharepointExtractor:
     
     # Configuration attributes for the sharepoint module names and timeouts
     __MAX_WAIT_TIME__ = 120
+    __DEBUG_RUN__ = False
 
     # Locators used to find objects on the sharepoint folder pages
     __ONEDRIVE_PAGE_NAME_LOCATOR__ = "//li//div[contains(@class, 'ms-TooltipHost') and @role='none']/div[@hidden]"
@@ -194,8 +195,8 @@ class SharepointExtractor:
             # Acura\\2015\\RDX\\FileName.ext
             # Acura\\2014\\MDX\\2014 Acura MDX (LKA 1)\\FileName.ext
             file_name = file_entry.entry_name                                                   
-            file_model = file_entry.entry_heirarchy.split('\\')[2]       
-            file_year = file_entry.entry_heirarchy.split('\\')[1]      
+            file_model = file_entry.entry_heirarchy.split('\\')[2]
+            file_year = file_entry.entry_heirarchy.split('\\')[1]
             
             # Check if ADAS last row needs to be reset or not
             if file_model != current_model:
@@ -298,13 +299,13 @@ class SharepointExtractor:
                 
                 # Find the share button element and click it here. Setup share settings and copy the link to the clipboard
                 row_element.find_element(By.XPATH, ".//button[@data-automationid='FieldRender-ShareHero']").click()
-                time.sleep(0.75)
+                time.sleep(1.00)
                 ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()
-                time.sleep(1.00)
+                time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ARROW_DOWN, Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER, Keys.TAB, Keys.ENTER).perform()           
-                time.sleep(1.00)
+                time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()  
-                time.sleep(1.00)
+                time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()                                     
 
                 # Break this loop if this logic completes correctly
@@ -320,7 +321,7 @@ class SharepointExtractor:
                 time.sleep(1.0)     
                 
         # Unselect the element for the row 
-        time.sleep(0.50)        
+        time.sleep(1.00)        
         selector_element.click()               
                 
         # Make sure the link value is changed here. If it's not, run this routine again
@@ -427,9 +428,9 @@ class SharepointExtractor:
                             self.selenium_driver.switch_to.window(self.selenium_driver.window_handles[0])
                            
                             # If any of the child files have part in the name, store this folder as a file
-                            if any("part" in sub_entry_name or any(char.isdigit() for char in sub_entry_name) for sub_entry_name in sub_table_entries):
+                            if any(re.search(r"([PpAaRrTt]{4})|(\d+\s{0,}\.[^\s]+)", sub_entry_name) for sub_entry_name in sub_table_entries):
                                 folder_link = self.__get_encrypted_link__(row_element)
-                                indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))                           
+                                indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
                                 continue
                             
                         # If the folder does not have a valid module name in it or all files in it do not contain part, store it as a generic folder
@@ -439,9 +440,8 @@ class SharepointExtractor:
                     else:
                         
                         # Make sure this file has a valid module name in it
-                        if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is None:
-                            continue
-
+                        if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is None: continue
+                        
                         # Build our encrypted file link and store this file in our output list
                         file_link = self.__get_encrypted_link__(row_element)
                         indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY))
@@ -463,17 +463,18 @@ class SharepointExtractor:
                 time.sleep(1)
                 
     def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
-        normalized_entry_name = entry_name.upper().replace("(", "").replace(")", "").replace("-", "/").strip()
+        normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").strip().upper()
         for row in ws.iter_rows(min_row=2, min_col=4, max_col=4):
             cell_value = str(row[0].value).strip()
-            if cell_value in self.__ADAS_SYSTEMS_WHITELIST__ and cell_value.lower() in normalized_entry_name.lower():
+            if cell_value in self.__ADAS_SYSTEMS_WHITELIST__ and cell_value.upper() in normalized_entry_name.upper():
                 cell = ws.cell(row=row[0].row, column=12)
                 cell.hyperlink = document_url
                 cell.value = document_url
                 cell.font = Font(color="0000FF", underline='single')
                 print(f"Hyperlink for {entry_name} added at {cell.coordinate}")
                 return True
-        return False    
+        return False
+    
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
 
         cell = self.__find_row_in_excel__(ws, year, self.sharepoint_make, model, doc_name)
@@ -501,21 +502,26 @@ class SharepointExtractor:
         So if its 2014 Acura MDX LKA LKAS, it will put it in the Proper Cell
         """
         
-        normalized_file_name = file_name.upper().replace("(", "").replace(")", "").replace("-", "/").strip()
+        normalized_file_name = file_name.replace("(", "").replace(")", "").replace("-", "/").replace("BSW RCTW 1", "BSW/RCTW 1").replace("BSW-RCT W 1", "BSW/RCTW 1").replace("BSW RCT W 1", "BSW/RCTW 1").replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ3", "SQ 3").replace("SQ5", "SQ 5").replace("SQ7", "SQ 7").replace("SQ8", "SQ 8").replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").strip().upper()
     
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip()
-            make_value = str(row[1].value).strip()
-            model_value = str(row[2].value).strip()
-            adas_value = str(row[4].value).strip().upper().replace("%", "").replace("-", "/").strip()
+            make_value = str(row[1].value).replace("audi", "Audi").strip()
+            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").strip()
+            adas_value = str(row[4].value).replace("%", "").replace("-", "/").strip()
 
-            if year_value == year and make_value == make and model_value == model and adas_value in normalized_file_name:
-                for term_index, term in enumerate(self.__ROW_SEARCH_TERMS__):
+            if year_value.upper() != year.upper(): continue
+            if make_value.upper() != make.upper(): continue
+            if model_value.upper() != model.upper(): continue
+            if adas_value.upper() not in normalized_file_name.upper(): continue
+
+            for term_index, term in enumerate(self.__ROW_SEARCH_TERMS__):
                     
-                    # If the term is found add the index of the term to the row number
-                    if term.upper() in normalized_file_name:                        
-                        return ws.cell(row=row[0].row + term_index, column=12)               
-                return ws.cell(row=row[0].row, column=12)       
+                # If the term is found add the index of the term to the row number
+                if term.upper() in normalized_file_name:                      
+                    return ws.cell(row=row[0].row + term_index, column=12)  
+                    
+            return ws.cell(row=row[0].row, column=12)       
 
         # Throw an exception when we fail to find a row for the current file name given
         #raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
@@ -525,8 +531,8 @@ class SharepointExtractor:
 if __name__ == '__main__':   
     
     # These values will be pulled from the call made by Hyper to boot this scripts
-    excel_file_path = r'C:\Users\dromero3\OneDrive - Caliber Collision\Downloads\Alfa Romeo Pre-Qual Long Sheet v6.3.xlsx'
-    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EgiPVULtsVBPspRrox0ZLMMBhZETVf-4ys0BnYCTCVR4WA?e=D8lAex'
+    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Audi Pre-Qual Long Sheet v6.3.xlsx'
+    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EqzIOzYHIwdKk5NIEfuBWJcB3Ch0HxrG-Rkcsed9arcLTA?e=dZ1YNC'
     debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
