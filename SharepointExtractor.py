@@ -45,12 +45,15 @@ class SharepointExtractor:
     __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[contains(@class, 'ms-List-cell') and contains(@role, 'presentation') and @data-list-index]"
 
     # Collections of system names used for finding correct files and row locations
-    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW RCTW','BSW-RCT W','BSW RCT W', 'BUC', 'LKA', 'NV', 'SVC', 'LW' ]
-    __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research']
+    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW RCTW','BSW-RCT W','BSW RCT W', 'BUC', 'LKA', 'NV', 'SVC' ]
+    __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Side Blind Zone Alert', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research', 'Multipurpose Camera', 'Multipurpose', 'FCW-LDW', 'forward Collision Warning/Lane Departure Warning (FCW/LDW)', 'Forward Collision Warning/Lane Departure Warning (FCW/LDW)']
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
         'FCW-LDW',
         'Multipurpose Camera',
+        'Multipurpose',
+        'Forward Collision Warning/Lane Departure Warning (FCW/LDW)',
+        'forward Collision Warning/Lane Departure Warning (FCW/LDW)',
         'Cross Traffic Alert',
         'Surround Vision Camera',
         'Video Processing'
@@ -169,6 +172,7 @@ class SharepointExtractor:
         elapsed_time = time.time() - start_time
         print(f"Indexing routine took {elapsed_time} to complete")
         return [ sharepoint_folders, sharepoint_files ]    
+    
     def populate_excel_file(self, file_entries: list) -> None:
         """
         Populates the excel file for the current make and stores all hyperlinks built in correct 
@@ -399,7 +403,7 @@ class SharepointExtractor:
                         entry_name = self.__get_row_name__(row_element)
                         entry_heirarchy = self.__get_entry_heirarchy__(row_element)
 
-                        ignored_entry_values = ["no", "old", "part"]
+                        ignored_entry_values = ["no", "old", "part", "No"]
                         if any(value in entry_name.lower() for value in ignored_entry_values):
                             continue
 
@@ -432,7 +436,7 @@ class SharepointExtractor:
 
                             file_link = self.__get_encrypted_link__(row_element)
                             indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY))
-
+                time.sleep(1)
                 table_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
                 page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
                 process_table_elements(table_elements)
@@ -445,13 +449,15 @@ class SharepointExtractor:
                 return [indexed_folders, indexed_files]
 
             except Exception as e:                
-                retries -= 1
+                retries -= 3
+                time.sleep(2)
                 if retries == 0:
+                    print(f"Error! please restart Program, Failed due to internet Issues. ")
                     raise e
                 time.sleep(1)
                 
     def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
-        normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").strip().upper()
+        normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").replace("Multipurpose Camera", "Multipurpose").replace("forward Collision Warning/Lane Departure Warning (FCW/LDW)", "FCW/LDW").strip().upper()
         for row in ws.iter_rows(min_row=2, min_col=4, max_col=4):
             cell_value = str(row[0].value).strip()
             if cell_value in self.__ADAS_SYSTEMS_WHITELIST__ and cell_value.upper() in normalized_entry_name.upper():
@@ -525,8 +531,8 @@ class SharepointExtractor:
 if __name__ == '__main__':   
     
     # These values will be pulled from the call made by Hyper to boot this scripts
-    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Audi Pre-Qual Long Sheet v6.3.xlsx'
-    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EqzIOzYHIwdKk5NIEfuBWJcB3Ch0HxrG-Rkcsed9arcLTA?e=dZ1YNC'
+    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Buick Pre-Qual Long Sheet v6.3.xlsx'
+    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EsXUyZVzP7lOk3HIu-YxycABWBy91PUacJ3qca9-v3XXEg?e=8Y9fye'
     debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
