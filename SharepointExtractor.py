@@ -46,14 +46,13 @@ class SharepointExtractor:
 
     # Collections of system names used for finding correct files and row locations
     __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW RCTW','BSW-RCT W','BSW RCT W', 'BUC', 'LKA', 'NV', 'SVC' ]
-    __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Side Blind Zone Alert', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research', 'Multipurpose Camera', 'Multipurpose', 'FCW-LDW', 'forward Collision Warning/Lane Departure Warning (FCW/LDW)', 'Forward Collision Warning/Lane Departure Warning (FCW/LDW)']
+    __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Lane Change Alert', 'Side Blind Zone Alert', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
         'FCW-LDW',
         'Multipurpose Camera',
         'Multipurpose',
         'Forward Collision Warning/Lane Departure Warning (FCW/LDW)',
-        'forward Collision Warning/Lane Departure Warning (FCW/LDW)',
         'Cross Traffic Alert',
         'Surround Vision Camera',
         'Video Processing'
@@ -278,7 +277,7 @@ class SharepointExtractor:
         # Pull the folder name and add the name of it to our URL name
         base_url = self.selenium_driver.current_url.split("&p=true")[0]     # Current URL Split up for the path of the current folder
         row_name = self.__get_row_name__(row_element)                       # The name we're looking to open
-        plain_link = base_url + "%2F" + row_name                              # Relative folder URL based on drive layout
+        plain_link = base_url + "%2F" + row_name                            # Relative folder URL based on drive layout
 
         # Return the built URL here
         return plain_link    
@@ -381,6 +380,18 @@ class SharepointExtractor:
                 folder_name = "RS 6"
             elif folder_name == "RS7":
                 folder_name = "RS 7"
+            elif folder_name == "SQ3":
+                folder_name = "SQ 3"
+            elif folder_name == "SQ5":
+                folder_name = "SQ 5"
+            elif folder_name == "SQ7":
+                folder_name = "SQ 7"
+            elif folder_name == "SQ8":
+                folder_name = "SQ 8"
+            elif folder_name == "VERANO":
+                folder_name = "Verano"   
+            elif folder_name == "Trailbalzer":
+                folder_name = "Trailblazer"                    
             entry_heirarchy += folder_name + "\\"
     
         entry_heirarchy += self.__get_row_name__(row_element)
@@ -389,84 +400,102 @@ class SharepointExtractor:
         return entry_heirarchy
     
     def __get_folder_rows__(self, row_link: str = None) -> tuple[list, list]:
+
+        # If a link is provided to this method, navigate to it first before indexing
         if row_link is not None:
             self.selenium_driver.get(row_link)
 
-        retries = 3
-        while retries > 0:
-            try:
-                indexed_files = []
-                indexed_folders = []
+        # Store lists for output files/lists
+        indexed_files = []
+        indexed_folders = []      
+        
+        # Look for the table element. If it doesn't appear in 5 seconds, assume no rows appeared in the folder           
+        try: WebDriverWait(self.selenium_driver, 2.5).until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))           
+        except:            
 
-                def process_table_elements(table_elements):
-                    for row_element in table_elements:
-                        entry_name = self.__get_row_name__(row_element)
-                        entry_heirarchy = self.__get_entry_heirarchy__(row_element)
+            # Pull the title of the page to log out that nothing was found inside the current folder
+            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
+            print(f"No folders/files found inside folder {page_title}")
+            return [indexed_files, indexed_folders]           
+              
+        # Find all page elements for the lists of files/folders and iterate them one by one
+        page_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)
+        for page_element in page_elements:
+            
+            # Wait for the table rows to appear. If they don't appear, this should fail out since you always have rows when you have a table
+            WebDriverWait(page_element, 5).until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)))
+            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
+            table_elements = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
 
-                        ignored_entry_values = ["no", "old", "part", "No"]
-                        if any(value in entry_name.lower() for value in ignored_entry_values):
+            # Iterate the row elements in the table and decide if they should be included or not based on name/type of entry
+            for row_element in table_elements:
+
+                # Pull the name of the folder and the heirarchy of it for use later on
+                entry_name = self.__get_row_name__(row_element)
+                entry_heirarchy = self.__get_entry_heirarchy__(row_element)
+                       
+                # Filter out entries with old/part/no in their names
+                if entry_name.lower().startswith("no"):
+                    continue
+                if any(value in entry_name.lower() for value in ["old", "part"]) and entry_name:
+                    continue
+                
+                # For folders, check if we need to store it as a folder of if the folder is a segmented file set
+                if self.__is_row_folder__(row_element):
+                    if page_title == self.sharepoint_make and re.search("\\d{4}", entry_name) is None:
+                        continue
+
+                    # Pull the link for the folder and open it in a new tab to peek at the contents of it
+                    folder_link = self.__get_unencrypted_link__(row_element)
+                    if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is not None:
+
+                        # Open a new tab and navigate to the folder being checked
+                        self.selenium_driver.switch_to.new_window(WindowTypes.TAB)
+                        self.selenium_driver.get(folder_link)
+
+                        # Find all the child folders/files for the current row entry
+                        sub_table_element = WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__)\
+                            .until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))
+                        sub_table_rows = sub_table_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
+                        sub_table_entries = [self.__get_row_name__(sub_table_row) for sub_table_row in sub_table_rows]
+
+                        # Close the tab for the child folder being indexed
+                        self.selenium_driver.close()
+                        self.selenium_driver.switch_to.window(self.selenium_driver.window_handles[0])
+
+                        # Check if this is a segmented file. If so, store this folder as a file
+                        if any(re.search(r"([PpAaRrTt]{4})|(\d+\s{0,}\.[^\s]+)", sub_entry_name) for sub_entry_name in sub_table_entries):
+                            folder_link = self.__get_encrypted_link__(row_element)
+                            indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
                             continue
 
-                        if self.__is_row_folder__(row_element):
-                            if page_title == self.sharepoint_make and re.search("\\d{4}", entry_name) is None:
-                                continue
+                    # If the folder does not contain a module name, store it as a folder to be indexed later on
+                    indexed_folders.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
+                    continue
 
-                            folder_link = self.__get_unencrypted_link__(row_element)
-                            if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is not None:
-                                self.selenium_driver.switch_to.new_window(WindowTypes.TAB)
-                                self.selenium_driver.get(folder_link)
+                # If the row is not a folder, check if it has a module name or not.
+                if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is None:
+                    continue
 
-                                sub_table_element = WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__)\
-                                    .until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))
-                                sub_table_rows = sub_table_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-                                sub_table_entries = [self.__get_row_name__(sub_table_row) for sub_table_row in sub_table_rows]
-
-                                self.selenium_driver.close()
-                                self.selenium_driver.switch_to.window(self.selenium_driver.window_handles[0])
-
-                                if any(re.search(r"([PpAaRrTt]{4})|(\d+\s{0,}\.[^\s]+)", sub_entry_name) for sub_entry_name in sub_table_entries):
-                                    folder_link = self.__get_encrypted_link__(row_element)
-                                    indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
-                                    continue
-
-                            indexed_folders.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
-                        else:
-                            if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is None:
-                                continue
-
-                            file_link = self.__get_encrypted_link__(row_element)
-                            indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY))
-                time.sleep(1)
-                table_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-                page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
-                process_table_elements(table_elements)
-
-                next_page_elements = self.selenium_driver.find_elements(By.XPATH, "//div[@class='ms-List-page']")
-                for next_page_element in next_page_elements:
-                    additional_table_elements = next_page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-                    process_table_elements(additional_table_elements)
-
-                return [indexed_folders, indexed_files]
-
-            except Exception as e:                
-                retries -= 3
-                time.sleep(2)
-                if retries == 0:
-                    print(f"Error! please restart Program, Failed due to internet Issues. ")
-                    raise e
-                time.sleep(1)
-                
+                # When we find valid module names, get the encrypted link for the folder and store it.
+                file_link = self.__get_encrypted_link__(row_element)
+                indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY))
+    
+        # Return the completed list of files and folders
+        return [indexed_folders, indexed_files]
+       
     def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
-        normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").replace("Multipurpose Camera", "Multipurpose").replace("forward Collision Warning/Lane Departure Warning (FCW/LDW)", "FCW/LDW").strip().upper()
-        for row in ws.iter_rows(min_row=2, min_col=4, max_col=4):
-            cell_value = str(row[0].value).strip()
-            if cell_value in self.__ADAS_SYSTEMS_WHITELIST__ and cell_value.upper() in normalized_entry_name.upper():
-                cell = ws.cell(row=row[0].row, column=12)
-                cell.hyperlink = document_url
-                cell.value = document_url
-                cell.font = Font(color="0000FF", underline='single')
-                print(f"Hyperlink for {entry_name} added at {cell.coordinate}")
-                return True
+        normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").replace("Multipurpose", "Multipurpose Camera").replace("forward Collision Warning/Lane Departure Warning (FCW/LDW)", "FCW/LDW").strip().upper()
+        for row in ws.iter_rows(min_row=2, min_col=3, max_col=3):
+            cell_value = str(row[0].value).strip().upper()
+            if cell_value in self.__ADAS_SYSTEMS_WHITELIST__:
+                if cell_value in normalized_entry_name:
+                    cell = ws.cell(row=row[0].row, column=12)
+                    cell.hyperlink = document_url
+                    cell.value = document_url
+                    cell.font = Font(color="0000FF", underline='single')
+                    print(f"Hyperlink for {entry_name} added at {cell.coordinate}")
+                    return True
         return False
     
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
@@ -491,8 +520,10 @@ class SharepointExtractor:
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")  
         
     def __find_row_in_excel__(self, ws, year, make, model, file_name):
-        # Normalize the file name
-        normalized_file_name = file_name.replace("(", "").replace(")", "").replace("BSW-RCT W", "BSW-RCTW").replace("-", "/").strip().upper()
+        
+        # Remove the year make and model from the file name provided
+        adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "")
+        adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("BSW-RCT W", "BSW-RCTW").replace("-", "/").strip().upper()
 
         # Apply specific normalization rules
         normalization_patterns = [
@@ -504,35 +535,36 @@ class SharepointExtractor:
         ]
     
         for pattern, replacement in normalization_patterns:
-            normalized_file_name = re.sub(pattern, replacement, normalized_file_name)
+            adas_file_name = re.sub(pattern, replacement, adas_file_name)
 
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip() if row[0].value is not None else ''
             make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value is not None else ''
-            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").strip() if row[2].value is not None else ''
+            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").strip() if row[2].value is not None else ''
             adas_value = str(row[4].value).replace("%", "").replace("-", "/").strip() if row[4].value is not None else ''
 
             if year_value.upper() != year.upper(): continue
             if make_value.upper() != make.upper(): continue
             if model_value.upper() != model.upper(): continue
-            if adas_value.upper() not in normalized_file_name.upper(): continue
+            if adas_value.upper() not in adas_file_name: continue
 
+            # Check the ADAS value and ensure proper placement
             for term_index, term in enumerate(self.__ROW_SEARCH_TERMS__):
-                if term.upper() in normalized_file_name:                      
-                    return ws.cell(row=row[0].row + term_index, column=12)  
+                if term.upper() in adas_file_name:
+                    return ws.cell(row=row[0].row + term_index, column=12)
 
             return ws.cell(row=row[0].row, column=12)      
 
         # Throw an exception when we fail to find a row for the current file name given
-        #raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
+        # raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
 
 #####################################################################################################################################################
 
 if __name__ == '__main__':   
     
     # These values will be pulled from the call made by Hyper to boot this scripts
-    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Buick Pre-Qual Long Sheet v6.3.xlsx'
-    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EsXUyZVzP7lOk3HIu-YxycABWBy91PUacJ3qca9-v3XXEg?e=8Y9fye'
+    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Chrysler Pre-Qual Long Sheet v6.3.xlsx'
+    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Em3tiVe1A0pGuxCWxhsh6koBFqVQnpk3SgGCDMtPWlmdwQ?e=AUqPjM'
     debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
