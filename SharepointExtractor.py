@@ -2,6 +2,7 @@ import os
 import re
 import time
 import openpyxl
+import urllib.parse
 import tkinter as tk
 from enum import Enum
 import win32clipboard
@@ -45,7 +46,7 @@ class SharepointExtractor:
     __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[contains(@class, 'ms-List-cell') and contains(@role, 'presentation') and @data-list-index]"
 
     # Collections of system names used for finding correct files and row locations
-    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW RCTW','BSW-RCT W','BSW RCT W', 'BUC', 'LKA', 'NV', 'SVC' ]
+    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW RCTW','BSW-RCT W','BSW RCT W', 'BUC', 'LKA', 'LW', 'NV', 'SVC' ]
     __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Lane Change Alert', 'Side Blind Zone Alert', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
@@ -273,14 +274,29 @@ class SharepointExtractor:
         row_name_element = row_element.find_element(By.XPATH, row_name_locator)
         return row_name_element.text.strip()         
     def __get_unencrypted_link__(self, row_element: WebElement) -> str:
-        
-        # Pull the folder name and add the name of it to our URL name
-        base_url = self.selenium_driver.current_url.split("&p=true")[0]     # Current URL Split up for the path of the current folder
-        row_name = self.__get_row_name__(row_element)                       # The name we're looking to open
-        plain_link = base_url + "%2F" + row_name                            # Relative folder URL based on drive layout
+        """
+        Generates the unencrypted link for a given row element.
+    
+        row_element: WebElement
+            The row element for which the unencrypted link is to be generated.
+    
+        Returns:
+        str
+            The unencrypted link for the row element.
+        """
+        try:
+            # Pull the folder name and add the name of it to our URL name
+            base_url = self.selenium_driver.current_url.split("&p=true")[0]  # Current URL Split up for the path of the current folder
+            row_name = self.__get_row_name__(row_element)                    # The name we're looking to open
+            encoded_row_name = urllib.parse.quote(row_name)                  # URL-encode the row name to handle special characters
+            plain_link = base_url + "%2F" + encoded_row_name                 # Relative folder URL based on drive layout
 
-        # Return the built URL here
-        return plain_link    
+            # Return the built URL here
+            return plain_link
+    
+        except IndexError as e:
+            print(f"Error while generating unencrypted link: {e}")
+            raise Exception(f"Failed to generate unencrypted link for row: {self.__get_row_name__(row_element)}")    
     def __get_encrypted_link__(self, row_element: WebElement) -> str:
               
         # Debug run testing break out to speed things up
@@ -391,7 +407,29 @@ class SharepointExtractor:
             elif folder_name == "VERANO":
                 folder_name = "Verano"   
             elif folder_name == "Trailbalzer":
-                folder_name = "Trailblazer"                    
+                folder_name = "Trailblazer"  
+            elif folder_name == "Savanna":
+                folder_name = "Savana"   
+            elif folder_name == "Clarity":
+                folder_name = "CLARITY ELECTRIC"  
+            elif folder_name == "Clarity Plug In":
+                folder_name = "CLARITY PLUG-IN"   
+            elif folder_name == "EX35":
+                folder_name = "EX"  
+            elif folder_name == "G37 Convertible":
+                folder_name = "G Convertible"  
+            elif folder_name == "G37 Coupe":
+                folder_name = "G Coupe"
+            elif folder_name == "G37 Sedan":
+                folder_name = "G Sedan"
+            elif folder_name == "QX56":
+                folder_name = "QX"   
+            elif folder_name == "Grand Cherokee (WL)":
+                folder_name = "Grand Cherokee"
+            elif folder_name == "Wrangler (JL)":
+                folder_name = "Wrangler"   
+            elif folder_name == "Wrangler JL":
+                folder_name = "Wrangler"                  
             entry_heirarchy += folder_name + "\\"
     
         entry_heirarchy += self.__get_row_name__(row_element)
@@ -523,7 +561,7 @@ class SharepointExtractor:
         
         # Remove the year make and model from the file name provided
         adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "")
-        adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("BSW-RCT W", "BSW-RCTW").replace("-", "/").strip().upper()
+        adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("BSW-RCT W", "BSW-RCTW").replace("BSW-RSTW", "BSW-RCTW").replace("BCW-RCTW", "BSW-RCTW").replace("-", "/").strip().upper()
 
         # Apply specific normalization rules
         normalization_patterns = [
@@ -540,7 +578,7 @@ class SharepointExtractor:
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip() if row[0].value is not None else ''
             make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value is not None else ''
-            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").strip() if row[2].value is not None else ''
+            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").replace("Super Duty F-250", "F-250 SUPER DUTY").replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY").replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY").replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible ").strip() if row[2].value is not None else ''
             adas_value = str(row[4].value).replace("%", "").replace("-", "/").strip() if row[4].value is not None else ''
 
             if year_value.upper() != year.upper(): continue
@@ -563,8 +601,8 @@ class SharepointExtractor:
 if __name__ == '__main__':   
     
     # These values will be pulled from the call made by Hyper to boot this scripts
-    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Chrysler Pre-Qual Long Sheet v6.3.xlsx'
-    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Em3tiVe1A0pGuxCWxhsh6koBFqVQnpk3SgGCDMtPWlmdwQ?e=AUqPjM'
+    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Jeep Pre-Qual Long Sheet v6.3.xlsx'
+    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EvFYtqiakZxChHHVANtGXdkBBNZiTn3zxFSc4jnbyf4NjA?e=uZ0MEH'
     debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above

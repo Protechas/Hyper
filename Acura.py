@@ -1,4 +1,3 @@
-import sys
 import time
 import psutil
 import os
@@ -6,21 +5,25 @@ import tkinter as tk
 from tkinter import messagebox
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common import actions
+from selenium.webdriver.common import action_chains
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
 from openpyxl import load_workbook
 from openpyxl.styles import Font
 from selenium.webdriver.chrome.options import Options
-from PIL import Image
-import pytesseract
-import io
+import re
+import win32clipboard
+import openpyxl
 
-# Set the path for Tesseract if not in PATH
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update this path as needed
+
 
 def process_subdocuments(driver, wait, ws, subdocuments, year, model, adas_last_row, parent_xpath):
     for sub_doc_name, sub_doc_info in subdocuments.items():
@@ -52,7 +55,6 @@ def process_subdocuments(driver, wait, ws, subdocuments, year, model, adas_last_
             time.sleep(2)
             navigate_back_to_element(driver, wait, parent_xpath) # Go back one more time to ensure stability
 
-
 def process_documents(driver, wait, ws, model_data, year, model, adas_last_row):
     for doc_name, doc_info in model_data['documents'].items():
         if isinstance(doc_info, dict) and 'folder_xpath' in doc_info:
@@ -74,12 +76,39 @@ def process_documents(driver, wait, ws, model_data, year, model, adas_last_row):
             navigate_back_to_element(driver, wait, model_data['model_page_xpath'])
 
 def navigate_and_extract(driver, wait, xpath):
+    
+    win32clipboard.OpenClipboard()
+    encrypted_file_link = win32clipboard.GetClipboardData()
+    win32clipboard.CloseClipboard()
+
+    # Double-click the element to open its context menu or relevant options
     double_click_element(driver, wait, xpath)
-    WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.TAG_NAME, "body"))  # Adjust to a reliable element
-    )
-    time.sleep(1)
-    document_url = driver.current_url
+    
+    # Wait until the share button is visible and click it
+    share_button_xpath = ".//button[@data-automationid='shareHeroId']"
+    
+    # Scroll the share button into view
+    share_button = wait.until(EC.visibility_of_element_located((By.XPATH, share_button_xpath)))
+    driver.execute_script("arguments[0].scrollIntoView(true);", share_button)
+    time.sleep(1)  # Ensure the scroll action is complete
+
+    # Wait until the element is clickable and click it
+    wait.until(EC.element_to_be_clickable((By.XPATH, share_button_xpath))).click()
+    
+    # Add a series of actions to navigate through the share menu and copy the link to the clipboard
+    time.sleep(0.75)
+    ActionChains(driver).send_keys(Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()
+    time.sleep(0.50)
+    ActionChains(driver).send_keys(Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER).perform()
+    time.sleep(0.50)
+    ActionChains(driver).send_keys(Keys.ENTER).perform()
+    time.sleep(0.75)
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+    # Extract the URL from the clipboard
+    document_url = driver.execute_script("return navigator.clipboard.readText();")
+    
+    # Navigate back to the previous element
     driver.back()
     time.sleep(2)
     # Improved wait mechanism
@@ -93,7 +122,6 @@ def navigate_and_extract(driver, wait, xpath):
     time.sleep(2)  # Allow extra time to ensure full navigation back
 
     # Check if the specified XPath is present, if not, navigate forward
-    check_and_navigate_forward(driver, wait, '//*[@id="closeCommand"]/span/i')
     
     return document_url
 
@@ -1061,6 +1089,129 @@ def run_acura_script(excel_path):
             # Handle the situation where the element was not found within the allotted time
             print("Proceeding without finding the element...")
         
+        # Setup some locators for finding table elements
+        onedrive_page_name_locator = "//li[contains(@data-automationid, 'breadcrumb-listitem')]"
+        onedrive_table_locator = "//div[@data-automationid='list-pages']/div[contains(@id, 'virtualized-list')]"  
+        onedrive_table_row_locator = "./div[contains(@data-automationid, 'row') and contains(@id, 'virtualized-list')]"
+        onedrive_table_row_column_locator = "./div[@role='gridcell' and contains(@data-automationid, '$FIELD_NAME')]"
+       
+        # Define some local helper functions for finding row information
+        def is_row_folder(row_element: WebElement) -> bool:
+            
+            # Find the icon element and check if it's a folder or file
+            icon_element_locator = onedrive_table_row_column_locator.replace("$FIELD_NAME", "field-DocIcon")
+            icon_element = WebDriverWait(row_element, max_wait_time)\
+                .until(EC.presence_of_element_located((By.XPATH, icon_element_locator)))
+            
+            # Return true if this folder is in the name, false if it is not
+            return "folder" in icon_element.accessible_name
+        def get_row_name(row_element: WebElement) -> str:
+            
+            # Find the name column element and return the name for the row in use
+            return row_element.get_attribute("aria-label").strip()
+        def get_folder_link(row_element: WebElement) -> str:
+            
+            # Build and return a new URL for this row entry
+            base_url = driver.current_url.replace("&ga=1", "")    # Base URL for the current page
+            row_name = get_row_name(row_element)                  # The name we're looking to open
+            row_link = base_url + "%2F" + row_name                # Relative folder URL based on drive layout
+
+            # Return the built URL here
+            return row_link
+        def get_file_link(row_element: WebElement) -> str:
+
+            # Find the selector element and try to click it here
+            selector_element_locator = onedrive_table_locator.replace("$FIELD_NAME", "row-selection")
+            selector_element = WebDriverWait(row_element, max_wait_time)\
+                .until(EC.presence_of_element_located((By.XPATH, selector_element_locator)))            
+            
+            # Pull the name element from the row and find child buttons for it
+            name_element_locator = onedrive_table_row_column_locator.replace("$FIELD_NAME", "field-LinkFilename")
+            name_element = row_element.find_element(By.XPATH, name_element_locator) 
+            ActionChains(driver).move_to_element_with_offset(name_element, 50, 0).perform()
+            
+            # Find the share button element and click it here. Setup share settings and copy the link to the clipboard
+            name_element.find_element(By.XPATH, ".//button[@data-automationid='shareHeroId']").click()
+            time.sleep(0.75)
+            ActionChains(driver).send_keys(Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()
+            time.sleep(0.50)
+            ActionChains(driver).send_keys(Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER).perform()           
+            time.sleep(0.50)
+            ActionChains(driver).send_keys(Keys.ENTER).perform()  
+            time.sleep(0.75)
+            ActionChains(driver).send_keys(Keys.ESCAPE).perform()             
+                        
+            # Pull the clipboard content and store it, then dump the link contents out of it
+            win32clipboard.OpenClipboard()
+            encrypted_file_link = win32clipboard.GetClipboardData()
+            win32clipboard.CloseClipboard()
+
+            # Return the stored link from the clipboard
+            return encrypted_file_link
+        def get_folder_rows(row_link: str = None) -> tuple[list, list]:
+            
+            # Navigate to the next link if needed and find the title of the page
+            if row_link != None: driver.get(row_link)
+            
+            # Find the parent table element and find all child rows in it
+            table_element = WebDriverWait(driver, max_wait_time)\
+                .until(EC.presence_of_element_located((By.XPATH, onedrive_table_locator)))
+            table_elements = table_element.find_elements(By.XPATH, onedrive_table_row_locator)
+
+            # Find our page title once the table content has appeard and see if this is a year or model page
+            page_title = driver.find_elements(By.XPATH, onedrive_page_name_locator)[-1].get_attribute("innerText").strip()
+            is_year_folder = re.search("\\d{4}", page_title) != None        
+
+            # Setup lists for the output files and folders
+            indexed_files = [ ] 
+            indexed_folders = [ ]       
+
+            # Iterate all the rows and get link URLs for each one
+            for row_element in table_elements:
+
+                # Pull our row name before testing to filter rows we don't want
+                row_name = get_row_name(row_element)
+                if "no" in row_name.lower(): continue
+                if "old" in row_name.lower(): continue
+                
+                # Check if this is a folder entry or not and make sure the name of the folder is a four digit year
+                if not is_row_folder(row_element):
+                    indexed_files.append(get_file_link(row_element))
+                    continue
+
+                # Before pulling a folder link, make sure it's either a Model or Year folder
+                # Some models have a space in them to see if this is a year page or not first
+                if not is_year_folder and ' ' in row_name: continue
+                if re.search("\\d{4}|[^ \\n]+", row_name) == None: continue
+            
+                # Store the URL for the row entry on our list and move on
+                row_link = get_folder_link(row_element)
+                indexed_folders.append(row_link)
+
+            # Return our built list of indexed rows and elements here
+            return [indexed_folders, indexed_files]    
+
+        # Index and store base folders and files here then iterate them all
+        get_folder_results = get_folder_rows()
+        base_files = get_folder_results[1]
+        base_folders = get_folder_results[0]
+
+        # Iterate the contents of the base folders list as long as it has contents
+        while len(base_folders) > 0:
+
+            # Store the current folder value and navigate to it for indexing
+            folder_link = base_folders.pop(0)
+            get_child_results = get_folder_rows(folder_link)
+            
+            # Add all of our links to the files and folders to our base lists
+            for file_link in get_child_results[1]: base_files.append(file_link)   
+            for folder_link in get_child_results[0]: base_folders.append(folder_link)
+            
+            # Log out how many child links and folders exist now
+            print(f'{len(base_folders)} Folders Remain | {len(base_files)} Files Indexed')
+
+
+
         # Clicks Acura
         print("Locating Acura link and clicking...")
         double_click_element(driver, wait, '//*[@data-grid-row="1"]/div[3]')
