@@ -46,7 +46,7 @@ class SharepointExtractor:
     __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[contains(@class, 'ms-List-cell') and contains(@role, 'presentation') and @data-list-index]"
 
     # Collections of system names used for finding correct files and row locations
-    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC' ]
+    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'SCC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW','BSW_RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC' ]
     __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Lane Change Alert', 'Side Blind Zone Alert', 'Blind Spot Warning (BSW)', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
@@ -384,8 +384,8 @@ class SharepointExtractor:
                     time.sleep(1.0)    
     def __get_entry_heirarchy__(self, row_element: WebElement) -> str:
         # Find all of our title elements and check for the index of our make. Pull all values after that
-        title_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)   
-        title_index = title_elements.index(next(title_element for title_element in title_elements if title_element.get_attribute("innerText") == self.sharepoint_make))       
+        title_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)
+        title_index = title_elements.index(next(title_element for title_element in title_elements if title_element.get_attribute("innerText") == self.sharepoint_make)) 
         child_elements = title_elements[title_index:]
     
         # Combine the name of the current folder plus the entry name for our output value
@@ -485,7 +485,11 @@ class SharepointExtractor:
             elif folder_name == "F60 Countryman":
                 folder_name = "Countryman" 
             elif folder_name == "Panamera 971":
-                folder_name = "Panamera"                 
+                folder_name = "Panamera"
+            elif folder_name == "Culinan":
+                folder_name = "Cullinan"       
+            elif folder_name == "RAV 4":
+                folder_name = "RAV4"                 
             entry_heirarchy += folder_name + "\\"
     
         entry_heirarchy += self.__get_row_name__(row_element)
@@ -517,7 +521,7 @@ class SharepointExtractor:
         for page_element in page_elements:
             
             # Wait for the table rows to appear. If they don't appear, this should fail out since you always have rows when you have a table
-            WebDriverWait(page_element, 5).until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)))
+            WebDriverWait(page_element, 15).until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)))
             page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
             table_elements = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
 
@@ -620,7 +624,7 @@ class SharepointExtractor:
         
         # Remove the year make and model from the file name provided
         adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "").replace("BSM-RCTW", "BSW-RCTW")
-        adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("BSW-RCT W", "BSW-RCTW").replace("BSW-RSTW", "BSW-RCTW").replace("BCW-RCTW", "BSW-RCTW").replace("BSW-RTCW", "BSW-RCTW").replace("BSM-RCTW", "BSW-RCTW").replace("-", "/").strip().upper()
+        adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("[", "").replace("]", "").replace("BSW-RCT W", "BSW-RCTW").replace("BSW-RSTW", "BSW-RCTW").replace("BCW-RCTW", "BSW-RCTW").replace("BSW-RTCW", "BSW-RCTW").replace("BSM-RCTW", "BSW-RCTW").replace("BSW_RCTW", "BSW-RCTW").replace("SCC", "ACC").replace("RR31 Culinan", "Culinan").replace("RR6 Dawn", "Dawn").replace("RR21 Ghost", "Ghost").replace("-", "/").strip().upper()
 
         # Apply specific normalization rules
         normalization_patterns = [
@@ -637,8 +641,8 @@ class SharepointExtractor:
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip() if row[0].value is not None else ''
             make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value is not None else ''
-            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").replace("Super Duty F-250", "F-250 SUPER DUTY").replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY").replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY").replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible").replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR").replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT").replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value is not None else ''
-            adas_value = str(row[4].value).replace("%", "").replace("-", "/").strip() if row[4].value is not None else ''
+            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").replace("Super Duty F-250", "F-250 SUPER DUTY").replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY").replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY").replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible").replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR").replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT").replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").replace(" Ghost & Ghost Black Badge", "Ghost").strip() if row[2].value is not None else ''
+            adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/").replace("SCC 1", "ACC").strip() if row[4].value is not None else ''
 
             if year_value.upper() != year.upper(): continue
             if make_value.upper() != make.upper(): continue
@@ -660,15 +664,15 @@ class SharepointExtractor:
 if __name__ == '__main__':   
     
     # These values will be pulled from the call made by Hyper to boot this scripts, Change to Sys Args later when hooking up to Hyper GUI
-    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Porsche Pre-Qual Long Sheet v6.3.xlsx'
-    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Eq7ZYSodLLtPtkc5nnS4-0cBKdV8YfV8ZtxhpFx36YpxAA?e=CNlhT2'
+    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Dodge Pre-Qual Long Sheet v6.3.xlsx'
+    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EkRDdE_wCwJPuR-00Ic71FIBPEqinIUFIO5z38k5JqdqzQ?e=ES3mcH'
     debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
     print("="*100)
-    extracted_folders, extracted_files = extractor.extract_contents()   
+    extracted_folders, extracted_files = extractor.extract_contents()
 
     print("="*100)
     extractor.populate_excel_file(extracted_files)
