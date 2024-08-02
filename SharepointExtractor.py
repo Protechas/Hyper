@@ -21,6 +21,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 
+
 #####################################################################################################################################################
 
 class SharepointExtractor: 
@@ -46,20 +47,27 @@ class SharepointExtractor:
     __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[contains(@class, 'ms-List-cell') and contains(@role, 'presentation') and @data-list-index]"
 
     # Collections of system names used for finding correct files and row locations
-    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'SCC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW','BSW_RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC' ]
-    __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Lane Change Alert', 'Side Blind Zone Alert', 'Blind Spot Warning (BSW)', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
+    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'SCC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW & RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW','BSW-RTCW','BSW_RCTW','BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC' ]
+    __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Side Blind Zone Alert', 'Lane Change Alert', 'Blind Spot Warning (BSW)', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
         'FCW-LDW',
         'Multipurpose Camera',
         'Multipurpose',
+        'WL',
+        '[WL]',
         'Forward Collision Warning/Lane Departure Warning (FCW/LDW)',
         'Blind Spot Warning (BSW)',
         'Cross Traffic Alert',
+        ' Side Blind Zone Alert',
+        'Side Blind Zone Alert',
         'Surround Vision Camera',
         'Video Processing'
     ]
-
+    SPECIFIC_HYPERLINKS = {
+    "2013 GMC Acadia (BSW-RCTW 1)-PL-PW072NLB.pdf": "L79",
+    # Add more mappings as needed
+    }
     #################################################################################################################################################
 
     # Class objects holding information about files and folders in a given sharepoint location
@@ -535,7 +543,7 @@ class SharepointExtractor:
                 # Filter out entries with old/part/no in their names
                 if entry_name.lower().startswith("no"):
                     continue
-                if any(value in entry_name.lower() for value in ["old", "part", "Replacement"]) and entry_name:
+                if any(value in entry_name.lower() for value in ["old", "part", "Replacement", "Data"]) and entry_name:
                     continue
                 
                 # For folders, check if we need to store it as a folder of if the folder is a segmented file set
@@ -586,7 +594,7 @@ class SharepointExtractor:
         return [indexed_folders, indexed_files]
        
     def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
-        normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").replace("Multipurpose", "Multipurpose Camera").replace("forward Collision Warning/Lane Departure Warning (FCW/LDW)", "FCW/LDW").strip().upper()
+        normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").replace("[", "").replace("]", "").replace("WL", "").replace("Multipurpose", "Multipurpose Camera").replace("-PL-PW072NLB", " Side Blind Zone Alert").replace("forward Collision Warning/Lane Departure Warning (FCW/LDW)", "FCW/LDW").strip().upper()
         for row in ws.iter_rows(min_row=2, min_col=3, max_col=3):
             cell_value = str(row[0].value).strip().upper()
             if cell_value in self.__ADAS_SYSTEMS_WHITELIST__:
@@ -601,7 +609,11 @@ class SharepointExtractor:
     
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
 
-        cell = self.__find_row_in_excel__(ws, year, self.sharepoint_make, model, doc_name)
+        # Check if the document name has a specific cell address
+        if doc_name in self.SPECIFIC_HYPERLINKS:
+            cell = ws[self.SPECIFIC_HYPERLINKS[doc_name]]
+        else:
+            cell = self.__find_row_in_excel__(ws, year, self.sharepoint_make, model, doc_name)
 
         if not cell:
             if cell_address:
@@ -618,13 +630,13 @@ class SharepointExtractor:
         cell.value = document_url
         cell.font = Font(color="0000FF", underline='single')
         adas_last_row[doc_name] = cell.row
-        print(f"Hyperlink for {doc_name} added at {cell.coordinate}")  
+        print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
         
     def __find_row_in_excel__(self, ws, year, make, model, file_name):
         
         # Remove the year make and model from the file name provided
-        adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "").replace("BSM-RCTW", "BSW-RCTW")
-        adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("[", "").replace("]", "").replace("BSW-RCT W", "BSW-RCTW").replace("BSW-RSTW", "BSW-RCTW").replace("BCW-RCTW", "BSW-RCTW").replace("BSW-RTCW", "BSW-RCTW").replace("BSM-RCTW", "BSW-RCTW").replace("BSW_RCTW", "BSW-RCTW").replace("SCC", "ACC").replace("RR31 Culinan", "Culinan").replace("RR6 Dawn", "Dawn").replace("RR21 Ghost", "Ghost").replace("-", "/").strip().upper()
+        adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "").replace("[", "").replace("]", "").replace("WL", "").replace("BSM-RCTW", "BSW-RCTW")
+        adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("[", "").replace("]", "").replace("WL", "").replace("BSW-RCT W", "BSW-RCTW").replace("BSW-RSTW", "BSW-RCTW").replace("BCW-RCTW", "BSW-RCTW").replace("BSW-RTCW", "BSW-RCTW").replace("BSM-RCTW", "BSW-RCTW").replace("BSW_RCTW", "BSW-RCTW").replace("SCC", "ACC").replace("RR31 Culinan", "Culinan").replace("RR6 Dawn", "Dawn").replace("RR21 Ghost", "Ghost").replace("-PL-PW072NLB", "Side Blind Zone Alert").replace("BSW & RCTW", "BSW-RCTW").replace("-", "/").strip().upper()
 
         # Apply specific normalization rules
         normalization_patterns = [
@@ -664,8 +676,8 @@ class SharepointExtractor:
 if __name__ == '__main__':   
     
     # These values will be pulled from the call made by Hyper to boot this scripts, Change to Sys Args later when hooking up to Hyper GUI
-    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Dodge Pre-Qual Long Sheet v6.3.xlsx'
-    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EkRDdE_wCwJPuR-00Ic71FIBPEqinIUFIO5z38k5JqdqzQ?e=ES3mcH'
+    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Mazda Pre-Qual Long Sheet v6.3.xlsx'
+    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/ElpTEGuU3npEsc712gkrc6MBXbmHL8wAWq1Gmk7LfO7SOw?e=QsIbU8'
     debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
