@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import time
 import openpyxl
 import urllib.parse
@@ -66,6 +67,8 @@ class SharepointExtractor:
     ]
     SPECIFIC_HYPERLINKS = {
     "2013 GMC Acadia (BSW-RCTW 1)-PL-PW072NLB.pdf": "L79",
+    "2016 Acura RLX (LKA 1) [FCW-LDW].pdf": "L249",
+    "2016 Acura RLX (LKA 1) [Multipurpose].pdf": "L250"
     # Add more mappings as needed
     }
     #################################################################################################################################################
@@ -333,7 +336,7 @@ class SharepointExtractor:
                 time.sleep(1.00)
                 ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()
                 time.sleep(1.25)
-                ActionChains(self.selenium_driver).send_keys(Keys.ARROW_DOWN, Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER, Keys.TAB, Keys.ENTER).perform()           
+                ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER).perform()           
                 time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()  
                 time.sleep(1.25)
@@ -517,8 +520,8 @@ class SharepointExtractor:
         
         # Look for the table element. If it doesn't appear in 5 seconds, assume no rows appeared in the folder           
         try: WebDriverWait(self.selenium_driver, 2.5).until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))           
+ 
         except:            
-
             # Pull the title of the page to log out that nothing was found inside the current folder
             page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
             print(f"No folders/files found inside folder {page_title}")
@@ -675,10 +678,15 @@ class SharepointExtractor:
 
 if __name__ == '__main__':   
     
-    # These values will be pulled from the call made by Hyper to boot this scripts, Change to Sys Args later when hooking up to Hyper GUI
-    excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Mazda Pre-Qual Long Sheet v6.3.xlsx'
-    sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/ElpTEGuU3npEsc712gkrc6MBXbmHL8wAWq1Gmk7LfO7SOw?e=QsIbU8'
-    debug_run = True
+    # (Individual File testing without GUI, take away the # to perform whichever is needed)) 
+    #excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Toyota Pre-Qual Long Sheet v6.3.xlsx'
+    #sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EiB53aPXartJhkxyWzL5AFABZQsY3x-XDWPXQCqgFIrvoQ?e=m4DrKQ'
+    #debug_run = True
+
+    # (Usage with GUI, take away the # to perform whichever is needed)        
+    sharepoint_link = sys.argv[1]
+    excel_file_path = sys.argv[2]
+    debug_run = False
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)

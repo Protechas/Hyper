@@ -5,6 +5,7 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 from threading import Thread
 import subprocess
+from time import sleep
 import os
 
 class CustomButton(QPushButton):
@@ -93,6 +94,44 @@ class SeleniumAutomationApp(QWidget):
         super().__init__()
         self.initUI()
         self.excel_paths = []
+        self.manufacturer_links = {
+            "Acura": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/ElvYzTNE4KRAoLa1yoXXfG8Bts2R8_lFxBc7fm3XcCxyZg?e=Q2evq5",
+            "Alfa Romeo": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EhNnruVI995AiljPoEYp-BMB6XOIhOC9JX4XN6FDXtBbbQ?e=StAVfM",
+            "Audi": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EhCY-x-ICyJIof9fIcOCI4oBywQvzN2daFMHuS1c8hNhAA?e=HkCg2Y",
+            "BMW": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/ErWRCoawOG1IjuclCmUAbz0BZJbsYESgRYnyGZ32Cln_fA?e=vWmHVa",
+            "Brightdrop": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Eozt6QvbAgpBpvW9FJwf1JsBeXDmZ6zAhEuEKWjjO-BTAQ?e=Z9QhK4",
+            "Buick": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/ElnBWMWkI-tAkghaeYaQV4UB9ajyxUla_T70kTMGD9W-7Q?e=I8FlfX",
+            "Cadillac": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EpAg-XzfjaZOhz1wFq4oigkBr0ecZO61gtY2h4Yc3ZXv3g?e=fbTwrN",
+            "Chevrolet": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Ej2hmGaQ0gpPm_AcAVat14oBzmKOH3DmWQX6rUqIBIkMzQ?e=0ncLlc",
+            "Chrysler": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Ek-IrbBt8M1KirZFMw_WRWcB5PutCD-6G_74ngyR9sa-0Q?e=CDAXq3",
+            "Dodge": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EtHvOVtuVXZMvNvPhl53pzABfMg2bujv7oqxqn_8Yoe3uw?e=FN0HFG",
+            "Fiat": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EjJ9n4qYcYVDi8O6Wo-ottgBin-8czx56lHJSkEJqsQPCg?e=N8f2bN",
+            "Ford": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Em8bPa15EA5GktOKhvjOZvkBcBKUNAat9udR377A9QywqA?e=1RzygZ",
+            "Genesis": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EpZx-JEEwA1Ku4_QcRc-AdUBaq80GNKpJ220mqDh3K6hSw?e=mvydbg",
+            "GMC": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EpZx-JEEwA1Ku4_QcRc-AdUBaq80GNKpJ220mqDh3K6hSw?e=RjLqeo",
+            "Honda": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/El5TH2K3oUFLvYsLiCLddfsBZedXJsd0cccD_PdEd8VeZw?e=C1jer2",
+            "Hyundai": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Ej3OmwyxcvpCgKSgRitDBRQBogmGhAXl02fTSWZPUv8fTg?e=Qc5d9L",
+            "Infiniti": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EnluXQ2j1ApLgKz8sSLlZZ4BdsCFiXn7QDgDurAYIJucjA?e=1VsA8u",
+            "Jaguar": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Elcyy5IrpfFLhZLZuGcOlRcBL9_1AsfTg5US8y5I-ukHZQ?e=3ppWTI",
+            "Jeep": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EteEBfd6I15LnVR7jVoC1vQBk7TB1PpYPWTeOdNVxX9WxA?e=VaxhkI",
+            "Kia": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EmeBljSMc45AtY8TPaG3LzABPyukP0RIhCH6AnX1g7tc9w?e=N4Aaey",
+            "Land Rover": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Em_X8FfBGmZNm3XhfSe4aFgBEIVhlMpv6NyMlya7FIssNQ?e=NDVpGP",
+            "Lexus": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EoWwGnZ3tyxGjHifp8REvzsB6bt-IS1vJWbBOQXqpzfdTA?e=l2jI53",
+            "Lincoln": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EiPhzaQo7RVJo0RIonH1iBUB3-uaZ5R5SbwSlCwKkdCo3A?e=mYLBce",
+            "Mazda": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/En4bjRzkrgpEoqNs75NUqw0BT11FRfgVaeUI5sFJR9g-lQ?e=5cBCNl",
+            "Mercedes": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EqPtFOl1KyZJqrM1-hvKFNsBHYyQg3SIRSG_u_GdulNfmA?e=c1WkH7",
+            "Mini": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EsuCQ3jb4SdGn_z2nctNatIBxbBh9AfszpoLNuHeyeRzaQ?e=kB1Wpa",
+            "Mitsubishi": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Ep4sBEBP2G9EpVOl4yii-B4BI0BTrQ4SsTb-3eL_aaqDBg?e=ojV9Ku",
+            "Nissan": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EuNJjABNTxhOtV0xKwFIA40BRfK2HZ_5DghIAwz8lZkGqw?e=zOs16F",
+            "Porsche": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EsfyKyNjxahEgDvI9veqMY8BJPXSIS7DivN9zExS4Tw3TA?e=Gzb9SX",
+            "Ram": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Eqk8MFOiaG5OvRTEu_hoHF4BfIgtHcOkRgzVAd98tvD0rw?e=pwU2uh",
+            "Rolls Royce": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EpKJpSlNaltJkVW6rcOaMwYBa813qB32RB9MkpvxntyHPA?e=cbtNeB",
+            "Subaru": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Etpws1skaeZHqm9doHVREFMBvCRb0Rm8Oj1mKo0HBruAxw?e=j9VRqN",
+            "Toyota": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EiB53aPXartJhkxyWzL5AFABZQsY3x-XDWPXQCqgFIrvoQ?e=m4DrKQ",
+            "Volkswagen": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Esry4bJndglOg1tzeCO63-kBojqzcx6mt0PZRNiIrHtaXw?e=0xdogQ",
+            "Volvo": "https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/Enaf3N8_gq1EvPizK5mLL4gBBiklHgRi_JiQV7QGE2j-Vg?e=IIhhTu",                        
+            # Add other manufacturer links here
+        }
 
     def initUI(self):
         self.setWindowTitle('Hyperlink Automation')
@@ -157,6 +196,7 @@ class SeleniumAutomationApp(QWidget):
     def select_excel_files(self):
         self.excel_paths, _ = QFileDialog.getOpenFileNames(self, 'Open files', 'C:/Users/', "Excel files (*.xlsx *.xls)")
         if self.excel_paths:
+            self.excel_paths = [path.strip() for path in self.excel_paths]  # Ensure no leading/trailing spaces
             self.excel_path_label.setText("\n".join([f"{i + 1}. {os.path.basename(path)}" for i, path in enumerate(self.excel_paths)]))
         else:
             self.excel_path_label.setText('No files selected')
@@ -187,10 +227,28 @@ class SeleniumAutomationApp(QWidget):
             confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
             if confirm == QMessageBox.Yes:
-                for excel_path in self.excel_paths:
-                    for manufacturer in selected_manufacturers:
-                        script_path = os.path.join(os.path.dirname(__file__), f"{manufacturer}.py")
-                        Thread(target=lambda: subprocess.run(["python", script_path, excel_path], check=True)).start()
+                completed_manufacturers = []
+                for manufacturer, excel_path in zip(selected_manufacturers, self.excel_paths):
+                    sharepoint_link = self.manufacturer_links.get(manufacturer)
+                    if sharepoint_link:
+                        script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+                        # Strip leading/trailing spaces from the paths
+                        excel_path = excel_path.strip()
+                        sharepoint_link = sharepoint_link.strip()
+                        args = ["python", script_path, sharepoint_link, excel_path]
+                        process = subprocess.run(args, check=True)
+                        if process.returncode == 0:
+                            print(f"Completed {manufacturer} for {excel_path}. Waiting 10 seconds before next.")
+                            completed_manufacturers.append(manufacturer)
+                            sleep(10)  # Wait for 10 seconds
+                        else:
+                            print(f"Failed to process {manufacturer} for {excel_path}.")
+            
+                # Display a message box with the completed manufacturers
+                completed_message = "The Following Manufacturers have been completed:\n"
+                completed_message += "\n".join(completed_manufacturers)
+                QMessageBox.information(self, 'Completed', completed_message, QMessageBox.Ok)
+
             else:
                 QMessageBox.warning(self, 'Warning', "Automation process canceled.", QMessageBox.Ok)
         else:
@@ -206,21 +264,42 @@ class SeleniumAutomationApp(QWidget):
             item = self.manufacturer_tree.topLevelItem(i)
             if item.checkState(0) == Qt.Checked:
                 selected_manufacturers.append(item.text(0))
-        
+
         if not selected_manufacturers:
             QMessageBox.warning(self, 'Warning', "Please select manufacturers first.", QMessageBox.Ok)
             return
-        
+
         confirm_message = ("WARNING!!! This will take a LONG time to complete, ETA N/A as of yet. "
                            "Please prepare to not touch your computer for a period of time. "
                            "Also ensure that every Excel file is put in the proper order or this will mess all the Longsheets up. Continue?")
         confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if confirm == QMessageBox.Yes:
-            for excel_path in self.excel_paths:
-                for manufacturer in selected_manufacturers:
-                    script_path = os.path.join(os.path.dirname(__file__), f"{manufacturer}.py")
-                    Thread(target=lambda: subprocess.run(["python", script_path, excel_path], check=True)).start()
+            completed_manufacturers = []
+            for manufacturer, excel_path in zip(selected_manufacturers, self.excel_paths):
+                sharepoint_link = self.manufacturer_links.get(manufacturer)
+                if sharepoint_link:
+                    script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+                    # Ensure no leading/trailing spaces
+                    excel_path = excel_path.strip()
+                    sharepoint_link = sharepoint_link.strip()
+                    args = ["python", script_path, sharepoint_link, excel_path]
+                    process = subprocess.run(args, check=True)
+                    if process.returncode == 0:
+                        print(f"Completed {manufacturer} for {excel_path}. Waiting 10 seconds before next.")
+                        completed_manufacturers.append(manufacturer)
+                        sleep(10)  # Wait for 10 seconds
+                    else:
+                        print(f"Failed to process {manufacturer} for {excel_path}.")
+        
+            # Display a message box with the completed manufacturers
+            completed_message = "The Following Manufacturers have been completed:\n"
+            completed_message += "\n".join(completed_manufacturers)
+            QMessageBox.information(self, 'Completed', completed_message, QMessageBox.Ok)
+
+        else:
+            QMessageBox.warning(self, 'Warning', "Automation process canceled.", QMessageBox.Ok)
+
 
     def select_all(self):
         select_all_checked = True
