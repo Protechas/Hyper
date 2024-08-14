@@ -611,12 +611,11 @@ class SharepointExtractor:
         return False
     
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
-
         # Check if the document name has a specific cell address
         if doc_name in self.SPECIFIC_HYPERLINKS:
             cell = ws[self.SPECIFIC_HYPERLINKS[doc_name]]
         else:
-            cell = self.__find_row_in_excel__(ws, year, self.sharepoint_make, model, doc_name)
+            cell, error_message = self.__find_row_in_excel__(ws, year, self.sharepoint_make, model, doc_name)
 
         if not cell:
             if cell_address:
@@ -629,6 +628,11 @@ class SharepointExtractor:
                     adas_last_row[doc_name] = row
                 cell = ws.cell(row=row, column=12)
 
+            # Add the error message in column H if no matching cell was found
+            error_cell = ws.cell(row=cell.row, column=8)
+            error_cell.value = error_message or "General Placement Error"
+            error_cell.font = Font(color="FF0000")  # Optional: Red color for the error text
+
         cell.hyperlink = document_url
         cell.value = document_url
         cell.font = Font(color="0000FF", underline='single')
@@ -636,12 +640,24 @@ class SharepointExtractor:
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
         
     def __find_row_in_excel__(self, ws, year, make, model, file_name):
-        
-        # Remove the year make and model from the file name provided
+        # Initialize error tracking
+        year_error, make_error, model_error, adas_error = True, True, True, True
+
+        # Extract information from the file name using regex patterns
+        extracted_year = re.search(r'\d{4}', file_name)
+        extracted_make = self.sharepoint_make
+        extracted_model = re.search(r'\b(?:Zevo 600|Other Model Names)\b', file_name)  # Modify the regex to capture your models
+
+        # Extract ADAS systems based on the predefined ADAS system names
+        extracted_adas_systems = [adas for adas in self.__DEFINED_MODULE_NAMES__ if adas in file_name.upper()]
+
+        extracted_year = extracted_year.group(0) if extracted_year else "Unknown Year"
+        extracted_model = extracted_model.group(0) if extracted_model else model  # Use the model passed if extraction fails
+        extracted_adas_systems_str = ", ".join(extracted_adas_systems) if extracted_adas_systems else "Unknown ADAS"
+
         adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "").replace("[", "").replace("]", "").replace("WL", "").replace("BSM-RCTW", "BSW-RCTW")
         adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("[", "").replace("]", "").replace("WL", "").replace("BSW-RCT W", "BSW-RCTW").replace("BSW-RSTW", "BSW-RCTW").replace("BCW-RCTW", "BSW-RCTW").replace("BSW-RTCW", "BSW-RCTW").replace("BSM-RCTW", "BSW-RCTW").replace("BSW_RCTW", "BSW-RCTW").replace("SCC", "ACC").replace("RR31 Culinan", "Culinan").replace("RR6 Dawn", "Dawn").replace("RR21 Ghost", "Ghost").replace("-PL-PW072NLB", "Side Blind Zone Alert").replace("BSW & RCTW", "BSW-RCTW").replace("-", "/").strip().upper()
 
-        # Apply specific normalization rules
         normalization_patterns = [
             (r'(RS)(\d)', r'\1 \2'),
             (r'(SQ)(\d)', r'\1 \2'),
@@ -649,27 +665,42 @@ class SharepointExtractor:
             (r'BSW-RCT W', r'BSW/RCTW'),
             (r'BSW-RCT W', r'BSW/RCTW')
         ]
-    
+
         for pattern, replacement in normalization_patterns:
             adas_file_name = re.sub(pattern, replacement, adas_file_name)
 
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip() if row[0].value is not None else ''
             make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value is not None else ''
-            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").replace("Super Duty F-250", "F-250 SUPER DUTY").replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY").replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY").replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible").replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR").replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT").replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").replace(" Ghost & Ghost Black Badge", "Ghost").strip() if row[2].value is not None else ''
+            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").replace("Super Duty F-250", "F-250 SUPER DUTY").replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY").replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY").replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible").replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR").replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT").replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value is not None else ''
             adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/").replace("SCC 1", "ACC").strip() if row[4].value is not None else ''
 
-            if year_value.upper() != year.upper(): continue
-            if make_value.upper() != make.upper(): continue
-            if model_value.upper() != model.upper(): continue
-            if adas_value.upper() not in adas_file_name: continue
+            year_error = year_value.upper() != year.upper()
+            make_error = make_value.upper() != make.upper()
+            model_error = model_value.upper() != model.upper()
+            adas_error = adas_value.upper() not in adas_file_name.upper()
 
-            # Check the ADAS value and ensure proper placement
+            if year_error or make_error or model_error or adas_error:
+                continue
+
             for term_index, term in enumerate(self.__ROW_SEARCH_TERMS__):
                 if term.upper() in adas_file_name:
-                    return ws.cell(row=row[0].row + term_index, column=12)
+                    return ws.cell(row=row[0].row + term_index, column=12), None
 
-            return ws.cell(row=row[0].row, column=12)      
+            return ws.cell(row=row[0].row, column=12), None
+
+        # Return an error message based on what failed
+        error_message = []
+        if year_error:
+            error_message.append(f"Year Mismatch ({extracted_year})")
+        if make_error:
+            error_message.append(f"Make Mismatch ({extracted_make})")
+        if model_error:
+            error_message.append(f"Model Mismatch ({extracted_model})")
+        if adas_error:
+            error_message.append(f"ADAS Mismatch ({extracted_adas_systems_str})")
+
+        return None, " | ".join(error_message)
 
         # Throw an exception when we fail to find a row for the current file name given
         # raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
