@@ -160,7 +160,7 @@ class SeleniumAutomationApp(QWidget):
         self.manufacturer_tree = QTreeWidget(self)
         self.manufacturer_tree.setHeaderHidden(True)
         self.manufacturer_tree.setStyleSheet("background-color: #3e3e3e; color: white; border: 1px solid #555555; border-radius: 5px;")
-        manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet", "Dodge", 
+        manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet","Chrysler", "Dodge", 
                          "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Kia", "Lexus", 
                          "Mazda", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", "Rolls Royce", "Subaru", "Toyota", 
                          "Volkswagen", "Volvo"]
