@@ -161,8 +161,8 @@ class SeleniumAutomationApp(QWidget):
         self.manufacturer_tree.setHeaderHidden(True)
         self.manufacturer_tree.setStyleSheet("background-color: #3e3e3e; color: white; border: 1px solid #555555; border-radius: 5px;")
         manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet","Chrysler", "Dodge", 
-                         "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Kia", "Lexus", "Land Rover",
-                         "Mazda", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", "Rolls Royce", "Subaru", "Toyota", 
+                         "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Lexus", "Land Rover", "Lincoln", 
+                         "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", "Rolls Royce", "Subaru", "Toyota", 
                          "Volkswagen", "Volvo"]
         for manufacturer in manufacturers:
             item = QTreeWidgetItem(self.manufacturer_tree)
@@ -312,6 +312,12 @@ class SeleniumAutomationApp(QWidget):
         for i in range(self.manufacturer_tree.topLevelItemCount()):
             item = self.manufacturer_tree.topLevelItem(i)
             item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)
+
+def run_script_in_terminal():
+    if sys.platform == 'win32':
+        subprocess.run(['start', 'cmd', '/k', 'python', 'SharepointExtractor.py'], shell=True)
+    else:
+        print("This method works on Windows. Use a shell script for macOS/Linux.")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
