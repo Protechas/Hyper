@@ -313,6 +313,12 @@ class SeleniumAutomationApp(QWidget):
             item = self.manufacturer_tree.topLevelItem(i)
             item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)
 
+def run_script_in_terminal():
+    if sys.platform == 'win32':
+        subprocess.run(['start', 'cmd', '/k', 'python', 'SharepointExtractor.py'], shell=True)
+    else:
+        print("This method works on Windows. Use a shell script for macOS/Linux.")
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = SeleniumAutomationApp()
