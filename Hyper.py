@@ -285,7 +285,7 @@ class SeleniumAutomationApp(QWidget):
                         args = ["python", script_path, sharepoint_link, excel_path]
 
                         # Run the command in a thread and show the output in the terminal
-                        self.worker = WorkerThread(['SharepointExtractor.py', sharepoint_link, excel_path])
+                        self.worker = WorkerThread(args)
                         self.worker.output_signal.connect(self.terminal.append_output)
                         self.worker.start()
 
