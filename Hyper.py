@@ -115,14 +115,25 @@ class WorkerThread(QThread):
         self.command = command
 
     def run(self):
-        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        process = subprocess.Popen(
+            self.command, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            bufsize=1,  # Line-buffered
+            universal_newlines=True
+        )
+        # Read stdout
         for stdout_line in iter(process.stdout.readline, ""):
-            self.output_signal.emit(stdout_line.strip())
+            self.output_signal.emit(stdout_line.strip())  # Emit the signal to update the UI
+            print(stdout_line, flush=True)  # Print to the console if needed
         process.stdout.close()
         process.wait()
+        
+        # Read stderr
         if process.returncode != 0:
             for stderr_line in iter(process.stderr.readline, ""):
-                self.output_signal.emit(stderr_line.strip())
+                self.output_signal.emit(stderr_line.strip())  # Emit the signal for stderr output
+                print(stderr_line, flush=True)  # Print to the console if needed
         process.stderr.close()
 
 class SeleniumAutomationApp(QWidget):
