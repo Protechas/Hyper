@@ -9,6 +9,9 @@ import subprocess
 from time import sleep
 import os
 
+if getattr(sys, 'frozen', False):  # If running as a PyInstaller .exe
+    os.environ["PYTHONUNBUFFERED"] = "1"
+
 class CustomButton(QPushButton):
     def __init__(self, text, color, parent=None):
         super().__init__(text, parent)
