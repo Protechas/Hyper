@@ -185,7 +185,7 @@ class SeleniumAutomationApp(QWidget):
         self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
         file_selection_layout.addWidget(self.excel_path_label)
 
-        self.activate_full_automation_button = CustomButton('Activate Full Automation', '#e3b505', self)
+        self.activate_full_automation_button = CustomButton('Activate Full Automation *WIP DO NOT USE*', '#e3b505', self)
         self.activate_full_automation_button.clicked.connect(self.activate_full_automation)
         file_selection_layout.addWidget(self.activate_full_automation_button)
 
