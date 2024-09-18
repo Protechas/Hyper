@@ -9,10 +9,6 @@ import subprocess
 from time import sleep
 import os
 
-sys.stdout.flush()
-if getattr(sys, 'frozen', False):  # If running as a PyInstaller .exe
-    os.environ["PYTHONUNBUFFERED"] = "1"
-
 class CustomButton(QPushButton):
     def __init__(self, text, color, parent=None):
         super().__init__(text, parent)
@@ -119,14 +115,19 @@ class WorkerThread(QThread):
         self.command = command
 
     def run(self):
-        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, bufsize=1)
+        # Use `bufsize=1` and `universal_newlines=True` for real-time output in unbuffered mode
+        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, universal_newlines=True)
+        
+        # Read stdout line by line
         for stdout_line in iter(process.stdout.readline, ""):
-            self.output_signal.emit(stdout_line.strip())
+            self.output_signal.emit(stdout_line.strip())  # Emit each line as it is received
         process.stdout.close()
+
+        # Wait for process to complete and handle stderr
         process.wait()
         if process.returncode != 0:
             for stderr_line in iter(process.stderr.readline, ""):
-                self.output_signal.emit(stderr_line.strip())
+                self.output_signal.emit(stderr_line.strip())  # Emit each error line as well
         process.stderr.close()
 
 class SeleniumAutomationApp(QWidget):
