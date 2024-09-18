@@ -9,6 +9,10 @@ import subprocess
 from time import sleep
 import os
 
+# Disable buffering
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)  # Line buffered
+sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', buffering=1)  # Line buffered
+
 class CustomButton(QPushButton):
     def __init__(self, text, color, parent=None):
         super().__init__(text, parent)
@@ -115,20 +119,24 @@ class WorkerThread(QThread):
         self.command = command
 
     def run(self):
-        # Use `bufsize=1` and `universal_newlines=True` for real-time output in unbuffered mode
+        # Force real-time output, unbuffered mode
         process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, universal_newlines=True)
         
-        # Capture stdout in real-time
-        for stdout_line in iter(process.stdout.readline, ""):
-            self.output_signal.emit(stdout_line.strip())
+        # Read stdout and stderr in real-time
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                self.output_signal.emit(output.strip())
+        
+        # Check for any errors
+        stderr_output = process.stderr.read()
+        if stderr_output:
+            self.output_signal.emit(stderr_output.strip())
+
         process.stdout.close()
-
-        # Capture stderr if there are any errors
-        for stderr_line in iter(process.stderr.readline, ""):
-            self.output_signal.emit(stderr_line.strip())
         process.stderr.close()
-
-        process.wait()
 
 class SeleniumAutomationApp(QWidget):
     def __init__(self):
