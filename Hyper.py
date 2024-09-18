@@ -115,26 +115,20 @@ class WorkerThread(QThread):
         self.command = command
 
     def run(self):
-        # Use 'python -u' for unbuffered output and force real-time stdout and stderr
-        process = subprocess.Popen(
-            ['python', '-u'] + self.command,  # '-u' flag forces unbuffered output
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            bufsize=1,  # Line-buffered
-            universal_newlines=True
-        )
-
-        # Capture stdout in real-time
+        # Use `bufsize=1` and `universal_newlines=True` for real-time output in unbuffered mode
+        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, universal_newlines=True)
+        
+        # Read stdout line by line
         for stdout_line in iter(process.stdout.readline, ""):
-            self.output_signal.emit(stdout_line.strip())
+            self.output_signal.emit(stdout_line.strip())  # Emit each line as it is received
         process.stdout.close()
 
-        # Capture stderr if there are any errors
-        for stderr_line in iter(process.stderr.readline, ""):
-            self.output_signal.emit(stderr_line.strip())
-        process.stderr.close()
-
+        # Wait for process to complete and handle stderr
         process.wait()
+        if process.returncode != 0:
+            for stderr_line in iter(process.stderr.readline, ""):
+                self.output_signal.emit(stderr_line.strip())  # Emit each error line as well
+        process.stderr.close()
 
 class SeleniumAutomationApp(QWidget):
     def __init__(self):
