@@ -1,17 +1,12 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, 
-                             QPlainTextEdit, QDialog)
+                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox)
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt
 from threading import Thread
 import subprocess
 from time import sleep
 import os
-
-# Disable buffering
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)  # Line buffered
-sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', buffering=1)  # Line buffered
 
 class CustomButton(QPushButton):
     def __init__(self, text, color, parent=None):
@@ -94,50 +89,6 @@ class ToggleSwitch(QCheckBox):
             """)
         self.parent().toggle_theme()
 
-class TerminalDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Terminal Output")
-        self.setGeometry(100, 100, 600, 400)
-
-        self.layout = QVBoxLayout()
-        self.terminal_output = QPlainTextEdit()
-        self.terminal_output.setReadOnly(True)
-        self.layout.addWidget(self.terminal_output)
-
-        self.setLayout(self.layout)
-
-    def append_output(self, text):
-        self.terminal_output.appendPlainText(text)
-        self.terminal_output.ensureCursorVisible()
-
-class WorkerThread(QThread):
-    output_signal = pyqtSignal(str)
-
-    def __init__(self, command, parent=None):
-        super(WorkerThread, self).__init__(parent)
-        self.command = command
-
-    def run(self):
-        # Force real-time output, unbuffered mode
-        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, universal_newlines=True)
-        
-        # Read stdout and stderr in real-time
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output:
-                self.output_signal.emit(output.strip())
-        
-        # Check for any errors
-        stderr_output = process.stderr.read()
-        if stderr_output:
-            self.output_signal.emit(stderr_output.strip())
-
-        process.stdout.close()
-        process.stderr.close()
-
 class SeleniumAutomationApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -198,7 +149,7 @@ class SeleniumAutomationApp(QWidget):
         self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
         file_selection_layout.addWidget(self.excel_path_label)
 
-        self.activate_full_automation_button = CustomButton('Activate Full Automation *WIP DO NOT USE*', '#e3b505', self)
+        self.activate_full_automation_button = CustomButton('Activate Full Automation', '#e3b505', self)
         self.activate_full_automation_button.clicked.connect(self.activate_full_automation)
         file_selection_layout.addWidget(self.activate_full_automation_button)
 
@@ -228,15 +179,17 @@ class SeleniumAutomationApp(QWidget):
 
         # Theme switch section
         theme_switch_section = QHBoxLayout()
+        
         self.theme_toggle = ToggleSwitch(self)
         theme_switch_section.addWidget(self.theme_toggle)
+        
         layout.addLayout(theme_switch_section)
-
+        
         # Start button
         self.start_button = CustomButton('Start Automation', '#e63946', self)
         self.start_button.clicked.connect(self.start_automation)
         layout.addWidget(self.start_button)
-
+        
         self.setLayout(layout)
         self.resize(600, 400)
 
@@ -274,22 +227,27 @@ class SeleniumAutomationApp(QWidget):
             confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
             if confirm == QMessageBox.Yes:
-                # Show the terminal window
-                self.terminal = TerminalDialog(self)
-                self.terminal.show()
                 completed_manufacturers = []
                 for manufacturer, excel_path in zip(selected_manufacturers, self.excel_paths):
                     sharepoint_link = self.manufacturer_links.get(manufacturer)
                     if sharepoint_link:
                         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+                        # Strip leading/trailing spaces from the paths
                         excel_path = excel_path.strip()
                         sharepoint_link = sharepoint_link.strip()
                         args = ["python", script_path, sharepoint_link, excel_path]
-
-                        # Run the command in a thread and show the output in the terminal
-                        self.worker = WorkerThread(args)
-                        self.worker.output_signal.connect(self.terminal.append_output)
-                        self.worker.start()
+                        process = subprocess.run(args, check=True)
+                        if process.returncode == 0:
+                            print(f"Completed {manufacturer} for {excel_path}. Waiting 10 seconds before next.")
+                            completed_manufacturers.append(manufacturer)
+                            sleep(10)  # Wait for 10 seconds
+                        else:
+                            print(f"Failed to process {manufacturer} for {excel_path}.")
+            
+                # Display a message box with the completed manufacturers
+                completed_message = "The Following Manufacturers have been completed:\n"
+                completed_message += "\n".join(completed_manufacturers)
+                QMessageBox.information(self, 'Completed', completed_message, QMessageBox.Ok)
 
             else:
                 QMessageBox.warning(self, 'Warning', "Automation process canceled.", QMessageBox.Ok)
@@ -297,8 +255,51 @@ class SeleniumAutomationApp(QWidget):
             QMessageBox.warning(self, 'Warning', "Please select Excel files and manufacturers first.", QMessageBox.Ok)
 
     def activate_full_automation(self):
-        # Full automation logic similar to start_automation but without manual confirmation
-        pass
+        if not self.excel_paths:
+            QMessageBox.warning(self, 'Warning', "Please select Excel files first.", QMessageBox.Ok)
+            return
+
+        selected_manufacturers = []
+        for i in range(self.manufacturer_tree.topLevelItemCount()):
+            item = self.manufacturer_tree.topLevelItem(i)
+            if item.checkState(0) == Qt.Checked:
+                selected_manufacturers.append(item.text(0))
+
+        if not selected_manufacturers:
+            QMessageBox.warning(self, 'Warning', "Please select manufacturers first.", QMessageBox.Ok)
+            return
+
+        confirm_message = ("WARNING!!! This will take a LONG time to complete, ETA N/A as of yet. "
+                           "Please prepare to not touch your computer for a period of time. "
+                           "Also ensure that every Excel file is put in the proper order or this will mess all the Longsheets up. Continue?")
+        confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if confirm == QMessageBox.Yes:
+            completed_manufacturers = []
+            for manufacturer, excel_path in zip(selected_manufacturers, self.excel_paths):
+                sharepoint_link = self.manufacturer_links.get(manufacturer)
+                if sharepoint_link:
+                    script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+                    # Ensure no leading/trailing spaces
+                    excel_path = excel_path.strip()
+                    sharepoint_link = sharepoint_link.strip()
+                    args = ["python", script_path, sharepoint_link, excel_path]
+                    process = subprocess.run(args, check=True)
+                    if process.returncode == 0:
+                        print(f"Completed {manufacturer} for {excel_path}. Waiting 10 seconds before next.")
+                        completed_manufacturers.append(manufacturer)
+                        sleep(10)  # Wait for 10 seconds
+                    else:
+                        print(f"Failed to process {manufacturer} for {excel_path}.")
+        
+            # Display a message box with the completed manufacturers
+            completed_message = "The Following Manufacturers have been completed:\n"
+            completed_message += "\n".join(completed_manufacturers)
+            QMessageBox.information(self, 'Completed', completed_message, QMessageBox.Ok)
+
+        else:
+            QMessageBox.warning(self, 'Warning', "Automation process canceled.", QMessageBox.Ok)
+
 
     def select_all(self):
         select_all_checked = True
@@ -311,6 +312,12 @@ class SeleniumAutomationApp(QWidget):
         for i in range(self.manufacturer_tree.topLevelItemCount()):
             item = self.manufacturer_tree.topLevelItem(i)
             item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)
+
+def run_script_in_terminal():
+    if sys.platform == 'win32':
+        subprocess.run(['start', 'cmd', '/k', 'python', 'SharepointExtractor.py'], shell=True)
+    else:
+        print("This method works on Windows. Use a shell script for macOS/Linux.")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
