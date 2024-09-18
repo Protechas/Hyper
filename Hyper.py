@@ -118,17 +118,18 @@ class WorkerThread(QThread):
         # Use `bufsize=1` and `universal_newlines=True` for real-time output in unbuffered mode
         process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, universal_newlines=True)
         
-        # Read stdout line by line
+        # Capture stdout in real-time
         for stdout_line in iter(process.stdout.readline, ""):
-            self.output_signal.emit(stdout_line.strip())  # Emit each line as it is received
+            self.output_signal.emit(stdout_line.strip())
         process.stdout.close()
 
-        # Wait for process to complete and handle stderr
-        process.wait()
-        if process.returncode != 0:
-            for stderr_line in iter(process.stderr.readline, ""):
-                self.output_signal.emit(stderr_line.strip())  # Emit each error line as well
+        # Capture stderr if there are any errors
+        for stderr_line in iter(process.stderr.readline, ""):
+            self.output_signal.emit(stderr_line.strip())
         process.stderr.close()
+
+        process.wait()
+
 
 class SeleniumAutomationApp(QWidget):
     def __init__(self):
