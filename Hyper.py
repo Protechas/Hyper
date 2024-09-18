@@ -9,6 +9,7 @@ import subprocess
 from time import sleep
 import os
 
+sys.stdout.flush()
 if getattr(sys, 'frozen', False):  # If running as a PyInstaller .exe
     os.environ["PYTHONUNBUFFERED"] = "1"
 
@@ -118,25 +119,14 @@ class WorkerThread(QThread):
         self.command = command
 
     def run(self):
-        process = subprocess.Popen(
-            self.command, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
-            bufsize=1,  # Line-buffered
-            universal_newlines=True
-        )
-        # Read stdout
+        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, bufsize=1)
         for stdout_line in iter(process.stdout.readline, ""):
-            self.output_signal.emit(stdout_line.strip())  # Emit the signal to update the UI
-            print(stdout_line, flush=True)  # Print to the console if needed
+            self.output_signal.emit(stdout_line.strip())
         process.stdout.close()
         process.wait()
-        
-        # Read stderr
         if process.returncode != 0:
             for stderr_line in iter(process.stderr.readline, ""):
-                self.output_signal.emit(stderr_line.strip())  # Emit the signal for stderr output
-                print(stderr_line, flush=True)  # Print to the console if needed
+                self.output_signal.emit(stderr_line.strip())
         process.stderr.close()
 
 class SeleniumAutomationApp(QWidget):
