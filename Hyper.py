@@ -18,7 +18,12 @@ class WorkerThread(QThread):
         self.manufacturer = manufacturer
 
     def run(self):
-        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, universal_newlines=True)
+        # Set up the environment to disable buffering
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+
+        # Run the subprocess with unbuffered output
+        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, universal_newlines=True, env=env)
         
         # Read stdout line by line and emit each line
         for stdout_line in iter(process.stdout.readline, ""):
