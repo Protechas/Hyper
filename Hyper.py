@@ -8,6 +8,7 @@ import subprocess
 from time import sleep
 import os
 
+#Adds Terminal infoormation
 class WorkerThread(QThread):
     output_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(str)
