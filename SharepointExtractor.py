@@ -646,7 +646,7 @@ class SharepointExtractor:
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
         
     def __find_row_in_excel__(self, ws, year, make, model, file_name):
-        # Initialize error tracking
+        # Initialize error tracking (no longer needed for error display)
         year_error, make_error, model_error, adas_error = True, True, True, True
 
         # Extract information from the file name using regex patterns
@@ -675,6 +675,7 @@ class SharepointExtractor:
         for pattern, replacement in normalization_patterns:
             adas_file_name = re.sub(pattern, replacement, adas_file_name)
 
+        # Iterate through the worksheet rows
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip() if row[0].value is not None else ''
             make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value is not None else ''
@@ -689,25 +690,14 @@ class SharepointExtractor:
             if year_error or make_error or model_error or adas_error:
                 continue
 
+            # If a matching cell is found, add the hyperlink only (don't add the file name to column K)
             for term_index, term in enumerate(self.__ROW_SEARCH_TERMS__):
                 if term.upper() in adas_file_name:
-                    return ws.cell(row=row[0].row + term_index, column=12), None
+                    return ws.cell(row=row[0].row, column=12), None
 
             return ws.cell(row=row[0].row, column=12), None
 
-        # Return an error message based on what failed
-        error_message = []
-        if year_error:
-            error_message.append(f"Year Mismatch ({extracted_year})")
-        if make_error:
-            error_message.append(f"Make Mismatch ({extracted_make})")
-        if model_error:
-            error_message.append(f"Model Mismatch ({extracted_model})")
-        if adas_error:
-            error_message.append(f"ADAS Mismatch ({extracted_adas_systems_str})")
-
-        return None, " | ".join(error_message)
-
+        return None, file_name
 
         # Throw an exception when we fail to find a row for the current file name given
         # raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
@@ -724,7 +714,7 @@ if __name__ == '__main__':
     # (Usage with GUI, take away the # to perform whichever is needed)        
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = True
+    debug_run = False
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
