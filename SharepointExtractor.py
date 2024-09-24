@@ -68,7 +68,13 @@ class SharepointExtractor:
     SPECIFIC_HYPERLINKS = {
     "2013 GMC Acadia (BSW-RCTW 1)-PL-PW072NLB.pdf": "L79",
     "2016 Acura RLX (LKA 1) [FCW-LDW].pdf": "L249",
-    "2016 Acura RLX (LKA 1) [Multipurpose].pdf": "L250"
+    "2016 Acura RLX (LKA 1) [Multipurpose].pdf": "L250",
+    "2012 Volkswagen CC (ACC 1).pdf": "L11",
+    "2013 Volkswagen CC (ACC 1).pdf": "L83",
+    "2014 Volkswagen CC (ACC 1).pdf": "L155",
+    "2015 Volkswagen CC (ACC 1).pdf": "L227",
+    "2016 Volkswagen CC (ACC 1).pdf": "L299",
+    "2017 Volkswagen CC (ACC 1).pdf": "L371"
     # Add more mappings as needed
     }
     #################################################################################################################################################
@@ -646,14 +652,25 @@ class SharepointExtractor:
         # Extract information from the file name using regex patterns
         extracted_year = re.search(r'\d{4}', file_name)
         extracted_make = self.sharepoint_make
-        extracted_model = re.search(r'\b(?:Zevo 600|Other Model Names)\b', file_name)  # Modify the regex to capture your models
+        extracted_model = re.search(r'\b(?:Zevo 600|Zevo 400|Other Model Names)\b', file_name)  # Modify the regex to capture your models
 
-        # Extract ADAS systems based on the predefined ADAS system names
-        extracted_adas_systems = [adas for adas in self.__DEFINED_MODULE_NAMES__ if adas in file_name.upper()]
+        # Debug: Print the file name being processed
+        print(f"Processing file: {file_name}")
 
+        # Extract ADAS systems based on the predefined ADAS system names (case-insensitive)
+        # Using regex for more flexible matching (accounts for variations)
+        adas_pattern = '|'.join(map(re.escape, self.__DEFINED_MODULE_NAMES__))  # Create a regex pattern with all ADAS names
+        extracted_adas_systems = re.findall(adas_pattern, file_name, re.IGNORECASE)
+
+        # Debug: Print the ADAS systems that were found
+        print(f"Extracted ADAS Systems for {file_name}: {extracted_adas_systems}")
+
+        # If multiple ADAS systems match, join them with commas
+        extracted_adas_systems_str = ", ".join(extracted_adas_systems) if extracted_adas_systems else "Unknown ADAS"
+
+        # Extract the year, make, and model, falling back to defaults if not found
         extracted_year = extracted_year.group(0) if extracted_year else "Unknown Year"
         extracted_model = extracted_model.group(0) if extracted_model else model  # Use the model passed if extraction fails
-        extracted_adas_systems_str = ", ".join(extracted_adas_systems) if extracted_adas_systems else "Unknown ADAS"
 
         adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "").replace("[", "").replace("]", "").replace("WL", "").replace("BSM-RCTW", "BSW-RCTW")
         adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("[", "").replace("]", "").replace("WL", "").replace("BSW-RCT W", "BSW-RCTW").replace("BSW-RSTW", "BSW-RCTW").replace("BCW-RCTW", "BSW-RCTW").replace("BSW-RTCW", "BSW-RCTW").replace("BSM-RCTW", "BSW-RCTW").replace("BSW_RCTW", "BSW-RCTW").replace("SCC", "ACC").replace("RR31 Culinan", "Culinan").replace("RR6 Dawn", "Dawn").replace("RR21 Ghost", "Ghost").replace("-PL-PW072NLB", "Side Blind Zone Alert").replace("BSW & RCTW", "BSW-RCTW").replace("-", "/").strip().upper()
@@ -680,16 +697,18 @@ class SharepointExtractor:
             model_error = model_value.upper() != model.upper()
             adas_error = adas_value.upper() not in adas_file_name.upper()
 
+            # Keep checking for mismatches, do not exit early
             if year_error or make_error or model_error or adas_error:
                 continue
 
+            # Match found
             for term_index, term in enumerate(self.__ROW_SEARCH_TERMS__):
                 if term.upper() in adas_file_name:
                     return ws.cell(row=row[0].row + term_index, column=12), None
 
             return ws.cell(row=row[0].row, column=12), None
 
-        # Return an error message based on what failed
+        # Build the final error message combining all mismatches
         error_message = []
         if year_error:
             error_message.append(f"Year Mismatch ({extracted_year})")
@@ -701,6 +720,9 @@ class SharepointExtractor:
             error_message.append(f"ADAS Mismatch ({extracted_adas_systems_str})")
 
         return None, " | ".join(error_message)
+
+
+
 
         # Throw an exception when we fail to find a row for the current file name given
         # raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
