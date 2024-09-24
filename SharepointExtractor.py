@@ -699,7 +699,7 @@ class SharepointExtractor:
 
         return None, file_name
 
-        # Throw an exception when we fail to find a row for the current file name given
+        ## Throw an exception when we fail to find a row for the current file name given
         # raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
 
 #####################################################################################################################################################
