@@ -48,7 +48,7 @@ class SharepointExtractor:
     __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[contains(@class, 'ms-List-cell') and contains(@role, 'presentation') and @data-list-index]"
 
     # Collections of system names used for finding correct files and row locations
-    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'SCC', 'AEB', 'AHL', 'APA', 'BSW/RCTW', 'BSW-RCTW','BSW & RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW','BSW-RTCW','BSW_RCTW','BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC' ]
+    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'SCC', 'AEB', 'AHL', 'APA','BSW', 'BSW/RCTW', 'BSW-RCTW','BSW & RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW','BSW-RTCW','BSW_RCTW','BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC' ]
     __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Side Blind Zone Alert', 'Lane Change Alert', 'Blind Spot Warning (BSW)', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',

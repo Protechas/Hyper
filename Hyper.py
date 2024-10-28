@@ -145,7 +145,7 @@ class SeleniumAutomationApp(QWidget):
         self.initUI()
         self.excel_paths = []
         self.manufacturer_links = {
-            "Acura": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Egwph7U2M7tMgy4U82m8HVEBbeB3CxoibZz9zFww6iBZqw?e=mXHhKP",
+            "Acura": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Egwph7U2M7tMgy4U82m8HVEBl3x1scBmvn9OtYrb__--0Q?e=jOfJLt",
             "Alfa Romeo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EvO_UqobQBJOrwQAGefJrNgB4YDcOAAtQy_Y578hKRJE9A?e=rR0l1T",
             "Audi": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Ek0hoMxpf-RKgEkcFE7q4cgBz-OHaRSh6B5OSRnMVOPLKw?e=CAkrx0",
             "BMW": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EiXISHFadJVPh0GzAp9RvXgBJ9u-Y1QcpDAfgttL87t9cQ?e=MIgusl",
