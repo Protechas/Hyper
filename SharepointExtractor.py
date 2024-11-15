@@ -342,7 +342,7 @@ class SharepointExtractor:
                 time.sleep(1.00)
                 ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()
                 time.sleep(1.25)
-                ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.ENTER).perform()           
+                ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER).perform()           
                 time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()  
                 time.sleep(1.25)
