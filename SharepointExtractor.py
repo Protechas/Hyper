@@ -139,6 +139,7 @@ class SharepointExtractor:
         self.__DEBUG_RUN__ = debug_run
         self.sharepoint_link = sharepoint_link
         self.excel_file_path = excel_file_path
+        self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
 
         # Define the default wait timeout and setup a new selenium driver
         self.selenium_driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.__generate_chrome_options__())
@@ -157,94 +158,118 @@ class SharepointExtractor:
         # Find the make of the folder for the current sharepoint link and store it.
         self.sharepoint_make = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
         print(f"Configured new SharepointExtractor for {self.sharepoint_make} correctly!")
-          
     def extract_contents(self) -> tuple[list, list]:
         """
-        Extracts the file and folder links from the defined sharepoint location for the current extractor object
+        Extracts the file and folder links from the defined sharepoint location for the current extractor object.
         Returns a tuple of lists. The first list holds all of our SharepointEntry objects for the folders in the sharepoint,
-        and the second list holds all of our SharepointEntry objects for the folders in the sharepoint.
+        and the second list holds all of our SharepointEntry objects for the files in the sharepoint.
+        If no ADAS systems are selected, processes all files.
         """
-        
-        # Index and store base folders and files here then iterate them all
+        # Index and store base folders and files here
         sharepoint_folders, sharepoint_files = self.__get_folder_rows__()
-
-        # Iterate the contents of the base folders list as long as it has contents
+    
+        # Compile regex patterns for the selected ADAS systems if any are selected
+        adas_patterns = (
+            [re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas]
+            if self.selected_adas else None
+        )
+    
+        # Initialize filtered files list
+        filtered_files = []
+    
+        # Start indexing
         start_time = time.time()
         while len(sharepoint_folders) > 0:
-
             # Store the current folder value and navigate to it for indexing
             folder_link = sharepoint_folders.pop(0).entry_link
             child_folders, child_files = self.__get_folder_rows__(folder_link)
-            
-            # Add all of our links to the files and folders to our base lists
-            for file_entry in child_files: sharepoint_files.append(file_entry)   
-            for folder_entry in child_folders: sharepoint_folders.append(folder_entry)
-           
-            # Log out how many child links and folders exist now
-            print(f'{len(sharepoint_folders)} Folders Remain | {len(sharepoint_files)} Files Indexed')
-
-            # BREAK HERE FOR TESTING
-            # if len(sharepoint_files) >= 200: break            
-        
-        # Build return lists for contents of folders and files        
-        elapsed_time = time.time() - start_time
-        print(f"Indexing routine took {elapsed_time} to complete")
-        return [ sharepoint_folders, sharepoint_files ]    
     
+            # Add child folders for further processing
+            sharepoint_folders.extend(child_folders)
+    
+            # Add all files if no ADAS systems are selected, otherwise filter them
+            if adas_patterns:
+                # Filter and add matching child files
+                for file_entry in child_files:
+                    if any(pattern.search(file_entry.entry_name) for pattern in adas_patterns):
+                        filtered_files.append(file_entry)
+                        
+                    #else:
+                        #print(f"Skipping file (not matching ADAS): {file_entry.entry_name}")
+            else:
+                # Add all files directly
+                filtered_files.extend(child_files)
+                #for file_entry in child_files:
+                    #print(f"File added (no ADAS filter): {file_entry.entry_name}")
+    
+            # Log out how many child links and folders exist now
+            print(f'{len(sharepoint_folders)} Folders Remain | {len(filtered_files)} Files Indexed')
+    
+        elapsed_time = time.time() - start_time
+        print(f"Indexing routine took {elapsed_time:.2f} seconds.")
+        return [sharepoint_folders, filtered_files]
+
+
+
+
     def populate_excel_file(self, file_entries: list) -> None:
         """
         Populates the excel file for the current make and stores all hyperlinks built in correct 
-        locations
-
+        locations.
+    
         file_entries: list[SharepointEntry]
             The list of all file entries we're looking to put into our excel file
         """
-
-        # Load our excel file from the path given 
+    
+        # Load the Excel file
         start_time = time.time()
         model_workbook = openpyxl.load_workbook(self.excel_file_path)
-        model_worksheet = model_workbook['Model Version']  
+        model_worksheet = model_workbook['Model Version']
         print(f"Workbook loaded successfully: {self.excel_file_path}")
-
-        # Setup trackers for correct row insertion during population 
+    
+        # Setup trackers for correct row insertion during population
         current_model = ""
-        adas_last_row = { }
-
-        # Iterate all the file entries given and update the excel file accordingly
+        adas_last_row = {}
+    
+        # Iterate through the filtered file entries
         for file_entry in file_entries:
-            # Pull the year and model for the file from the heirarchy
-            # Ensure there are enough segments in the heirarchy
-            heirarchy_segments = file_entry.entry_heirarchy.split('\\')
-            if len(heirarchy_segments) < 3:
-                print(f"Invalid entry heirarchy format: {file_entry.entry_heirarchy}")
+            print(f"Processing file: {file_entry.entry_name}")
+    
+            # Pull the year and model for the file from the hierarchy
+            hierarchy_segments = file_entry.entry_heirarchy.split('\\')
+            if len(hierarchy_segments) < 3:
+                print(f"Invalid entry hierarchy format: {file_entry.entry_heirarchy}")
                 continue
-
-            file_name = file_entry.entry_name                                                   
-            file_model = heirarchy_segments[2]
-            file_year = heirarchy_segments[1]
-
+    
+            file_name = file_entry.entry_name
+            file_model = hierarchy_segments[2]
+            file_year = hierarchy_segments[1]
+    
             # Check if ADAS last row needs to be reset or not
             if file_model != current_model:
                 current_model = file_model
-                adas_last_row = { }
-
+                adas_last_row = {}
+    
             # Now update our excel file based on the values given for this entry
-            if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link): continue
+            if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
+                continue
             self.__update_excel__(model_worksheet, file_year, file_model, file_name, file_entry.entry_link, adas_last_row, None)
-
-        # Close the workbook once done populating information
+    
+        # Save the workbook after processing
         print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
         model_workbook.save(self.excel_file_path)
         model_workbook.close()
-
-        # Log out how long this routine took and exit this method
+    
+        # Log the time taken to populate
         elapsed_time = time.time() - start_time
-        print(f"Sheet population routine took {elapsed_time} to complete")
+        print(f"Sheet population routine took {elapsed_time:.2f} seconds.")
+
+
 
     def __generate_chrome_options__(self) -> Options:
         """
-        Asks the user if they want to use an existing chrome install or a new one
-        Returns a built set of chrome options for the given configuration
+        Configures Chrome to always use the existing user profile for multi-document processing.
+        Returns a built set of Chrome options configured to use the existing profile.
         """
         
         # Define a new chrome options object and setup some default configuration
@@ -256,27 +281,17 @@ class SharepointExtractor:
         chrome_options.add_argument("--disable-infobars")  # Disable infobars
         chrome_options.add_argument("--disable-browser-side-navigation")  # Disable side navigation issues
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Avoid detection as bot
-        
-        # Build a new root object for tkinter and ask the user for their choice
-        root = tk.Tk()
-        root.withdraw()
-        use_existing_profile = messagebox.askyesno(
-            "Chrome Instance",
-            "Would you like to use the currently installed version of Chrome?\n"
-            "Click 'Yes' for the currently installed version or 'No' for a new instance.") 
-        root.destroy() 
-
-        # Check the user option and update options if needed
-        if not use_existing_profile: return chrome_options
-
+    
+        # Always use the existing Chrome profile
         home_dir = os.path.expanduser("~")
         user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
-        chrome_options.add_argument(f"user-data-dir={user_data_dir}")
+        chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
         profile_dir = "Default" 
-        chrome_options.add_argument(f"profile-directory={profile_dir}")
+        chrome_options.add_argument(f"--profile-directory={profile_dir}")
         
         # Return the updated options object
-        return chrome_options    
+        return chrome_options
+  
     
     def __is_row_folder__(self, row_element: WebElement) -> bool:
             
@@ -513,99 +528,144 @@ class SharepointExtractor:
     
         # Return the built heirarchy name value here
         return entry_heirarchy
-    
+        
     def __get_folder_rows__(self, row_link: str = None) -> tuple[list, list]:
-
+        """
+        Indexes the folders and files within a SharePoint directory.
+        Filters files based on the selected ADAS systems. If no ADAS systems are selected, processes all files.
+        """
+    
         # If a link is provided to this method, navigate to it first before indexing
         if row_link is not None:
             self.selenium_driver.get(row_link)
-
+    
         # Store lists for output files/lists
         indexed_files = []
-        indexed_folders = []      
-        
-        # Look for the table element. If it doesn't appear in 5 seconds, assume no rows appeared in the folder           
-        try: WebDriverWait(self.selenium_driver, 2.5).until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))           
- 
-        except:            
+        indexed_folders = []
+    
+        # Compile regex patterns for selected ADAS systems if any are selected
+        adas_patterns = (
+            [re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas]
+            if self.selected_adas else None
+        )
+    
+        # Look for the table element. If it doesn't appear in 5 seconds, assume no rows appeared in the folder
+        try:
+            WebDriverWait(self.selenium_driver, 2.5).until(
+                EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
+            )
+        except:
             # Pull the title of the page to log out that nothing was found inside the current folder
-            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
+            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute(
+                "innerText"
+            ).strip()
             print(f"No folders/files found inside folder {page_title}")
-            return [indexed_files, indexed_folders]           
-              
+            return [indexed_folders, indexed_files]
+    
         # Find all page elements for the lists of files/folders and iterate them one by one
         page_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)
         for page_element in page_elements:
-            
-            # Wait for the table rows to appear. If they don't appear, this should fail out since you always have rows when you have a table
-            WebDriverWait(page_element, 15).until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)))
-            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
+            # Wait for the table rows to appear
+            WebDriverWait(page_element, 15).until(
+                EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__))
+            )
+            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute(
+                "innerText"
+            ).strip()
             table_elements = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-
+    
             # Iterate the row elements in the table and decide if they should be included or not based on name/type of entry
             for row_element in table_elements:
-
-                # Pull the name of the folder and the heirarchy of it for use later on
+                # Pull the name of the folder and the hierarchy of it for use later on
                 entry_name = self.__get_row_name__(row_element)
-                entry_heirarchy = self.__get_entry_heirarchy__(row_element)
-                       
+                entry_hierarchy = self.__get_entry_heirarchy__(row_element)
+    
                 # Filter out entries with old/part/no in their names
                 if entry_name.lower().startswith("no"):
                     continue
-                if any(value in entry_name.lower() for value in ["old", "part", "Replacement", "Data"]) and entry_name:
+                if any(value in entry_name.lower() for value in ["old", "part", "replacement", "data"]) and entry_name:
                     continue
-                
-                # For folders, check if we need to store it as a folder of if the folder is a segmented file set
+    
+                # For folders, check if we need to store it as a folder or if the folder is a segmented file set
                 if self.__is_row_folder__(row_element):
-                    if page_title == self.sharepoint_make and re.search("\\d{4}", entry_name) is None:
+                    if page_title == self.sharepoint_make and re.search(r"\d{4}", entry_name) is None:
                         continue
-
-                    # Pull the link for the folder and open it in a new tab to peek at the contents of it
+    
+                    # Pull the link for the folder and check its contents
                     folder_link = self.__get_unencrypted_link__(row_element)
                     if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is not None:
-
                         # Open a new tab and navigate to the folder being checked
                         self.selenium_driver.switch_to.new_window(WindowTypes.TAB)
                         self.selenium_driver.get(folder_link)
-
-                            # Find all the child folders/files for the current row entry
+    
+                        # Find all the child folders/files for the current row entry
                         try:
-                            sub_table_element = WebDriverWait(self.selenium_driver, 25)\
-                                .until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))
+                            sub_table_element = WebDriverWait(self.selenium_driver, 25).until(
+                                EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
+                            )
                             sub_table_rows = sub_table_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
                             sub_table_entries = [self.__get_row_name__(sub_table_row) for sub_table_row in sub_table_rows]
-                        except:                            
+                        except:
                             sub_table_entries = []
-
+    
                         # Close the tab for the child folder being indexed
                         self.selenium_driver.close()
                         self.selenium_driver.switch_to.window(self.selenium_driver.window_handles[0])
-
+    
                         # Check if this is a segmented file. If so, store this folder as a file
-                        if any(re.search(r"([PpAaRrTt]{4})|(\d+\s{0,}\.[^\s]+)", sub_entry_name) for sub_entry_name in sub_table_entries):
+                        if any(
+                            re.search(r"([PpAaRrTt]{4})|(\d+\s{0,}\.[^\s]+)", sub_entry_name)
+                            for sub_entry_name in sub_table_entries
+                        ):
                             folder_link = self.__get_encrypted_link__(row_element)
-                            indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
+                            indexed_files.append(
+                                SharepointExtractor.SharepointEntry(
+                                    entry_name, entry_hierarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY
+                                )
+                            )
                             continue
-
+    
                     # If the folder does not contain a module name, store it as a folder to be indexed later on
-                    indexed_folders.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY))
+                    indexed_folders.append(
+                        SharepointExtractor.SharepointEntry(
+                            entry_name, entry_hierarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY
+                        )
+                    )
                     continue
-
-                # If the row is not a folder, check if it has a module name or not.
-                if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is None:
-                    continue
-
-                # When we find valid module names, get the encrypted link for the folder and store it.
+    
+                # For files, either add all files or filter by ADAS systems
+                if adas_patterns:
+                    # Filter files based on ADAS systems
+                    if not any(pattern.search(entry_name) for pattern in adas_patterns):
+                        
+                        continue
+                else:
+                    # Log added files when no ADAS filter is applied
+                    print(f"File added (no ADAS filter): {entry_name}")
+    
+                # When we find valid files, get the encrypted link and store it
                 file_link = self.__get_encrypted_link__(row_element)
-                indexed_files.append(SharepointExtractor.SharepointEntry(entry_name, entry_heirarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY))
+                indexed_files.append(
+                    SharepointExtractor.SharepointEntry(
+                        entry_name, entry_hierarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY
+                    )
+                )
     
         # Return the completed list of files and folders
         return [indexed_folders, indexed_files]
+
+
+
        
     def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
         normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").replace("[", "").replace("]", "").replace("WL", "").replace("Multipurpose", "Multipurpose Camera").replace("-PL-PW072NLB", " Side Blind Zone Alert").replace("forward Collision Warning/Lane Departure Warning (FCW/LDW)", "FCW/LDW").strip().upper()
         for row in ws.iter_rows(min_row=2, min_col=3, max_col=3):
             cell_value = str(row[0].value).strip().upper()
+    
+            # Restrict based on selected ADAS acronyms
+            if self.selected_adas and cell_value not in self.selected_adas:
+                continue
+    
             if cell_value in self.__ADAS_SYSTEMS_WHITELIST__:
                 if cell_value in normalized_entry_name:
                     cell = ws.cell(row=row[0].row, column=12)
@@ -617,6 +677,8 @@ class SharepointExtractor:
         return False
     
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
+        if self.selected_adas and not any(adas in doc_name.upper() for adas in self.selected_adas):
+            return
         # Check if the document name has a specific cell address
         if doc_name in self.SPECIFIC_HYPERLINKS:
             cell = ws[self.SPECIFIC_HYPERLINKS[doc_name]]

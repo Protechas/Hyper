@@ -202,9 +202,9 @@ class SeleniumAutomationApp(QWidget):
         self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
         file_selection_layout.addWidget(self.excel_path_label)
 
-        self.activate_full_automation_button = CustomButton('Activate Full Automation', '#e3b505', self)
-        self.activate_full_automation_button.clicked.connect(self.activate_full_automation)
-        file_selection_layout.addWidget(self.activate_full_automation_button)
+        #self.activate_full_automation_button = CustomButton('Activate Full Automation', '#e3b505', self)
+        #self.activate_full_automation_button.clicked.connect(self.activate_full_automation)
+        #file_selection_layout.addWidget(self.activate_full_automation_button)
 
         layout.addLayout(file_selection_layout)
 
@@ -222,13 +222,33 @@ class SeleniumAutomationApp(QWidget):
             item.setText(0, manufacturer)
             item.setCheckState(0, Qt.Unchecked)
         manufacturer_selection_layout.addWidget(self.manufacturer_tree)
+        
+        # ADAS Acronyms section
+        adas_selection_layout = QVBoxLayout()
+        adas_label = QLabel("ADAS Systems")
+        adas_label.setStyleSheet("font-size: 14px; padding: 5px;")
+        adas_selection_layout.addWidget(adas_label)
+        
+        adas_acronyms = ["ACC", "AEB", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC"]
+        self.adas_checkboxes = []
+        for adas in adas_acronyms:
+            checkbox = QCheckBox(adas, self)
+            checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
+            self.adas_checkboxes.append(checkbox)
+            adas_selection_layout.addWidget(checkbox)
+        
+        manufacturer_selection_layout.addLayout(adas_selection_layout)
+        
+        layout.addLayout(manufacturer_selection_layout)
+
 
         # Select All button
-        self.select_all_button = CustomButton('Select All', '#e3b505', self)
-        self.select_all_button.clicked.connect(self.select_all)
-        manufacturer_selection_layout.addWidget(self.select_all_button)
+        #self.select_all_button = CustomButton('Select All (Manufacturers)', '#e3b505', self)
+        #self.select_all_button.clicked.connect(self.select_all)
+       # manufacturer_selection_layout.addWidget(self.select_all_button)
 
         layout.addLayout(manufacturer_selection_layout)
+
 
         # Theme switch section
         theme_switch_section = QHBoxLayout()
@@ -270,47 +290,57 @@ class SeleniumAutomationApp(QWidget):
             item = self.manufacturer_tree.topLevelItem(i)
             if item.checkState(0) == Qt.Checked:
                 selected_manufacturers.append(item.text(0))
-
+    
+        # Collect selected ADAS acronyms
+        selected_adas = [checkbox.text() for checkbox in self.adas_checkboxes if checkbox.isChecked()]
+    
         if self.excel_paths and selected_manufacturers:
             confirm_message = "You have selected the following manufacturers and Excel files:\n\n"
             for i, manufacturer in enumerate(selected_manufacturers):
                 confirm_message += f"{i + 1}. {manufacturer}\n"
             confirm_message += "\nPlease ensure the order is correct. Continue?"
-
+    
             confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-
+    
             if confirm == QMessageBox.Yes:
                 # Show the terminal window
                 self.terminal = TerminalDialog(self)
                 self.terminal.show()
-
+    
+                # Set up for processing manufacturers
                 self.selected_manufacturers = selected_manufacturers
+                self.selected_adas = selected_adas  # Save the ADAS systems for use later
                 self.current_index = 0
                 self.process_next_manufacturer()
-
             else:
                 QMessageBox.warning(self, 'Warning', "Automation process canceled.", QMessageBox.Ok)
         else:
             QMessageBox.warning(self, 'Warning', "Please select Excel files and manufacturers first.", QMessageBox.Ok)
+
 
     def process_next_manufacturer(self):
         if self.current_index < len(self.selected_manufacturers):
             manufacturer = self.selected_manufacturers[self.current_index]
             excel_path = self.excel_paths[self.current_index]
             sharepoint_link = self.manufacturer_links.get(manufacturer)
-
+    
             if sharepoint_link:
+                # Define the script path
                 script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
-                excel_path = excel_path.strip()
-                sharepoint_link = sharepoint_link.strip()
-                args = ["python", script_path, sharepoint_link, excel_path]
-
-                # Run the command in a thread and show the output in the terminal
+    
+                # Collect selected ADAS systems
+                selected_adas = [checkbox.text() for checkbox in self.adas_checkboxes if checkbox.isChecked()]
+    
+                # Arguments for the subprocess
+                args = ["python", script_path, sharepoint_link, excel_path, ",".join(selected_adas)]
+    
+                # Run the command in a thread
                 thread = WorkerThread(args, manufacturer)
                 thread.output_signal.connect(self.terminal.append_output)
                 thread.finished_signal.connect(self.on_manufacturer_finished)
                 thread.start()
                 self.threads.append(thread)
+
 
     def on_manufacturer_finished(self, manufacturer):
         # Mark manufacturer as completed
