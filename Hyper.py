@@ -190,45 +190,57 @@ class SeleniumAutomationApp(QWidget):
         self.setWindowTitle('Hyperlink Automation')
         self.setStyleSheet("background-color: #2e2e2e; color: white;")
         layout = QVBoxLayout()
-
-        # Excel file selection
+    
+        # Excel file selection layout
         file_selection_layout = QHBoxLayout()
         self.select_file_button = CustomButton('Select Excel Files', '#e63946', self)
         self.select_file_button.clicked.connect(self.select_excel_files)
         file_selection_layout.addWidget(self.select_file_button)
-
+    
         # Excel file path display
         self.excel_path_label = QLabel('No files selected')
         self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
         file_selection_layout.addWidget(self.excel_path_label)
-
-        #self.activate_full_automation_button = CustomButton('Activate Full Automation', '#e3b505', self)
-        #self.activate_full_automation_button.clicked.connect(self.activate_full_automation)
-        #file_selection_layout.addWidget(self.activate_full_automation_button)
-
+    
         layout.addLayout(file_selection_layout)
-
-        # Manufacturer tree widget with checkboxes
+    
+        # "Select All (Manufacturers)" and "Select All (ADAS Systems)" button layout
+        select_all_buttons_layout = QHBoxLayout()
+        self.select_all_manufacturers_button = CustomButton('Select All (Manufacturers)', '#e3b505', self)
+        self.select_all_manufacturers_button.clicked.connect(self.select_all_manufacturers)
+        select_all_buttons_layout.addWidget(self.select_all_manufacturers_button)
+    
+        self.select_all_adas_button = CustomButton('Select All (ADAS Systems)', '#e3b505', self)
+        self.select_all_adas_button.clicked.connect(self.select_all_adas)
+        select_all_buttons_layout.addWidget(self.select_all_adas_button)
+    
+        layout.addLayout(select_all_buttons_layout)
+    
+        # Manufacturer and ADAS selection layout
         manufacturer_selection_layout = QHBoxLayout()
+    
+        # Manufacturer tree widget with checkboxes
+        manufacturer_list_layout = QVBoxLayout()
         self.manufacturer_tree = QTreeWidget(self)
         self.manufacturer_tree.setHeaderHidden(True)
         self.manufacturer_tree.setStyleSheet("background-color: #3e3e3e; color: white; border: 1px solid #555555; border-radius: 5px;")
-        manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet","Chrysler", "Dodge", 
-                         "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Lexus", "Land Rover", "Lincoln", 
-                         "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", "Rolls Royce", "Subaru", "Tesla", "Toyota", 
-                         "Volkswagen", "Volvo"]
+        manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet", "Chrysler", "Dodge",
+                         "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Lexus", 
+                         "Land Rover", "Lincoln", "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", 
+                         "Rolls Royce", "Subaru", "Tesla", "Toyota", "Volkswagen", "Volvo"]
         for manufacturer in manufacturers:
             item = QTreeWidgetItem(self.manufacturer_tree)
             item.setText(0, manufacturer)
             item.setCheckState(0, Qt.Unchecked)
-        manufacturer_selection_layout.addWidget(self.manufacturer_tree)
-        
+        manufacturer_list_layout.addWidget(self.manufacturer_tree)
+        manufacturer_selection_layout.addLayout(manufacturer_list_layout)
+    
         # ADAS Acronyms section
         adas_selection_layout = QVBoxLayout()
         adas_label = QLabel("ADAS Systems")
         adas_label.setStyleSheet("font-size: 14px; padding: 5px;")
         adas_selection_layout.addWidget(adas_label)
-        
+    
         adas_acronyms = ["ACC", "AEB", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC"]
         self.adas_checkboxes = []
         for adas in adas_acronyms:
@@ -236,36 +248,45 @@ class SeleniumAutomationApp(QWidget):
             checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
             self.adas_checkboxes.append(checkbox)
             adas_selection_layout.addWidget(checkbox)
-        
+    
         manufacturer_selection_layout.addLayout(adas_selection_layout)
-        
         layout.addLayout(manufacturer_selection_layout)
-
-
-        # Select All button
-        #self.select_all_button = CustomButton('Select All (Manufacturers)', '#e3b505', self)
-        #self.select_all_button.clicked.connect(self.select_all)
-       # manufacturer_selection_layout.addWidget(self.select_all_button)
-
-        layout.addLayout(manufacturer_selection_layout)
-
-
+    
         # Theme switch section
         theme_switch_section = QHBoxLayout()
-        
         self.theme_toggle = ToggleSwitch(self)
         theme_switch_section.addWidget(self.theme_toggle)
-        
         layout.addLayout(theme_switch_section)
-        
+    
         # Start button
         self.start_button = CustomButton('Start Automation', '#e63946', self)
         self.start_button.clicked.connect(self.start_automation)
         layout.addWidget(self.start_button)
-        
+    
         self.setLayout(layout)
         self.resize(600, 400)
+    
+    # Function to select/unselect all manufacturers
+    def select_all_manufacturers(self):
+        select_all_checked = True
+        for i in range(self.manufacturer_tree.topLevelItemCount()):
+            item = self.manufacturer_tree.topLevelItem(i)
+            if item.checkState(0) != Qt.Checked:
+                select_all_checked = False
+                break
+    
+        for i in range(self.manufacturer_tree.topLevelItemCount()):
+            item = self.manufacturer_tree.topLevelItem(i)
+            item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)
+    
+    # Function to select/unselect all ADAS systems
+    def select_all_adas(self):
+        select_all_checked = all(checkbox.isChecked() for checkbox in self.adas_checkboxes)
+    
+        for checkbox in self.adas_checkboxes:
+            checkbox.setChecked(not select_all_checked)
 
+    
     def select_excel_files(self):
         self.excel_paths, _ = QFileDialog.getOpenFileNames(self, 'Open files', 'C:/Users/', "Excel files (*.xlsx *.xls)")
         if self.excel_paths:
