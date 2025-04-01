@@ -43,9 +43,9 @@ class SharepointExtractor:
     __DEBUG_RUN__ = False
 
     # Locators used to find objects on the sharepoint folder pages
-    __ONEDRIVE_PAGE_NAME_LOCATOR__ = "//li//div[contains(@class, 'ms-TooltipHost') and @role='none']/div[@hidden]"
-    __ONEDRIVE_TABLE_LOCATOR__ = ".//div[@role='presentation']/div[contains(@class, 'ms-List-page')]"  
-    __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[contains(@class, 'ms-List-cell') and contains(@role, 'presentation') and @data-list-index]"
+    __ONEDRIVE_PAGE_NAME_LOCATOR__ = "//li[@data-automationid='breadcrumb-listitem']//div[@data-automationid='breadcrumb-crumb']"
+    __ONEDRIVE_TABLE_LOCATOR__ = "//div[@data-automationid='list-page']"
+    __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[@role='row' and starts-with(@data-automationid, 'row-')]"
 
     # Collections of system names used for finding correct files and row locations
     __DEFINED_MODULE_NAMES__ = [ 'ACC', 'SCC', 'AEB', 'AHL', 'APA','BSW', 'BSW/RCTW', 'BSW-RCTW','BSW & RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW','BSW-RTCW','BSW_RCTW','BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC' ]
@@ -158,6 +158,7 @@ class SharepointExtractor:
         # Find the make of the folder for the current sharepoint link and store it.
         self.sharepoint_make = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
         print(f"Configured new SharepointExtractor for {self.sharepoint_make} correctly!")
+        
     def extract_contents(self) -> tuple[list, list]:
         """
         Extracts the file and folder links from the defined sharepoint location for the current extractor object.
@@ -294,21 +295,24 @@ class SharepointExtractor:
   
     
     def __is_row_folder__(self, row_element: WebElement) -> bool:
-            
-        # Find the icon element and check if it's a folder or file
-        icon_element_locator = ".//div[contains(@class, 'fileTypeIconColumn')]//i"
-        icon_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__)\
-            .until(EC.presence_of_element_located((By.XPATH, icon_element_locator)))
-            
-        # Return true if this folder is in the name, false if it is not
-        icon_class = icon_element.get_attribute("class")
-        return "Folder" in icon_class    
+        # Get the row name from the aria-label attribute
+        row_name = self.__get_row_name__(row_element)
+        # If the row name contains a common file extension, assume it is a file.
+        if re.search(r'\.(pdf|docx?|xlsx?|pptx?)$', row_name, re.IGNORECASE):
+            return False
+        # Otherwise, treat it as a folder.
+        return True
+     
+    
     def __get_row_name__(self, row_element: WebElement) -> str:
-            
-        # Find the name column element and return the name for the row in use
-        row_name_locator = ".//button[@data-automationid='FieldRenderer-name']"
-        row_name_element = row_element.find_element(By.XPATH, row_name_locator)
-        return row_name_element.text.strip()         
+        # Try to get the row name from the 'aria-label' attribute
+        row_name = row_element.get_attribute("aria-label")
+        if row_name and row_name.strip():
+            return row_name.strip()
+        # Fallback: return the text content if aria-label is not available
+        return row_element.text.strip()
+           
+    
     def __get_unencrypted_link__(self, row_element: WebElement) -> str:
         """
         Generates the unencrypted link for a given row element.
@@ -334,58 +338,60 @@ class SharepointExtractor:
             print(f"Error while generating unencrypted link: {e}")
             raise Exception(f"Failed to generate unencrypted link for row: {self.__get_row_name__(row_element)}")    
     def __get_encrypted_link__(self, row_element: WebElement) -> str:
-              
+                  
         # Debug run testing break out to speed things up
-        if (self.__DEBUG_RUN__): return f"Link For: {self.__get_row_name__(row_element)}"
+        if self.__DEBUG_RUN__:
+            return f"Link For: {self.__get_row_name__(row_element)}"
         
         # Store a starting clipboard content value to ensure we get a new value during this method
         starting_clipboard_content = self.__get_clipboard_content__()
-
-        # Find the selector element and try to click it here
-        selector_element_locator = ".//div[@data-selection-toggle='true']"
-        selector_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__)\
-            .until(EC.presence_of_element_located((By.XPATH, selector_element_locator)))            
-        selector_element.click()    
+    
+        # Find the selector element using the new locator that matches the row selection cell
+        selector_element_locator = ".//div[@role='gridcell' and contains(@data-automationid, 'row-selection-')]"
+        selector_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__).until(
+            EC.presence_of_element_located((By.XPATH, selector_element_locator))
+        )
+        selector_element.click()
         
         # Attempt the share routine in a loop to retry when buttons don't appear correctly
         for retry_count in range(3):
-
-            try: 
-                
-                # Find the share button element and click it here. Setup share settings and copy the link to the clipboard
-                row_element.find_element(By.XPATH, ".//button[@data-automationid='FieldRender-ShareHero']").click()
+            try:
+                # Find the share button element using the new locator and click it
+                row_element.find_element(By.XPATH, ".//button[@data-automationid='shareHeroId']").click()
                 time.sleep(1.00)
-                ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER).perform()
+                ActionChains(self.selenium_driver).send_keys(
+                    Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER
+                ).perform()
                 time.sleep(1.25)
-                ActionChains(self.selenium_driver).send_keys(Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER).perform()           
+                ActionChains(self.selenium_driver).send_keys(
+                    Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER
+                ).perform()           
                 time.sleep(1.25)
-                ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()  
+                ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
                 time.sleep(1.25)
-                ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()                                     
-
+                ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
+                
                 # Break this loop if this logic completes correctly
                 break
-
             except:
-                                    
                 # Check if we can retry or not
                 if retry_count == 3:
                     raise Exception("ERROR! Failed to open the share dialog for the current entry!")
-                
-                # Wait a moment before retrying to open the clipboard 
-                time.sleep(1.0)     
-                
+                # Wait a moment before retrying
+                time.sleep(1.0)
+        
         # Unselect the element for the row 
-        time.sleep(1.00)        
-        selector_element.click()               
-                
+        time.sleep(1.00)
+        selector_element.click()
+        
         # Make sure the link value is changed here. If it's not, run this routine again
         encrypted_file_link = self.__get_clipboard_content__()
-        if encrypted_file_link == starting_clipboard_content: 
+        if encrypted_file_link == starting_clipboard_content:
             return self.__get_encrypted_link__(row_element)
-
+    
         # Return the stored link from the clipboard
-        return encrypted_file_link           
+        return encrypted_file_link
+         
     def __get_clipboard_content__(self) -> str:
             """
             Local helper method used to pull clipboard content for generated links
@@ -415,15 +421,22 @@ class SharepointExtractor:
                     win32clipboard.CloseClipboard()
                     time.sleep(1.0)    
     def __get_entry_heirarchy__(self, row_element: WebElement) -> str:
-        # Find all of our title elements and check for the index of our make. Pull all values after that
+        # Find all breadcrumb elements
         title_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)
-        title_index = title_elements.index(next(title_element for title_element in title_elements if title_element.get_attribute("innerText") == self.sharepoint_make)) 
-        child_elements = title_elements[title_index:]
+        try:
+            # Use a case-insensitive substring match rather than exact equality
+            matching_element = next(title_element for title_element in title_elements
+                                    if self.sharepoint_make.lower() in title_element.get_attribute("innerText").lower())
+            title_index = title_elements.index(matching_element)
+        except StopIteration:
+            # If no match is found, fall back to the first element
+            title_index = 0
     
-        # Combine the name of the current folder plus the entry name for our output value
+        child_elements = title_elements[title_index:]
         entry_heirarchy = ""
         for child_element in child_elements:
             folder_name = child_element.get_attribute("innerText").strip()
+            # (Keep your renaming logic here...)
             if folder_name == "RS3":
                 folder_name = "RS 3"
             elif folder_name == "RS5":
@@ -460,8 +473,6 @@ class SharepointExtractor:
                 folder_name = "G Sedan"
             elif folder_name == "QX56":
                 folder_name = "QX"   
-            #elif folder_name == "Grand Cherokee (WL)":          #Cant use this as some are Wrangler WL Actually, and some arent, doing this would cause more errors
-                #folder_name = "Grand Cherokee"
             elif folder_name == "Grand Cherokee WL":          
                 folder_name = "Grand Cherokee"                
             elif folder_name == "Wrangler (JL)":            
@@ -525,9 +536,8 @@ class SharepointExtractor:
             entry_heirarchy += folder_name + "\\"
     
         entry_heirarchy += self.__get_row_name__(row_element)
-    
-        # Return the built heirarchy name value here
         return entry_heirarchy
+
         
     def __get_folder_rows__(self, row_link: str = None) -> tuple[list, list]:
         """
@@ -742,7 +752,7 @@ class SharepointExtractor:
             year_value = str(row[0].value).strip() if row[0].value is not None else ''
             make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value is not None else ''
             model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").replace("Super Duty F-250", "F-250 SUPER DUTY").replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY").replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY").replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible").replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR").replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT").replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value is not None else ''
-            adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/").replace("SCC 1", "ACC").strip() if row[4].value is not None else ''
+            adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/").replace("SCC 1", "ACC").replace(".pdf", "").strip() if row[4].value is not None else ''
 
             year_error = year_value.upper() != year.upper()
             make_error = make_value.upper() != make.upper()
