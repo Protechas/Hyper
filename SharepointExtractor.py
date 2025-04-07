@@ -1,4 +1,4 @@
-import os
+﻿import os
 import re
 import sys
 import time
@@ -77,6 +77,8 @@ class SharepointExtractor:
     "2017 Volkswagen CC (ACC 1).pdf": "L371"
     # Add more mappings as needed
     }
+    HYPERLINK_COLUMN_INDEX = 12  # Default is Column L (can change to 11 for K, etc.)
+
     #################################################################################################################################################
 
     # Class objects holding information about files and folders in a given sharepoint location
@@ -235,26 +237,41 @@ class SharepointExtractor:
         # Iterate through the filtered file entries
         for file_entry in file_entries:
             print(f"Processing file: {file_entry.entry_name}")
-    
-            # Pull the year and model for the file from the hierarchy
-            hierarchy_segments = file_entry.entry_heirarchy.split('\\')
-            if len(hierarchy_segments) < 3:
-                print(f"Invalid entry hierarchy format: {file_entry.entry_heirarchy}")
-                continue
-    
             file_name = file_entry.entry_name
-            file_model = hierarchy_segments[2]
-            file_year = hierarchy_segments[1]
-    
+        
+            # === Year Extraction ===
+            year_match = re.search(r'(20\d{2})', file_name)
+            file_year = year_match.group(1) if year_match else "Unknown"
+        
+            # === Model Extraction ===
+            base_name = re.sub(r'(20\d{2})', '', file_name)
+            base_name = base_name.replace(".pdf", "").strip()
+            base_name = re.sub(re.escape(self.sharepoint_make), "", base_name, flags=re.IGNORECASE).strip()
+        
+            model_tokens = []
+            for token in base_name.split():
+                if token.upper().strip("()[]") in self.__DEFINED_MODULE_NAMES__:
+                    break
+                model_tokens.append(token)
+        
+            file_model = " ".join(model_tokens).strip() if model_tokens else "Unknown"
+        
+            # === ✅ Fallback for Model from Hierarchy ===
+            if file_model == "Unknown":
+                segments = file_entry.entry_heirarchy.split("\\")
+                if len(segments) > 1:
+                    file_model = segments[-2]  # Usually the model folder
+        
             # Check if ADAS last row needs to be reset or not
             if file_model != current_model:
                 current_model = file_model
                 adas_last_row = {}
-    
-            # Now update our excel file based on the values given for this entry
+        
+            # Proceed with placing the hyperlink
             if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
                 continue
             self.__update_excel__(model_worksheet, file_year, file_model, file_name, file_entry.entry_link, adas_last_row, None)
+        
     
         # Save the workbook after processing
         print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
@@ -678,7 +695,7 @@ class SharepointExtractor:
     
             if cell_value in self.__ADAS_SYSTEMS_WHITELIST__:
                 if cell_value in normalized_entry_name:
-                    cell = ws.cell(row=row[0].row, column=12)
+                    cell = ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX)
                     cell.hyperlink = document_url
                     cell.value = document_url
                     cell.font = Font(color="0000FF", underline='single')
@@ -704,7 +721,7 @@ class SharepointExtractor:
                     row = adas_last_row[doc_name] + 1
                 else:
                     adas_last_row[doc_name] = row
-                cell = ws.cell(row=row, column=12)
+                cell = ws.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
 
             # Add the error message in column H if no matching cell was found
             error_cell = ws.cell(row=cell.row, column=8)
@@ -754,10 +771,11 @@ class SharepointExtractor:
             model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").replace("Super Duty F-250", "F-250 SUPER DUTY").replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY").replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY").replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible").replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR").replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT").replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value is not None else ''
             adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/").replace("SCC 1", "ACC").replace(".pdf", "").strip() if row[4].value is not None else ''
 
-            year_error = year_value.upper() != year.upper()
-            make_error = make_value.upper() != make.upper()
-            model_error = model_value.upper() != model.upper()
-            adas_error = adas_value.upper() not in adas_file_name.upper()
+            year_error = year_value.strip().upper() != year.strip().upper()
+            make_error = make_value.strip().upper() != make.strip().upper()
+            model_error = model_value.strip().upper() != model.strip().upper()
+            adas_error = adas_value.strip().upper() not in adas_file_name.upper()
+
 
             if year_error or make_error or model_error or adas_error:
                 continue
@@ -765,9 +783,9 @@ class SharepointExtractor:
             # If a matching cell is found, add the hyperlink only (don't add the file name to column K)
             for term_index, term in enumerate(self.__ROW_SEARCH_TERMS__):
                 if term.upper() in adas_file_name:
-                    return ws.cell(row=row[0].row, column=12), None
+                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
 
-            return ws.cell(row=row[0].row, column=12), None
+            return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
 
         return None, file_name
 
