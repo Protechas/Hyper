@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
                              QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, QScrollArea)
 from PyQt5.QtGui import QFont
@@ -24,8 +24,17 @@ class WorkerThread(QThread):
         env["PYTHONUNBUFFERED"] = "1"
 
         # Run the subprocess with unbuffered output
-        process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, universal_newlines=True, env=env)
-        
+        process = subprocess.Popen(
+            self.command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=1,
+            universal_newlines=True,
+            encoding='utf-8',  # 💡 Add this to avoid UnicodeDecodeError
+            errors='replace',  # 💡 Replaces unknown characters with � instead of crashing
+            env=env
+)
+
         # Read stdout line by line and emit each line
         for stdout_line in iter(process.stdout.readline, ""):
             self.output_signal.emit(stdout_line.strip())
@@ -249,7 +258,7 @@ class SeleniumAutomationApp(QWidget):
         adas_acronyms = ["ACC", "AEB", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC"]
         self.adas_checkboxes = []
         repair_systems = [
-            "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD",
+            "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD", "SRS",
             "ESC", "SRS D&E", "SCI", "SRR", "HLI", "TPMS", "SBI",
             "EBDE (1)", "EBDE (2)", "HDE (1)", "HDE (2)", "LGR", "PSI", "WRL",
             "PCM", "TRANS", "AIR", "ABS", "BCM",

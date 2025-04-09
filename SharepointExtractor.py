@@ -48,7 +48,18 @@ class SharepointExtractor:
     __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[@role='row' and starts-with(@data-automationid, 'row-')]"
 
     # Collections of system names used for finding correct files and row locations
-    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'SCC','SAS','HLI','ESC', 'AEB', 'AHL', 'APA','BSW', 'BSW/RCTW', 'BSW-RCTW','BSW & RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW','BSW-RTCW','BSW_RCTW','BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC' ]
+    __DEFINED_MODULE_NAMES__ = [
+        'ACC', 'SCC', 'AEB', 'AHL', 'APA', 'BSW', 'BSW/RCTW', 'BSW-RCTW',
+        'BSW & RCTW', 'BSW RCTW', 'BSW-RCT W', 'BSW RCT W', 'BSM-RCTW', 'BSW-RTCW', 'BSW_RCTW',
+        'BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC',
+    
+        # 🔧 Repair SI modules added below
+        'YAW', 'G-Force', 'SWS', 'HUD', 'SRS D&E', 'SCI', 'SRR', 'TPMS', 'SBI',
+        'EBDE (1)', 'EBDE (2)', 'HDE (1)', 'HDE (2)', 'LGR', 'PSI', 'WRL',
+        'PCM', 'TRANS', 'AIR', 'ABS', 'BCM', 'SAS', 'HLI', 'ESC','SRS',
+        'KEY', 'FOB', 'HVAC (1)', 'HVAC (2)', 'COOL', 'HEAD (1)', 'HEAD (2)'
+    ]
+
     __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Side Blind Zone Alert', 'Lane Change Alert', 'Blind Spot Warning (BSW)', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
@@ -169,6 +180,8 @@ class SharepointExtractor:
         self.sharepoint_make = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
         print(f"Configured new SharepointExtractor for {self.sharepoint_make} correctly!")
         
+
+
     def extract_contents(self) -> tuple[list, list]:
         """
         Extracts the file and folder links from the defined sharepoint location for the current extractor object.
@@ -256,6 +269,7 @@ class SharepointExtractor:
         if sheet_name not in model_workbook.sheetnames:
             print(f"WARNING: Sheet '{sheet_name}' not found. Defaulting to first sheet.")
             model_worksheet = model_workbook.active
+            self.row_index = self.__build_row_index__(model_worksheet, self.repair_mode)
         else:
             model_worksheet = model_workbook[sheet_name]
 
@@ -264,7 +278,8 @@ class SharepointExtractor:
         # Setup trackers for correct row insertion during population
         current_model = ""
         adas_last_row = {}
-    
+        self.row_index = self.__build_row_index__(model_worksheet, self.repair_mode)
+
         # Iterate through the filtered file entries
         for file_entry in file_entries:
             print(f"Processing file: {file_entry.entry_name}")
@@ -731,13 +746,19 @@ class SharepointExtractor:
             cell = ws[self.SPECIFIC_HYPERLINKS[doc_name]]
             error_message = None
         else:
-            cell, error_message = self.__find_row_in_excel__(
-                ws, year, self.sharepoint_make, model, doc_name,
-                repair_mode=self.repair_mode
-            )
+           cell, error_message = self.__find_row_in_excel__(
+               ws, year, self.sharepoint_make, model, doc_name,
+               repair_mode=self.repair_mode, row_index=self.row_index
+           )
+
     
-        # Build a unique key per file+row to avoid overwriting cells
-        key = (year, self.sharepoint_make, model, doc_name)
+        # Create a unique key for tracking the row (includes system/module name now for Repair SI)
+        if self.repair_mode:
+            system_match = re.search(r"\((.*?)\)", doc_name)
+            system_name = system_match.group(1).upper() if system_match else doc_name.split()[-1].upper()
+            key = (year, self.sharepoint_make, model, system_name)
+        else:
+            key = (year, self.sharepoint_make, model, doc_name)
     
         if not cell:
             if cell_address:
@@ -758,13 +779,15 @@ class SharepointExtractor:
         cell.hyperlink = document_url
         cell.value = document_url
         cell.font = Font(color="0000FF", underline='single')
-        adas_last_row[key] = cell.row  # Save by tuple instead of just doc_name
+        adas_last_row[key] = cell.row  # Store row used to prevent duplicates
+    
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
-
-
         
-    def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False):
-        # Extract values from filename
+    def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
+        def normalize_system_name(name):
+            return re.sub(r"[^A-Z0-9]", "", name.upper()) if name else ''
+    
+        # Extract from file name
         extracted_year = re.search(r'\d{4}', file_name)
         extracted_make = self.sharepoint_make
         extracted_model = re.search(r'\b(?:Zevo 600|Other Model Names)\b', file_name)  # Modify as needed
@@ -784,6 +807,26 @@ class SharepointExtractor:
         for pattern, replacement in normalization_patterns:
             adas_file_name = re.sub(pattern, replacement, adas_file_name)
     
+        # ⬇️ REPAIR MODE LOGIC
+        if repair_mode:
+            # Extract system name from file name
+            system_match = re.search(r"\((.*?)\)", file_name)
+            system_name = system_match.group(1).strip().upper() if system_match else file_name.split()[-1].strip().upper()
+            normalized_system = normalize_system_name(system_name)
+    
+            key = (
+                year.strip().upper(),
+                make.strip().upper(),
+                model.strip().upper(),
+                normalized_system
+            )
+    
+            if row_index and key in row_index:
+                row_num = row_index[key]
+                return ws.cell(row=row_num, column=self.HYPERLINK_COLUMN_INDEX), None
+            return None, file_name
+    
+        # ⬇️ ADAS LOGIC
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip() if row[0].value is not None else ''
             make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value is not None else ''
@@ -796,52 +839,43 @@ class SharepointExtractor:
                 .replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT") \
                 .replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value is not None else ''
     
-            if repair_mode:
-                repair_value = str(row[3].value).strip().upper() if row[3].value is not None else ''  # Column D
-                for system in self.selected_adas:
-                    if (
-                        year_value.upper() == year.strip().upper() and
-                        make_value.upper() == make.strip().upper() and
-                        model_value.upper() == model.strip().upper() and
-                        repair_value == system.replace("(", "").replace(")", "").strip().upper()
-                    ):
-                        return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
-            else:
-                adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
-                    .replace("SCC 1", "ACC").replace(".pdf", "").strip() if row[4].value is not None else ''
+            adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
+                .replace("SCC 1", "ACC").replace(".pdf", "").strip() if row[4].value is not None else ''
     
-                year_error = year_value.strip().upper() != year.strip().upper()
-                make_error = make_value.strip().upper() != make.strip().upper()
-                model_error = model_value.strip().upper() != model.strip().upper()
-                adas_error = adas_value.strip().upper() not in adas_file_name.upper()
+            year_error = year_value.strip().upper() != year.strip().upper()
+            make_error = make_value.strip().upper() != make.strip().upper()
+            model_error = model_value.strip().upper() != model.strip().upper()
+            adas_error = adas_value.strip().upper() not in adas_file_name.upper()
     
-                if year_error or make_error or model_error or adas_error:
-                    continue
+            if year_error or make_error or model_error or adas_error:
+                continue
     
-                for term in self.__ROW_SEARCH_TERMS__:
-                    if term.upper() in adas_file_name:
-                        return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+            for term in self.__ROW_SEARCH_TERMS__:
+                if term.upper() in adas_file_name:
+                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
     
-                return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+            return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
     
         return None, file_name
 
-
-
-        # If a matching cell is found, add hyperlink
+       
+    def __build_row_index__(self, ws, repair_mode=False):
+        index = {}
         for row in ws.iter_rows(min_row=2, max_col=8):
-            ...
-            system_value = str(row[4].value).strip().upper()  # This could be ADAS or Repair System
-        
+            year = str(row[0].value).strip().upper() if row[0].value else ''
+            make = str(row[1].value).strip().upper() if row[1].value else ''
+            model = str(row[2].value).strip().upper() if row[2].value else ''
+            
             if repair_mode:
-                if system_value in file_name.upper():
-                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+                system = str(row[3].value).strip().upper() if row[3].value else ''
             else:
-                if system_value in adas_file_name.upper():
-                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
-
-        ## Throw an exception when we fail to find a row for the current file name given
-        # raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
+                system = str(row[4].value).strip().upper() if row[4].value else ''
+    
+            normalized_system = re.sub(r"[^A-Z0-9]", "", system)
+            key = (year, make, model, normalized_system)
+            index[key] = row[0].row
+        return index
+      
 
 #####################################################################################################################################################
 
