@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox)
+                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, QScrollArea)
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt,pyqtSignal,QThread
 from threading import Thread
@@ -183,6 +183,11 @@ class SeleniumAutomationApp(QWidget):
             "Volvo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EneJUPUGviJEjn0OHfyqQNYBG9fqQ5g23OS15-2KALJIbA?e=8weOwd",                        
             # Add other manufacturer links here
         }
+        self.repair_links = {
+            # Add Repair SI SharePoint links like:
+            "Acura": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EmmQxHGQ2wxNpIO04pNu_iIBqou8brkQWpKnjHPgSFT-CQ?e=LlDLJe",
+        }
+
         self.completed_manufacturers = []
         self.threads = []
         
@@ -243,6 +248,15 @@ class SeleniumAutomationApp(QWidget):
     
         adas_acronyms = ["ACC", "AEB", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC"]
         self.adas_checkboxes = []
+        repair_systems = [
+            "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD",
+            "ESC", "SRS D&E", "SCI", "SRR", "HLI", "TPMS", "SBI",
+            "EBDE (1)", "EBDE (2)", "HDE (1)", "HDE (2)", "LGR", "PSI", "WRL",
+            "PCM", "TRANS", "AIR", "ABS", "BCM",
+            "KEY", "FOB", "HVAC (1)", "HVAC (2)", "COOL", "HEAD (1)", "HEAD (2)"
+        ]
+        self.repair_checkboxes = []
+
         for adas in adas_acronyms:
             checkbox = QCheckBox(adas, self)
             checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
@@ -251,9 +265,50 @@ class SeleniumAutomationApp(QWidget):
     
         manufacturer_selection_layout.addLayout(adas_selection_layout)
         layout.addLayout(manufacturer_selection_layout)
+        
+        
+        
+        # Repair Systems section
+        repair_selection_layout = QVBoxLayout()
+        repair_label = QLabel("Repair Systems")
+        repair_label.setStyleSheet("font-size: 14px; padding: 5px;")
+        repair_selection_layout.addWidget(repair_label)
+        
+        for system in repair_systems:
+            checkbox = QCheckBox(system, self)
+            checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
+            self.repair_checkboxes.append(checkbox)
+            repair_selection_layout.addWidget(checkbox)
+        
+        manufacturer_selection_layout.addLayout(repair_selection_layout)
+        
+
     
         # Theme switch section
+        # Theme switch section
         theme_switch_section = QHBoxLayout()
+
+        # ADAS / Repair SI Label and Toggle
+        self.mode_label_left = QLabel("Repair SI")
+        self.mode_label_left.setStyleSheet("font-size: 14px; padding: 10px;")
+        theme_switch_section.addWidget(self.mode_label_left)
+
+        self.si_mode_toggle = QCheckBox()
+        self.si_mode_toggle.setFixedSize(60, 30)
+        self.si_mode_toggle.setStyleSheet("""
+            QCheckBox::indicator {
+                width: 60px;
+                height: 30px;
+            }
+            QCheckBox {
+                background-color: #555;
+                border-radius: 15px;
+            }
+        """)
+        theme_switch_section.addWidget(self.si_mode_toggle)
+
+        # Dark mode toggle
+        theme_switch_section.addStretch()
         self.theme_toggle = ToggleSwitch(self)
         theme_switch_section.addWidget(self.theme_toggle)
         layout.addLayout(theme_switch_section)
@@ -313,7 +368,11 @@ class SeleniumAutomationApp(QWidget):
                 selected_manufacturers.append(item.text(0))
     
         # Collect selected ADAS acronyms
-        selected_adas = [checkbox.text() for checkbox in self.adas_checkboxes if checkbox.isChecked()]
+        if self.si_mode_toggle.isChecked():
+            selected_adas = [cb.text() for cb in self.repair_checkboxes if cb.isChecked()]
+        else:
+            selected_adas = [cb.text() for cb in self.adas_checkboxes if cb.isChecked()]
+
     
         if self.excel_paths and selected_manufacturers:
             confirm_message = "You have selected the following manufacturers and Excel files:\n\n"
@@ -343,7 +402,12 @@ class SeleniumAutomationApp(QWidget):
         if self.current_index < len(self.selected_manufacturers):
             manufacturer = self.selected_manufacturers[self.current_index]
             excel_path = self.excel_paths[self.current_index]
-            sharepoint_link = self.manufacturer_links.get(manufacturer)
+            
+            if self.si_mode_toggle.isChecked():
+                sharepoint_link = self.repair_links.get(manufacturer)
+            else:
+                sharepoint_link = self.manufacturer_links.get(manufacturer)
+
     
             if sharepoint_link:
                 # Define the script path
@@ -353,7 +417,11 @@ class SeleniumAutomationApp(QWidget):
                 selected_adas = [checkbox.text() for checkbox in self.adas_checkboxes if checkbox.isChecked()]
     
                 # Arguments for the subprocess
-                args = ["python", script_path, sharepoint_link, excel_path, ",".join(selected_adas)]
+                adas_or_repair = [cb.text() for cb in (self.adas_checkboxes if not self.si_mode_toggle.isChecked() else self.repair_checkboxes) if cb.isChecked()]
+                mode_flag = "repair" if self.si_mode_toggle.isChecked() else "adas"
+                args = ["python", script_path, sharepoint_link, excel_path, ",".join(adas_or_repair), mode_flag]
+
+
     
                 # Run the command in a thread
                 thread = WorkerThread(args, manufacturer)
@@ -412,19 +480,24 @@ class SeleniumAutomationApp(QWidget):
 
             # Start processing manufacturers one by one
             for manufacturer, excel_path in zip(selected_manufacturers, self.excel_paths):
-                sharepoint_link = self.manufacturer_links.get(manufacturer)
-                if sharepoint_link:
-                    script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
-                    excel_path = excel_path.strip()
-                    sharepoint_link = sharepoint_link.strip()
-                    args = ["python", script_path, sharepoint_link, excel_path]
-
-                    # Run the command in a thread and show the output in the terminal
-                    thread = WorkerThread(args, manufacturer)
-                    thread.output_signal.connect(self.terminal.append_output)
-                    thread.finished_signal.connect(self.on_manufacturer_finished)
-                    thread.start()
-                    self.threads.append(thread)
+                
+                if self.si_mode_toggle.isChecked():
+                    sharepoint_link = self.repair_links.get(manufacturer)
+                else:
+                    sharepoint_link = self.manufacturer_links.get(manufacturer)
+    
+                    if sharepoint_link:
+                        script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+                        excel_path = excel_path.strip()
+                        sharepoint_link = sharepoint_link.strip()
+                        args = ["python", script_path, sharepoint_link, excel_path]
+    
+                        # Run the command in a thread and show the output in the terminal
+                        thread = WorkerThread(args, manufacturer)
+                        thread.output_signal.connect(self.terminal.append_output)
+                        thread.finished_signal.connect(self.on_manufacturer_finished)
+                        thread.start()
+                        self.threads.append(thread)
         else:
             QMessageBox.warning(self, 'Warning', "Full automation process canceled.", QMessageBox.Ok)
 
@@ -440,6 +513,8 @@ class SeleniumAutomationApp(QWidget):
         for i in range(self.manufacturer_tree.topLevelItemCount()):
             item = self.manufacturer_tree.topLevelItem(i)
             item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)
+            
+    
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

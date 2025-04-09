@@ -48,7 +48,7 @@ class SharepointExtractor:
     __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[@role='row' and starts-with(@data-automationid, 'row-')]"
 
     # Collections of system names used for finding correct files and row locations
-    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'SCC', 'AEB', 'AHL', 'APA','BSW', 'BSW/RCTW', 'BSW-RCTW','BSW & RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW','BSW-RTCW','BSW_RCTW','BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC' ]
+    __DEFINED_MODULE_NAMES__ = [ 'ACC', 'SCC','SAS','HLI','ESC', 'AEB', 'AHL', 'APA','BSW', 'BSW/RCTW', 'BSW-RCTW','BSW & RCTW','BSW RCTW','BSW-RCT W','BSW RCT W','BSM-RCTW','BSW-RTCW','BSW_RCTW','BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC' ]
     __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Side Blind Zone Alert', 'Lane Change Alert', 'Blind Spot Warning (BSW)', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
@@ -136,6 +136,14 @@ class SharepointExtractor:
             Useful for quickly testing operations without waiting for links to generate.
             Defaults to false.
         """
+
+        self.mode = sys.argv[4] if len(sys.argv) > 4 else "adas"
+        self.repair_mode = self.mode == "repair"
+        self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
+        
+        # Set correct column index
+        self.HYPERLINK_COLUMN_INDEX = 8 if self.repair_mode else 12  # K for repair, L for ADAS
+        
         
         # Store attributes for the Extractor on this instance
         self.__DEBUG_RUN__ = debug_run
@@ -172,10 +180,14 @@ class SharepointExtractor:
         sharepoint_folders, sharepoint_files = self.__get_folder_rows__()
     
         # Compile regex patterns for the selected ADAS systems if any are selected
-        adas_patterns = (
-            [re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas]
-            if self.selected_adas else None
-        )
+        if self.repair_mode:
+            adas_patterns = [re.compile(re.escape(rs), re.IGNORECASE) for rs in self.selected_adas] if self.selected_adas else None
+        else:
+            adas_patterns = (
+                [re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas]
+                if self.selected_adas else None
+            )
+        
     
         # Initialize filtered files list
         filtered_files = []
@@ -191,19 +203,32 @@ class SharepointExtractor:
             sharepoint_folders.extend(child_folders)
     
             # Add all files if no ADAS systems are selected, otherwise filter them
-            if adas_patterns:
-                # Filter and add matching child files
+            if self.repair_mode and self.selected_adas:
+                for file_entry in child_files:
+                    entry_name = file_entry.entry_name
+            
+                    # Try to extract module from parentheses first
+                    module_match = re.search(r'\((.*?)\)', entry_name)
+                    if module_match:
+                        file_module = module_match.group(1).strip().upper()
+                    else:
+                        # Fallback: try last word before .pdf
+                        name_without_ext = os.path.splitext(entry_name)[0]
+                        file_module = name_without_ext.split()[-1].strip().upper()
+            
+                    if file_module in [s.upper() for s in self.selected_adas]:
+                        filtered_files.append(file_entry)
+                    else:
+                        print(f"Skipping {entry_name} — '{file_module}' not in selected: {self.selected_adas}")
+            
+            elif adas_patterns:
                 for file_entry in child_files:
                     if any(pattern.search(file_entry.entry_name) for pattern in adas_patterns):
                         filtered_files.append(file_entry)
-                        
-                    #else:
-                        #print(f"Skipping file (not matching ADAS): {file_entry.entry_name}")
+            
             else:
-                # Add all files directly
                 filtered_files.extend(child_files)
-                #for file_entry in child_files:
-                    #print(f"File added (no ADAS filter): {file_entry.entry_name}")
+
     
             # Log out how many child links and folders exist now
             print(f'{len(sharepoint_folders)} Folders Remain | {len(filtered_files)} Files Indexed')
@@ -227,7 +252,13 @@ class SharepointExtractor:
         # Load the Excel file
         start_time = time.time()
         model_workbook = openpyxl.load_workbook(self.excel_file_path)
-        model_worksheet = model_workbook['Model Version']
+        sheet_name = 'Model Version'
+        if sheet_name not in model_workbook.sheetnames:
+            print(f"WARNING: Sheet '{sheet_name}' not found. Defaulting to first sheet.")
+            model_worksheet = model_workbook.active
+        else:
+            model_worksheet = model_workbook[sheet_name]
+
         print(f"Workbook loaded successfully: {self.excel_file_path}")
     
         # Setup trackers for correct row insertion during population
@@ -562,88 +593,69 @@ class SharepointExtractor:
         Filters files based on the selected ADAS systems. If no ADAS systems are selected, processes all files.
         """
     
-        # If a link is provided to this method, navigate to it first before indexing
         if row_link is not None:
             self.selenium_driver.get(row_link)
     
-        # Store lists for output files/lists
         indexed_files = []
         indexed_folders = []
     
-        # Compile regex patterns for selected ADAS systems if any are selected
-        adas_patterns = (
-            [re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas]
-            if self.selected_adas else None
-        )
+        # Compile ADAS regex patterns
+        if self.repair_mode:
+            adas_patterns = [re.compile(re.escape(rs), re.IGNORECASE) for rs in self.selected_adas] if self.selected_adas else None
+        else:
+            adas_patterns = (
+                [re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas]
+                if self.selected_adas else None
+            )
     
-        # Look for the table element. If it doesn't appear in 5 seconds, assume no rows appeared in the folder
         try:
             WebDriverWait(self.selenium_driver, 2.5).until(
                 EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
             )
         except:
-            # Pull the title of the page to log out that nothing was found inside the current folder
-            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute(
-                "innerText"
-            ).strip()
+            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
             print(f"No folders/files found inside folder {page_title}")
             return [indexed_folders, indexed_files]
     
-        # Find all page elements for the lists of files/folders and iterate them one by one
         page_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)
         for page_element in page_elements:
-            # Wait for the table rows to appear
             WebDriverWait(page_element, 15).until(
                 EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__))
             )
-            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute(
-                "innerText"
-            ).strip()
+            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
             table_elements = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
     
-            # Iterate the row elements in the table and decide if they should be included or not based on name/type of entry
             for row_element in table_elements:
-                # Pull the name of the folder and the hierarchy of it for use later on
                 entry_name = self.__get_row_name__(row_element)
                 entry_hierarchy = self.__get_entry_heirarchy__(row_element)
     
-                # Filter out entries with old/part/no in their names
                 if entry_name.lower().startswith("no"):
                     continue
-                if any(value in entry_name.lower() for value in ["old", "part", "replacement", "data"]) and entry_name:
+                if any(value in entry_name.lower() for value in ["old", "part", "replacement", "data"]):
                     continue
     
-                # For folders, check if we need to store it as a folder or if the folder is a segmented file set
                 if self.__is_row_folder__(row_element):
                     if page_title == self.sharepoint_make and re.search(r"\d{4}", entry_name) is None:
                         continue
     
-                    # Pull the link for the folder and check its contents
                     folder_link = self.__get_unencrypted_link__(row_element)
-                    if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name) is not None:
-                        # Open a new tab and navigate to the folder being checked
+                    if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name):
                         self.selenium_driver.switch_to.new_window(WindowTypes.TAB)
                         self.selenium_driver.get(folder_link)
     
-                        # Find all the child folders/files for the current row entry
                         try:
                             sub_table_element = WebDriverWait(self.selenium_driver, 25).until(
                                 EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
                             )
                             sub_table_rows = sub_table_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-                            sub_table_entries = [self.__get_row_name__(sub_table_row) for sub_table_row in sub_table_rows]
+                            sub_table_entries = [self.__get_row_name__(row) for row in sub_table_rows]
                         except:
                             sub_table_entries = []
     
-                        # Close the tab for the child folder being indexed
                         self.selenium_driver.close()
                         self.selenium_driver.switch_to.window(self.selenium_driver.window_handles[0])
     
-                        # Check if this is a segmented file. If so, store this folder as a file
-                        if any(
-                            re.search(r"([PpAaRrTt]{4})|(\d+\s{0,}\.[^\s]+)", sub_entry_name)
-                            for sub_entry_name in sub_table_entries
-                        ):
+                        if any(re.search(r"([PpAaRrTt]{4})|(\d+\s{0,}\.[^\s]+)", name) for name in sub_table_entries):
                             folder_link = self.__get_encrypted_link__(row_element)
                             indexed_files.append(
                                 SharepointExtractor.SharepointEntry(
@@ -652,7 +664,6 @@ class SharepointExtractor:
                             )
                             continue
     
-                    # If the folder does not contain a module name, store it as a folder to be indexed later on
                     indexed_folders.append(
                         SharepointExtractor.SharepointEntry(
                             entry_name, entry_hierarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY
@@ -660,17 +671,25 @@ class SharepointExtractor:
                     )
                     continue
     
-                # For files, either add all files or filter by ADAS systems
-                if adas_patterns:
-                    # Filter files based on ADAS systems
-                    if not any(pattern.search(entry_name) for pattern in adas_patterns):
-                        
-                        continue
-                else:
-                    # Log added files when no ADAS filter is applied
-                    print(f"File added (no ADAS filter): {entry_name}")
+                # === 🔍 FILTERING STARTS HERE ===
+                if self.selected_adas:
+                    if self.repair_mode:
+                        # Try extracting repair module from (MODULE) or fallback to last word
+                        module_match = re.search(r'\((.*?)\)', entry_name)
+                        if module_match:
+                            file_module = module_match.group(1).strip().upper()
+                        else:
+                            name_without_ext = os.path.splitext(entry_name)[0]
+                            file_module = name_without_ext.split()[-1].strip().upper()
     
-                # When we find valid files, get the encrypted link and store it
+                        if file_module not in [s.upper() for s in self.selected_adas]:
+                            print(f"Skipping {entry_name} — '{file_module}' not in selected: {self.selected_adas}")
+                            continue
+                    else:
+                        if not any(pattern.search(entry_name) for pattern in adas_patterns):
+                            continue
+                # === 🔍 FILTERING ENDS HERE ===
+    
                 file_link = self.__get_encrypted_link__(row_element)
                 indexed_files.append(
                     SharepointExtractor.SharepointEntry(
@@ -678,9 +697,7 @@ class SharepointExtractor:
                     )
                 )
     
-        # Return the completed list of files and folders
         return [indexed_folders, indexed_files]
-
 
 
        
@@ -704,90 +721,124 @@ class SharepointExtractor:
         return False
     
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
-        if self.selected_adas and not any(adas in doc_name.upper() for adas in self.selected_adas):
-            return
-        # Check if the document name has a specific cell address
+        # Skip filtering if in Repair mode
+        if not self.repair_mode:
+            if self.selected_adas and not any(adas in doc_name.upper() for adas in self.selected_adas):
+                return
+    
+        # Try to find the correct Excel row for this system
         if doc_name in self.SPECIFIC_HYPERLINKS:
             cell = ws[self.SPECIFIC_HYPERLINKS[doc_name]]
+            error_message = None
         else:
-            cell, error_message = self.__find_row_in_excel__(ws, year, self.sharepoint_make, model, doc_name)
-
+            cell, error_message = self.__find_row_in_excel__(
+                ws, year, self.sharepoint_make, model, doc_name,
+                repair_mode=self.repair_mode
+            )
+    
+        # Build a unique key per file+row to avoid overwriting cells
+        key = (year, self.sharepoint_make, model, doc_name)
+    
         if not cell:
             if cell_address:
                 cell = ws[cell_address]
             else:
                 row = ws.max_row + 1
-                if doc_name in adas_last_row:
-                    row = adas_last_row[doc_name] + 1
+                if key in adas_last_row:
+                    row = adas_last_row[key] + 1
                 else:
-                    adas_last_row[doc_name] = row
+                    adas_last_row[key] = row
                 cell = ws.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
-
-            # Add the error message in column H if no matching cell was found
+    
+            # Place error info in column H
             error_cell = ws.cell(row=cell.row, column=8)
             error_cell.value = error_message or "General Placement Error"
-            error_cell.font = Font(color="FF0000")  # Optional: Red color for the error text
-
+            error_cell.font = Font(color="FF0000")
+    
         cell.hyperlink = document_url
         cell.value = document_url
         cell.font = Font(color="0000FF", underline='single')
-        adas_last_row[doc_name] = cell.row
+        adas_last_row[key] = cell.row  # Save by tuple instead of just doc_name
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
-        
-    def __find_row_in_excel__(self, ws, year, make, model, file_name):
-        # Initialize error tracking (no longer needed for error display)
-        year_error, make_error, model_error, adas_error = True, True, True, True
 
-        # Extract information from the file name using regex patterns
+
+        
+    def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False):
+        # Extract values from filename
         extracted_year = re.search(r'\d{4}', file_name)
         extracted_make = self.sharepoint_make
-        extracted_model = re.search(r'\b(?:Zevo 600|Other Model Names)\b', file_name)  # Modify the regex to capture your models
-
-        # Extract ADAS systems based on the predefined ADAS system names
+        extracted_model = re.search(r'\b(?:Zevo 600|Other Model Names)\b', file_name)  # Modify as needed
+    
         extracted_adas_systems = [adas for adas in self.__DEFINED_MODULE_NAMES__ if adas in file_name.upper()]
-
         extracted_year = extracted_year.group(0) if extracted_year else "Unknown Year"
-        extracted_model = extracted_model.group(0) if extracted_model else model  # Use the model passed if extraction fails
-        extracted_adas_systems_str = ", ".join(extracted_adas_systems) if extracted_adas_systems else "Unknown ADAS"
-
-        adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "").replace("[", "").replace("]", "").replace("WL", "").replace("BSM-RCTW", "BSW-RCTW")
-        adas_file_name = adas_file_name.replace(model, "").replace("(", "").replace(")", "").replace("[", "").replace("]", "").replace("WL", "").replace("BSW-RCT W", "BSW-RCTW").replace("BSW-RSTW", "BSW-RCTW").replace("BCW-RCTW", "BSW-RCTW").replace("BSW-RTCW", "BSW-RCTW").replace("BSM-RCTW", "BSW-RCTW").replace("BSW_RCTW", "BSW-RCTW").replace("SCC", "ACC").replace("RR31 Culinan", "Culinan").replace("RR6 Dawn", "Dawn").replace("RR21 Ghost", "Ghost").replace("-PL-PW072NLB", "Side Blind Zone Alert").replace("BSW & RCTW", "BSW-RCTW").replace("-", "/").strip().upper()
-
+        extracted_model = extracted_model.group(0) if extracted_model else model
+        adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "")
+        adas_file_name = re.sub(r"[\[\]()\-]", "", adas_file_name).replace("WL", "").replace("BSM-RCTW", "BSW-RCTW").strip().upper()
+    
         normalization_patterns = [
             (r'(RS)(\d)', r'\1 \2'),
             (r'(SQ)(\d)', r'\1 \2'),
             (r'BSW RCTW', r'BSW/RCTW'),
-            (r'BSW-RCT W', r'BSW/RCTW'),
             (r'BSW-RCT W', r'BSW/RCTW')
         ]
-
         for pattern, replacement in normalization_patterns:
             adas_file_name = re.sub(pattern, replacement, adas_file_name)
-
-        # Iterate through the worksheet rows
+    
         for row in ws.iter_rows(min_row=2, max_col=8):
             year_value = str(row[0].value).strip() if row[0].value is not None else ''
             make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value is not None else ''
-            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6").replace("RS7", "RS 7").replace("SQ5", "SQ 5").replace("Super Duty F-250", "F-250 SUPER DUTY").replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY").replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY").replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible").replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR").replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT").replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value is not None else ''
-            adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/").replace("SCC 1", "ACC").replace(".pdf", "").strip() if row[4].value is not None else ''
-
-            year_error = year_value.strip().upper() != year.strip().upper()
-            make_error = make_value.strip().upper() != make.strip().upper()
-            model_error = model_value.strip().upper() != model.strip().upper()
-            adas_error = adas_value.strip().upper() not in adas_file_name.upper()
-
-
-            if year_error or make_error or model_error or adas_error:
-                continue
-
-            # If a matching cell is found, add the hyperlink only (don't add the file name to column K)
-            for term_index, term in enumerate(self.__ROW_SEARCH_TERMS__):
-                if term.upper() in adas_file_name:
-                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
-
-            return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
-
+            model_value = str(row[2].value).replace("RS3", "RS 3").replace("RS5", "RS 5").replace("RS6", "RS 6") \
+                .replace("RS7", "RS 7").replace("SQ5", "SQ 5").replace("Super Duty F-250", "F-250 SUPER DUTY") \
+                .replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY") \
+                .replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY") \
+                .replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible") \
+                .replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR") \
+                .replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT") \
+                .replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value is not None else ''
+    
+            if repair_mode:
+                repair_value = str(row[3].value).strip().upper() if row[3].value is not None else ''  # Column D
+                for system in self.selected_adas:
+                    if (
+                        year_value.upper() == year.strip().upper() and
+                        make_value.upper() == make.strip().upper() and
+                        model_value.upper() == model.strip().upper() and
+                        repair_value == system.replace("(", "").replace(")", "").strip().upper()
+                    ):
+                        return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+            else:
+                adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
+                    .replace("SCC 1", "ACC").replace(".pdf", "").strip() if row[4].value is not None else ''
+    
+                year_error = year_value.strip().upper() != year.strip().upper()
+                make_error = make_value.strip().upper() != make.strip().upper()
+                model_error = model_value.strip().upper() != model.strip().upper()
+                adas_error = adas_value.strip().upper() not in adas_file_name.upper()
+    
+                if year_error or make_error or model_error or adas_error:
+                    continue
+    
+                for term in self.__ROW_SEARCH_TERMS__:
+                    if term.upper() in adas_file_name:
+                        return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+    
+                return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+    
         return None, file_name
+
+
+
+        # If a matching cell is found, add hyperlink
+        for row in ws.iter_rows(min_row=2, max_col=8):
+            ...
+            system_value = str(row[4].value).strip().upper()  # This could be ADAS or Repair System
+        
+            if repair_mode:
+                if system_value in file_name.upper():
+                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+            else:
+                if system_value in adas_file_name.upper():
+                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
 
         ## Throw an exception when we fail to find a row for the current file name given
         # raise Exception(f"ERROR! Failed to find row for file: {file_name}!\nYear: {year}\nMake: {make}\nModel: {model}")           
@@ -804,7 +855,7 @@ if __name__ == '__main__':
     # (Usage with GUI, take away the # to perform whichever is needed)        
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
+    debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
