@@ -261,7 +261,7 @@ class SeleniumAutomationApp(QWidget):
             "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD", "SRS",
             "ESC", "SRS D&E", "SCI", "SRR", "HLI", "TPMS", "SBI",
             "EBDE (1)", "EBDE (2)", "HDE (1)", "HDE (2)", "LGR", "PSI", "WRL",
-            "PCM", "TRANS", "AIR", "ABS", "BCM",
+            "PCM", "TRANS", "AIR", "ABS", "BCM","OCS","OCS2","OCS3","OCS4",
             "KEY", "FOB", "HVAC (1)", "HVAC (2)", "COOL", "HEAD (1)", "HEAD (2)"
         ]
         self.repair_checkboxes = []

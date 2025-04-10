@@ -57,7 +57,8 @@ class SharepointExtractor:
         'YAW', 'G-Force', 'SWS', 'HUD', 'SRS D&E', 'SCI', 'SRR', 'TPMS', 'SBI',
         'EBDE (1)', 'EBDE (2)', 'HDE (1)', 'HDE (2)', 'LGR', 'PSI', 'WRL',
         'PCM', 'TRANS', 'AIR', 'ABS', 'BCM', 'SAS', 'HLI', 'ESC','SRS',
-        'KEY', 'FOB', 'HVAC (1)', 'HVAC (2)', 'COOL', 'HEAD (1)', 'HEAD (2)'
+        'KEY', 'FOB', 'HVAC (1)', 'HVAC (2)', 'COOL', 'HEAD (1)', 'HEAD (2)',
+        "OCS","OCS2","OCS3","OCS4"
     ]
 
     __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Side Blind Zone Alert', 'Lane Change Alert', 'Blind Spot Warning (BSW)', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
@@ -772,11 +773,13 @@ class SharepointExtractor:
                 else:
                     adas_last_row[key] = row
                 cell = ws.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
-    
-            # Place error info in column H
-            error_cell = ws.cell(row=cell.row, column=8)
-            error_cell.value = error_message or "General Placement Error"
+        
+            # Place error info in the correct column: K (11) for ADAS, G (7) for Repair
+            error_column = 11 if not self.repair_mode else 7
+            error_cell = ws.cell(row=cell.row, column=error_column)
+            error_cell.value = doc_name
             error_cell.font = Font(color="FF0000")
+
     
         cell.hyperlink = document_url
         cell.value = document_url
