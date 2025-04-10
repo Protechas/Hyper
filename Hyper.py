@@ -227,6 +227,11 @@ class SeleniumAutomationApp(QWidget):
         self.select_all_adas_button = CustomButton('Select All (ADAS Systems)', '#e3b505', self)
         self.select_all_adas_button.clicked.connect(self.select_all_adas)
         select_all_buttons_layout.addWidget(self.select_all_adas_button)
+        
+        self.select_all_repair_button = CustomButton('Select All (Repair Systems)', '#e3b505', self)
+        self.select_all_repair_button.clicked.connect(self.select_all_repair)
+        select_all_buttons_layout.addWidget(self.select_all_repair_button)
+
     
         layout.addLayout(select_all_buttons_layout)
     
@@ -237,7 +242,17 @@ class SeleniumAutomationApp(QWidget):
         manufacturer_list_layout = QVBoxLayout()
         self.manufacturer_tree = QTreeWidget(self)
         self.manufacturer_tree.setHeaderHidden(True)
-        self.manufacturer_tree.setStyleSheet("background-color: #3e3e3e; color: white; border: 1px solid #555555; border-radius: 5px;")
+        self.manufacturer_tree.setFixedWidth(260)  # 👈 Shift closer by narrowing it
+        self.manufacturer_tree.setStyleSheet("""
+            QTreeWidget {
+                background-color: #3e3e3e;
+                color: white;
+                border: 1px solid #555555;
+                border-radius: 5px;
+                margin-left: 10px;  /* 👈 Fine-tune left shift */
+            }
+        """)
+
         manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet", "Chrysler", "Dodge",
                          "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Lexus", 
                          "Land Rover", "Lincoln", "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", 
@@ -277,19 +292,40 @@ class SeleniumAutomationApp(QWidget):
         
         
         
-        # Repair Systems section
-        repair_selection_layout = QVBoxLayout()
+        # === Repair Systems Section (Label on top, Scrollable box underneath) ===
+        
+        # Vertical layout to hold both: label AND scrollable checkbox container
+        repair_box_layout = QVBoxLayout()
+        
+        # Label (not scrollable)
         repair_label = QLabel("Repair Systems")
         repair_label.setStyleSheet("font-size: 14px; padding: 5px;")
-        repair_selection_layout.addWidget(repair_label)
+        repair_box_layout.addWidget(repair_label)
         
+        # Scrollable checkbox area
+        repair_scroll_area = QScrollArea()
+        repair_scroll_area.setWidgetResizable(True)
+        repair_scroll_area.setFixedWidth(180)
+        repair_scroll_area.setStyleSheet("background-color: #3e3e3e; border: 1px solid #555555; border-radius: 5px;")
+        
+        repair_container = QWidget()
+        repair_selection_layout = QVBoxLayout(repair_container)
+        
+        self.repair_checkboxes = []
         for system in repair_systems:
             checkbox = QCheckBox(system, self)
             checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
             self.repair_checkboxes.append(checkbox)
             repair_selection_layout.addWidget(checkbox)
         
-        manufacturer_selection_layout.addLayout(repair_selection_layout)
+        repair_scroll_area.setWidget(repair_container)
+        repair_box_layout.addWidget(repair_scroll_area)
+        
+        # Add the full repair module section to the right side
+        manufacturer_selection_layout.addLayout(repair_box_layout)
+
+
+
         
 
     
@@ -350,6 +386,11 @@ class SeleniumAutomationApp(QWidget):
         for checkbox in self.adas_checkboxes:
             checkbox.setChecked(not select_all_checked)
 
+    def select_all_repair(self):
+        select_all_checked = all(checkbox.isChecked() for checkbox in self.repair_checkboxes)
+        for checkbox in self.repair_checkboxes:
+            checkbox.setChecked(not select_all_checked)
+    
     
     def select_excel_files(self):
         self.excel_paths, _ = QFileDialog.getOpenFileNames(self, 'Open files', 'C:/Users/', "Excel files (*.xlsx *.xls)")
