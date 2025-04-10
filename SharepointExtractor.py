@@ -296,9 +296,11 @@ class SharepointExtractor:
         
             model_tokens = []
             for token in base_name.split():
-                if token.upper().strip("()[]") in self.__DEFINED_MODULE_NAMES__:
+                # Stop if token starts with "(" or is a known module
+                if token.startswith("(") or token.upper().strip("()[]") in self.__DEFINED_MODULE_NAMES__:
                     break
                 model_tokens.append(token)
+
         
             file_model = " ".join(model_tokens).strip() if model_tokens else "Unknown"
         
@@ -812,7 +814,7 @@ class SharepointExtractor:
             # Extract system name from file name
             system_match = re.search(r"\((.*?)\)", file_name)
             system_name = system_match.group(1).strip().upper() if system_match else file_name.split()[-1].strip().upper()
-            normalized_system = normalize_system_name(system_name)
+            normalized_system = re.sub(r"[^A-Z0-9]", "", system_name).upper().strip()
     
             key = (
                 year.strip().upper(),
@@ -820,7 +822,15 @@ class SharepointExtractor:
                 model.strip().upper(),
                 normalized_system
             )
-    
+            
+            # Debug output for validation
+            if row_index:
+                print(f"[DEBUG] Looking for key: {key}")
+                if key not in row_index:
+                    print(f"[DEBUG] Key not found in index.")
+                    print(f"[DEBUG] Available keys (sample): {list(row_index.keys())[:5]}")
+            
+                
             if row_index and key in row_index:
                 row_num = row_index[key]
                 return ws.cell(row=row_num, column=self.HYPERLINK_COLUMN_INDEX), None
