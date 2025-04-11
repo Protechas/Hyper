@@ -827,11 +827,11 @@ class SharepointExtractor:
             )
             
             # Debug output for validation
-            if row_index:
-                print(f"[DEBUG] Looking for key: {key}")
-                if key not in row_index:
-                    print(f"[DEBUG] Key not found in index.")
-                    print(f"[DEBUG] Available keys (sample): {list(row_index.keys())[:5]}")
+            #if row_index:
+               # print(f"[DEBUG] Looking for key: {key}")
+                #if key not in row_index:
+                   # print(f"[DEBUG] Key not found in index.")
+                    #print(f"[DEBUG] Available keys (sample): {list(row_index.keys())[:5]}")
             
                 
             if row_index and key in row_index:
