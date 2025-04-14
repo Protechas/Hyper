@@ -154,6 +154,7 @@ class SeleniumAutomationApp(QWidget):
         self.initUI()
         self.excel_paths = []
         self.manufacturer_links = {
+            # Add ADAS SI Sharepoint Links here
             "Acura": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Egwph7U2M7tMgy4U82m8HVEBbeB3CxoibZz9zFww6iBZqw?e=l6ekEO",
             "Alfa Romeo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EvO_UqobQBJOrwQAGefJrNgB4YDcOAAtQy_Y578hKRJE9A?e=73mDgy",
             "Audi": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Ek0hoMxpf-RKgEkcFE7q4cgBz-OHaRSh6B5OSRnMVOPLKw?e=AEmzrm",
@@ -190,11 +191,47 @@ class SeleniumAutomationApp(QWidget):
             "Toyota": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EonbuVPsLixOrWBA-LEmXpoBzVe-CeCreW_66jiroMFMHA?e=x6bV7i",
             "Volkswagen": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EkZbGXTqw5RJo-QY3CtTtukBdVpwKTz-QeDFpus_pHRNDg?e=2cQSHi",
             "Volvo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EneJUPUGviJEjn0OHfyqQNYBG9fqQ5g23OS15-2KALJIbA?e=8weOwd",                        
-            # Add other manufacturer links here
+            # Add ADAS SI Sharepoint Links here
         }
         self.repair_links = {
-            # Add Repair SI SharePoint links like:
-            "Acura": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EmmQxHGQ2wxNpIO04pNu_iIBqou8brkQWpKnjHPgSFT-CQ?e=LlDLJe",
+            # Add Repair SI SharePoint links Here
+            "Acura": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EmmQxHGQ2wxNpIO04pNu_iIBqou8brkQWpKnjHPgSFT-CQ?e=qzTX1G",
+            "Alfa Romeo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EqZpuA6CO9JEooJ3K1Ix5_wB_T0XPqsH77cK8fYmidKF7g?e=cQ1HDy",
+            "Audi": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EgRYXyielJhMrOCaEhv-snQBaKmKxSPpH03Xa-mensN5VA?e=qngPQ7",
+            "BMW": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ElQAa9HT-RNBit32x6C_iBoBYg8QoMuSTcPIVxzNzddyFw?e=9Cbokm",
+            "Brightdrop": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EjP4u3WI9hlCi3k2sVx68RkBOVPGQHrQ5s-w_bDvLk7xjg?e=XMl4Pi",
+            "Buick": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EpTQ19HJYTJClKfBL8sWZPcB_1siI7_HBUbGDxljMAPffQ?e=5DzybE",
+            "Cadillac": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eq_HecuhDyRLpq1CA1HQwUEBKAJBbApj_kq7Ysp46tCyaQ?e=PVL9Wd",
+            "Chevrolet": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eq_HecuhDyRLpq1CA1HQwUEBKAJBbApj_kq7Ysp46tCyaQ?e=PVL9Wd",
+            "Chrysler": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Etc0KL9giEBMmfR3eUMN12cBBZm7i80tvroBK-KJvl6NHw?e=Tfaclo",
+            "Dodge": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Er-Fxe4uQ1FFnTse7VRcVncBvEBaFIEVjp4gkmdDLpzTPQ?e=wv5HnX",
+            "Fiat": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eiu-7WxDdZ9JmRRmFQJmPcgBoxQVHGFJP1MHWYuf1uAwBA?e=irsMGM",
+            "Ford": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eh1eSmaBWJVKnp8qcBURjpIBOmTqFYV3Kanzk7iOSFG_iw?e=sJc4aP",
+            "Genesis": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EjGjMPYyzY9Pvq3_WO8XImMB-cpFCpWDREhOzlCPSNk4tQ?e=c3vTcT",
+            "GMC": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EkLkAwwtpLNEmoxyhwREImcBruvb6Os-DdudL9B0KDvnuA?e=T2adym",
+            "Honda": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EkZKi51f0mVDpoRqr2SMAn8BPHq8zQWo_9xxa2Cs9tCidQ?e=yk4eo6",
+            "Hyundai": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EjE-7ITJcD9NproTitinWTQBdOZwCjRKZMwoIreBahxqFA?e=cUvMSs",
+            "Infiniti": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EouRS__qu0xJhiOESGAyrVsBImSJPRzO2GSeODMn0jDSNQ?e=mPrxEp",
+            "Jaguar": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eu5B7lvGjhtElkEPsSV4gXgBrmmlR_CN3cBtKCYZEy195Q?e=M88RhW",
+            "Jeep": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EnHsDhbHq8FApbsfGAv4EjwB8pQwoF2F9EhkefRXvLbvYg?e=Nk6Ufa",
+            "Kia": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EtWreIYyuapKppkYtgsxkRAB2GA91hQKHzuWrm7a_QTWKw?e=WQm9aT",
+            "Land Rover": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EoULD7SYsmxBm7cV9A2QzF4BUQ3KxM8Jd3w3jSWBlNB4LQ?e=2pxQuz",
+            "Lexus": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Ej0l_oKrgVxDlQsymIC5x4QBum-9f1hVWyk1Y0XAnuyNWA?e=7k0KKm",
+            "Lincoln": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Epdie7oZKvVNvM286yyr-fUBAYncAvMRRgLDtTfOEs4Deg?e=YlsN0S",
+            "Mazda": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Ekm67apegXNKqvUV_-1M20sBBJ7jrtmOd5lH6eIW9XZD2w?e=q9XcYh",
+            "Mercedes": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EgF2pHCD-GlNowOZ-HFbQ0UBedkihUPwg8ivNqM2fnOBfQ?e=nosRRS",
+            "Mini": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ElDvB_z5c81AoWUrkfuIfBoB6HPFb4VH_IW-PTrD9nbSvQ?e=hekEFp",
+            "Mitsubishi": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EqABJkN9KGVNnOsXi-LBjYsBepqjm0i4LzXjgYfcq5LCKA?e=wdwrQy",
+            "Nissan": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EueIzuzK4c9Hifs0p10X3LkB8dBY6pCQpN4BX8OdzIhlSQ?e=i88FnL",
+            "Porsche": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EueIzuzK4c9Hifs0p10X3LkB8dBY6pCQpN4BX8OdzIhlSQ?e=i88FnL",
+            "Ram": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EsVy318lU5RGqqhxeREcz64BzfWsDJc_D_SjAQMjHofFTQ?e=9BAdFz",
+            # "Rolls Royce": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EuUx8qWb8a5Lg69dZiqgPrkBElO3gQAuaLTZOvKdlOIkJg?e=3bPP4d", #Not available in Sharepoint
+            "Subaru": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EtmpOsrJmJ1EvKPd8YfjtCsBYtFit7XQ2Y375ccoEijoEA?e=N5gN9f",
+            "Tesla": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EjtvRkoo9NZCuRjBLWFK42EBu9DpqnQH8X3_2A-fOcprAw?e=Yh0QVO",
+            "Toyota": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ElWISB73T5FEt9UM9VetQEgBVfNhbRbbvRSN3Csn7Sn_hQ?e=RDwlIA",
+            "Volkswagen": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/En6g2PWkUWBKnTLlDiQKlVcB7-rqXOeNk2nEo6-c97IXWw?e=4msFBk",
+            "Volvo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EvnDnyzP0KdNrCzRruhMgVMB_LSqa_12qpp4bxFVZHZTWQ?e=8MJnHp", 
+            # Add Repair SI Sharepoint Links here
         }
 
         self.completed_manufacturers = []
