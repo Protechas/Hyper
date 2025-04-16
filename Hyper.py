@@ -202,7 +202,7 @@ class SeleniumAutomationApp(QWidget):
             "Brightdrop": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EjP4u3WI9hlCi3k2sVx68RkBOVPGQHrQ5s-w_bDvLk7xjg?e=XMl4Pi",
             "Buick": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EpTQ19HJYTJClKfBL8sWZPcB_1siI7_HBUbGDxljMAPffQ?e=5DzybE",
             "Cadillac": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eq_HecuhDyRLpq1CA1HQwUEBKAJBbApj_kq7Ysp46tCyaQ?e=PVL9Wd",
-            "Chevrolet": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eq_HecuhDyRLpq1CA1HQwUEBKAJBbApj_kq7Ysp46tCyaQ?e=PVL9Wd",
+            "Chevrolet": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Es1Ts3bWdeBBiFIkV6u5rDcBzgzHitt0LluqN2MMKibXJQ?e=p3Xrbk",
             "Chrysler": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Etc0KL9giEBMmfR3eUMN12cBBZm7i80tvroBK-KJvl6NHw?e=Tfaclo",
             "Dodge": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Er-Fxe4uQ1FFnTse7VRcVncBvEBaFIEVjp4gkmdDLpzTPQ?e=wv5HnX",
             "Fiat": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eiu-7WxDdZ9JmRRmFQJmPcgBoxQVHGFJP1MHWYuf1uAwBA?e=irsMGM",
@@ -222,8 +222,8 @@ class SeleniumAutomationApp(QWidget):
             "Mercedes": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EgF2pHCD-GlNowOZ-HFbQ0UBedkihUPwg8ivNqM2fnOBfQ?e=nosRRS",
             "Mini": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ElDvB_z5c81AoWUrkfuIfBoB6HPFb4VH_IW-PTrD9nbSvQ?e=hekEFp",
             "Mitsubishi": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EqABJkN9KGVNnOsXi-LBjYsBepqjm0i4LzXjgYfcq5LCKA?e=wdwrQy",
-            "Nissan": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EueIzuzK4c9Hifs0p10X3LkB8dBY6pCQpN4BX8OdzIhlSQ?e=i88FnL",
-            "Porsche": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EueIzuzK4c9Hifs0p10X3LkB8dBY6pCQpN4BX8OdzIhlSQ?e=i88FnL",
+            "Nissan": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EueIzuzK4c9Hifs0p10X3LkB8dBY6pCQpN4BX8OdzIhlSQ?e=kCWehA",
+            "Porsche": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eh9mN-bex5FBsqGG3nCdmhAByV08wO9wj8pgh6CRhbY70Q?e=KOvjZZ",
             "Ram": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EsVy318lU5RGqqhxeREcz64BzfWsDJc_D_SjAQMjHofFTQ?e=9BAdFz",
             # "Rolls Royce": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EuUx8qWb8a5Lg69dZiqgPrkBElO3gQAuaLTZOvKdlOIkJg?e=3bPP4d", #Not available in Sharepoint
             "Subaru": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EtmpOsrJmJ1EvKPd8YfjtCsBYtFit7XQ2Y375ccoEijoEA?e=N5gN9f",
@@ -291,8 +291,8 @@ class SeleniumAutomationApp(QWidget):
         """)
 
         manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet", "Chrysler", "Dodge",
-                         "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Lexus", 
-                         "Land Rover", "Lincoln", "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", 
+                         "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Land Rover", 
+                         "Lexus", "Lincoln", "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", 
                          "Rolls Royce", "Subaru", "Tesla", "Toyota", "Volkswagen", "Volvo"]
         for manufacturer in manufacturers:
             item = QTreeWidgetItem(self.manufacturer_tree)
@@ -310,7 +310,7 @@ class SeleniumAutomationApp(QWidget):
         adas_acronyms = ["ACC", "AEB", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC"]
         self.adas_checkboxes = []
         repair_systems = [
-            "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD", "SRS",
+            "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD", "SRS", "SRA", 
             "ESC", "SRS D&E", "SCI", "SRR", "HLI", "TPMS", "SBI",
             "EBDE (1)", "EBDE (2)", "HDE (1)", "HDE (2)", "LGR", "PSI", "WRL",
             "PCM", "TRANS", "AIR", "ABS", "BCM","OCS","OCS2","OCS3","OCS4",

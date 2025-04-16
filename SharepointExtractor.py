@@ -13,9 +13,11 @@ from openpyxl.styles import Font
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.edge.webdriver import WebDriver
 from selenium.webdriver.common.window import WindowTypes
 from webdriver_manager.chrome import ChromeDriverManager
@@ -79,8 +81,8 @@ class SharepointExtractor:
     ]
     SPECIFIC_HYPERLINKS = {
     "2013 GMC Acadia (BSW-RCTW 1)-PL-PW072NLB.pdf": "L79",
-    "2016 Acura RLX (LKA 1) [FCW-LDW].pdf": "L249",
-    "2016 Acura RLX (LKA 1) [Multipurpose].pdf": "L250",
+    "2016 Acura RLX (LKA 1) [FCW-LDW].pdf": "L248",
+    "2016 Acura RLX (LKA 1) [Multipurpose].pdf": "L249",
     "2012 Volkswagen CC (ACC 1).pdf": "L11",
     "2013 Volkswagen CC (ACC 1).pdf": "L83",
     "2014 Volkswagen CC (ACC 1).pdf": "L155",
@@ -403,6 +405,7 @@ class SharepointExtractor:
         except IndexError as e:
             print(f"Error while generating unencrypted link: {e}")
             raise Exception(f"Failed to generate unencrypted link for row: {self.__get_row_name__(row_element)}")    
+        
     def __get_encrypted_link__(self, row_element: WebElement) -> str:
                   
         # Debug run testing break out to speed things up
@@ -606,11 +609,6 @@ class SharepointExtractor:
 
         
     def __get_folder_rows__(self, row_link: str = None) -> tuple[list, list]:
-        """
-        Indexes the folders and files within a SharePoint directory.
-        Filters files based on the selected ADAS systems. If no ADAS systems are selected, processes all files.
-        """
-    
         if row_link is not None:
             self.selenium_driver.get(row_link)
     
@@ -618,28 +616,31 @@ class SharepointExtractor:
         indexed_folders = []
     
         # Compile ADAS regex patterns
-        if self.repair_mode:
-            adas_patterns = [re.compile(re.escape(rs), re.IGNORECASE) for rs in self.selected_adas] if self.selected_adas else None
+        if self.repair_mode and self.selected_adas:
+            adas_patterns = [re.compile(re.escape(rs), re.IGNORECASE) for rs in self.selected_adas]
+        elif self.selected_adas:
+            adas_patterns = [
+                re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas
+            ]
         else:
-            adas_patterns = (
-                [re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas]
-                if self.selected_adas else None
-            )
+            adas_patterns = None
     
-        try:
-            WebDriverWait(self.selenium_driver, 2.5).until(
-                EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
-            )
-        except:
-            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
-            print(f"No folders/files found inside folder {page_title}")
-            return [indexed_folders, indexed_files]
-    
+        # Locate the SharePoint list/table container
         page_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)
+    
         for page_element in page_elements:
-            WebDriverWait(page_element, 15).until(
-                EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__))
-            )
+            try:
+                WebDriverWait(page_element, 15).until(
+                    EC.presence_of_element_located(
+                        (By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
+                    )
+                )
+            except TimeoutException:
+                print("No table rows found in folder; waiting 10 seconds before continuing...")
+                time.sleep(10)
+                # Option 1: return empty lists so the process continues without error
+                return [indexed_folders, indexed_files]
+                # Option 2: if you want to keep going on the *next* page_element, you'd use 'continue' instead of 'return'
             page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
             table_elements = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
     
@@ -902,7 +903,7 @@ if __name__ == '__main__':
     # (Usage with GUI, take away the # to perform whichever is needed)        
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = True
+    debug_run = False
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
