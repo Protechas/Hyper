@@ -514,14 +514,14 @@ class SharepointExtractor:
                 folder_name = "RS 6"
             elif folder_name == "RS7":
                 folder_name = "RS 7"
-            elif folder_name == "SQ3":
-                folder_name = "SQ 3"
-            elif folder_name == "SQ5":
-                folder_name = "SQ 5"
-            elif folder_name == "SQ7":
-                folder_name = "SQ 7"
-            elif folder_name == "SQ8":
-                folder_name = "SQ 8"
+            #elif folder_name == "SQ3":
+             #   folder_name = "SQ 3"
+            #elif folder_name == "SQ5":
+             #   folder_name = "SQ 5"
+            #elif folder_name == "SQ7":
+             #   folder_name = "SQ 7"
+            #elif folder_name == "SQ8":
+             #   folder_name = "SQ 8"
             elif folder_name == "VERANO":
                 folder_name = "Verano"   
             elif folder_name == "Trailbalzer":
