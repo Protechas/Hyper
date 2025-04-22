@@ -9,6 +9,7 @@ from enum import Enum
 import win32clipboard
 from tkinter import messagebox
 from selenium import webdriver
+import chromedriver_autoinstaller
 from openpyxl.styles import Font
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
@@ -166,7 +167,13 @@ class SharepointExtractor:
         self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
 
         # Define the default wait timeout and setup a new selenium driver
-        self.selenium_driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.__generate_chrome_options__())
+        # This will download (if needed) and add the correct chromedriver to PATH
+        chromedriver_autoinstaller.install()
+        
+        # Then just start Chrome normally:
+        self.selenium_driver = webdriver.Chrome(
+            options=self.__generate_chrome_options__()
+        )
         self.selenium_wait = WebDriverWait(self.selenium_driver, 10)
 
         # Navigate to the main SharePoint page for Acura
@@ -192,6 +199,10 @@ class SharepointExtractor:
         and the second list holds all of our SharepointEntry objects for the files in the sharepoint.
         If no ADAS systems are selected, processes all files.
         """
+
+        # ─── PAUSE TO LET THE FOLDER LIST SETTLE ───────────────────────────
+        time.sleep(2.0)
+        
         # Index and store base folders and files here
         sharepoint_folders, sharepoint_files = self.__get_folder_rows__()
     
@@ -215,6 +226,9 @@ class SharepointExtractor:
             folder_link = sharepoint_folders.pop(0).entry_link
             child_folders, child_files = self.__get_folder_rows__(folder_link)
     
+            # ─── PAUSE TO LET THE FOLDER LIST SETTLE ───────────────────────────
+            time.sleep(2.0)
+
             # Add child folders for further processing
             sharepoint_folders.extend(child_folders)
     

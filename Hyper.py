@@ -311,7 +311,7 @@ class SeleniumAutomationApp(QWidget):
         self.adas_checkboxes = []
         repair_systems = [
             "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD", "SRS", "SRA", 
-            "ESC", "SRS D&E", "SCI", "SRR", "HLI", "TPMS", "SBI",
+            "ESC", "SRS D&E", "SCI", "SRR", "HLI", "TPMS", "SBI", "RC",
             "EBDE (1)", "EBDE (2)", "HDE (1)", "HDE (2)", "LGR", "PSI", "WRL",
             "PCM", "TRANS", "AIR", "ABS", "BCM","OCS","OCS2","OCS3","OCS4",
             "KEY", "FOB", "HVAC (1)", "HVAC (2)", "COOL", "HEAD (1)", "HEAD (2)"
@@ -326,9 +326,7 @@ class SeleniumAutomationApp(QWidget):
     
         manufacturer_selection_layout.addLayout(adas_selection_layout)
         layout.addLayout(manufacturer_selection_layout)
-        
-        
-        
+                    
         # === Repair Systems Section (Label on top, Scrollable box underneath) ===
         
         # Vertical layout to hold both: label AND scrollable checkbox container
@@ -361,12 +359,6 @@ class SeleniumAutomationApp(QWidget):
         # Add the full repair module section to the right side
         manufacturer_selection_layout.addLayout(repair_box_layout)
 
-
-
-        
-
-    
-        # Theme switch section
         # Theme switch section
         theme_switch_section = QHBoxLayout()
 
