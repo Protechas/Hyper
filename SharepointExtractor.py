@@ -430,11 +430,21 @@ class SharepointExtractor:
         starting_clipboard_content = self.__get_clipboard_content__()
     
         # Find the selector element using the new locator that matches the row selection cell
-        selector_element_locator = ".//div[@role='gridcell' and contains(@data-automationid, 'row-selection-')]"
-        selector_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__).until(
-            EC.presence_of_element_located((By.XPATH, selector_element_locator))
-        )
-        selector_element.click()
+        selector_locator = ".//div[@role='gridcell' and contains(@data-automationid, 'row-selection-')]"
+        selector_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__)\
+            .until(EC.presence_of_element_located((By.XPATH, selector_locator)))
+
+        # ─── BEGIN CLICK WITH FALLBACK ───
+        # 1) scroll into view
+        self.selenium_driver.execute_script("arguments[0].scrollIntoView(true);", selector_element)
+        # 2) try normal click, else JS click
+        try:
+            selector_element.click()
+        except ElementClickInterceptedException:
+            # if something (like the Share iframe) is covering it, JS-click bypasses it
+            self.selenium_driver.execute_script("arguments[0].click();", selector_element)
+        # ─── END CLICK WITH FALLBACK ─
+        time.sleep(1.00)
         
         # Attempt the share routine in a loop to retry when buttons don't appear correctly
         for retry_count in range(3):
@@ -664,7 +674,9 @@ class SharepointExtractor:
     
                 if entry_name.lower().startswith("no"):
                     continue
-                if any(value in entry_name.lower() for value in ["old", "part", "replacement", "data"]):
+                # skip any entries containing these terms (case-insensitive)
+                ignore_terms = ["old", "part", "replacement", "data", "statement", "stament"]
+                if any(term in entry_name.lower() for term in ignore_terms):
                     continue
     
                 if self.__is_row_folder__(row_element):
@@ -916,7 +928,7 @@ if __name__ == '__main__':
     # (Usage with GUI, take away the # to perform whichever is needed)        
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
+    debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)

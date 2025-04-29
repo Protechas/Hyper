@@ -1,6 +1,6 @@
 ﻿import sys
 from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, QScrollArea)
+                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, QScrollArea, QListWidget)
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt,pyqtSignal,QThread
 from threading import Thread
@@ -65,6 +65,28 @@ class TerminalDialog(QDialog):
     def append_output(self, text):
         self.terminal_output.appendPlainText(text)
         self.terminal_output.ensureCursorVisible()
+
+class ModeSwitch(QCheckBox):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # no visible text on the switch itself
+        self.setText("")
+        self.setFixedSize(50, 25)
+        self.setStyleSheet("""
+            QCheckBox {
+                background-color: #888;
+                border-radius: 12px;
+            }
+            QCheckBox::indicator {
+                width: 21px; height: 21px;
+                border-radius: 10px;
+                background-color: white;
+                margin: 2px;
+            }
+            QCheckBox::indicator:checked {
+                margin-left: 27px;
+            }
+        """)
 
 
 class CustomButton(QPushButton):
@@ -152,6 +174,7 @@ class SeleniumAutomationApp(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.terminal = None           
         self.excel_paths = []
         self.manufacturer_links = {
             # Add ADAS SI Sharepoint Links here
@@ -250,10 +273,25 @@ class SeleniumAutomationApp(QWidget):
     
         # Excel file path display
         self.excel_path_label = QLabel('No files selected')
-        self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
-        file_selection_layout.addWidget(self.excel_path_label)
-    
+        self.excel_path_label.setStyleSheet(
+            "font-size: 14px; padding: 5px; "
+            "border: 1px solid #555555; border-radius: 5px; "
+            "background-color: #3e3e3e;"
+        )
+        
+        # Excel file list (scrollable)
+        self.excel_list = QListWidget(self)
+        self.excel_list.setFixedHeight(100)   # tweak height as you like
+        
+        self.excel_list.setStyleSheet(
+            "font-size: 14px; padding: 5px; "
+            "background-color: #3e3e3e; color: white; "
+            "border: 1px solid #555555; border-radius: 5px;"
+        )
+        self.excel_list.addItem('No files selected, please select files')
+        file_selection_layout.addWidget(self.excel_list)
         layout.addLayout(file_selection_layout)
+        self.si_mode_toggle = QCheckBox()
     
         # "Select All (Manufacturers)" and "Select All (ADAS Systems)" button layout
         select_all_buttons_layout = QHBoxLayout()
@@ -313,7 +351,7 @@ class SeleniumAutomationApp(QWidget):
             "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD", "SRS", "SRA", 
             "ESC", "SRS D&E", "SCI", "SRR", "HLI", "TPMS", "SBI", "RC",
             "EBDE (1)", "EBDE (2)", "HDE (1)", "HDE (2)", "LGR", "PSI", "WRL",
-            "PCM", "TRANS", "AIR", "ABS", "BCM","OCS","OCS2","OCS3","OCS4",
+            "PCM", "TRANS", "AIR", "ABS", "BCM","ODS","OCS","OCS2","OCS3","OCS4",
             "KEY", "FOB", "HVAC (1)", "HVAC (2)", "COOL", "HEAD (1)", "HEAD (2)"
         ]
         self.repair_checkboxes = []
@@ -363,23 +401,29 @@ class SeleniumAutomationApp(QWidget):
         theme_switch_section = QHBoxLayout()
 
         # ADAS / Repair SI Label and Toggle
-        self.mode_label_left = QLabel("Repair SI")
-        self.mode_label_left.setStyleSheet("font-size: 14px; padding: 10px;")
-        theme_switch_section.addWidget(self.mode_label_left)
+        switch_layout = QHBoxLayout()
+        switch_layout.setSpacing(8)
+        
+        self.label_adas   = QLabel("ADAS SI")
+        self.label_repair = QLabel("Repair SI")
+        for lbl in (self.label_adas, self.label_repair):
+            lbl.setStyleSheet("font-size:14px; padding:5px;")
+        
+        self.mode_switch = ModeSwitch(self)
+        # start unchecked => ADAS
+        self.mode_switch.setChecked(False)
+        self.mode_switch.stateChanged.connect(self.on_si_mode_toggled)
+        
+        switch_layout.addWidget(self.label_adas)
+        switch_layout.addWidget(self.mode_switch)
+        switch_layout.addWidget(self.label_repair)
+        switch_layout.addStretch()
+        
+        layout.addLayout(switch_layout)
+        
+        # after creating self.si_mode_toggle …
+        self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
-        self.si_mode_toggle = QCheckBox()
-        self.si_mode_toggle.setFixedSize(60, 30)
-        self.si_mode_toggle.setStyleSheet("""
-            QCheckBox::indicator {
-                width: 60px;
-                height: 30px;
-            }
-            QCheckBox {
-                background-color: #555;
-                border-radius: 15px;
-            }
-        """)
-        theme_switch_section.addWidget(self.si_mode_toggle)
 
         # Dark mode toggle
         theme_switch_section.addStretch()
@@ -392,9 +436,39 @@ class SeleniumAutomationApp(QWidget):
         self.start_button.clicked.connect(self.start_automation)
         layout.addWidget(self.start_button)
     
+                # after adding all widgets and layouts…
+        self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
+
+        # set initial enabled/disabled state based on default toggle
+        self.on_si_mode_toggled(self.mode_switch.checkState())
+
         self.setLayout(layout)
         self.resize(600, 400)
     
+    def on_si_mode_toggled(self, state):
+        """Enable one list & button, disable—and clear—the other."""
+        is_repair = (state == Qt.Checked)
+    
+        # Repair group gets enabled; ADAS gets disabled & cleared
+        for cb in self.repair_checkboxes:
+            cb.setEnabled(is_repair)
+        if not is_repair:
+            for cb in self.repair_checkboxes:
+                cb.setChecked(False)
+        self.select_all_repair_button.setEnabled(is_repair)
+        if not is_repair:
+            self.select_all_repair_button.setChecked(False)
+    
+        # ADAS group gets enabled; Repair gets disabled & cleared
+        for cb in self.adas_checkboxes:
+            cb.setEnabled(not is_repair)
+        if is_repair:
+            for cb in self.adas_checkboxes:
+                cb.setChecked(False)
+        self.select_all_adas_button.setEnabled(not is_repair)
+        if is_repair:
+            self.select_all_adas_button.setChecked(False)
+
     # Function to select/unselect all manufacturers
     def select_all_manufacturers(self):
         select_all_checked = True
@@ -420,15 +494,30 @@ class SeleniumAutomationApp(QWidget):
         for checkbox in self.repair_checkboxes:
             checkbox.setChecked(not select_all_checked)
     
-    
     def select_excel_files(self):
-        self.excel_paths, _ = QFileDialog.getOpenFileNames(self, 'Open files', 'C:/Users/', "Excel files (*.xlsx *.xls)")
+        self.excel_paths, _ = QFileDialog.getOpenFileNames(
+            self, 'Open files', 'C:/Users/', "Excel files (*.xlsx *.xls)"
+        )
         if self.excel_paths:
-            self.excel_paths = [path.strip() for path in self.excel_paths]  # Ensure no leading/trailing spaces
-            self.excel_path_label.setText("\n".join([f"{i + 1}. {os.path.basename(path)}" for i, path in enumerate(self.excel_paths)]))
+            # Trim any stray whitespace
+            self.excel_paths = [p.strip() for p in self.excel_paths]
+    
+            # 1) Show numbered filenames in the label
+            numbered = [f"{i+1}. {os.path.basename(p)}"
+                        for i, p in enumerate(self.excel_paths)]
+            self.excel_path_label.setText("\n".join(numbered))
+    
+            # 2) Fill the scrollable list with the same numbering
+            self.excel_list.clear()
+            for i, p in enumerate(self.excel_paths):
+                self.excel_list.addItem(f"{i+1}. {os.path.basename(p)}")
+    
         else:
+            # No files chosen: clear both widgets
             self.excel_path_label.setText('No files selected')
-
+            self.excel_list.clear()
+            self.excel_list.addItem('No files selected, please select files')
+         
     def toggle_theme(self):
         if self.theme_toggle.isChecked():
             self.setStyleSheet("background-color: #ffffff; color: black;")
@@ -440,75 +529,98 @@ class SeleniumAutomationApp(QWidget):
             self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
 
     def start_automation(self):
+        # 1) gather selected manufacturers
         selected_manufacturers = []
         for i in range(self.manufacturer_tree.topLevelItemCount()):
             item = self.manufacturer_tree.topLevelItem(i)
             if item.checkState(0) == Qt.Checked:
                 selected_manufacturers.append(item.text(0))
-    
-        # Collect selected ADAS acronyms
-        if self.si_mode_toggle.isChecked():
-            selected_adas = [cb.text() for cb in self.repair_checkboxes if cb.isChecked()]
-        else:
-            selected_adas = [cb.text() for cb in self.adas_checkboxes if cb.isChecked()]
 
-    
-        if self.excel_paths and selected_manufacturers:
-            confirm_message = "You have selected the following manufacturers and Excel files:\n\n"
-            for i, manufacturer in enumerate(selected_manufacturers):
-                confirm_message += f"{i + 1}. {manufacturer}\n"
-            confirm_message += "\nPlease ensure the order is correct. Continue?"
-    
-            confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-    
-            if confirm == QMessageBox.Yes:
-                # Show the terminal window
-                self.terminal = TerminalDialog(self)
-                self.terminal.show()
-    
-                # Set up for processing manufacturers
-                self.selected_manufacturers = selected_manufacturers
-                self.selected_adas = selected_adas  # Save the ADAS systems for use later
-                self.current_index = 0
-                self.process_next_manufacturer()
-            else:
-                QMessageBox.warning(self, 'Warning', "Automation process canceled.", QMessageBox.Ok)
-        else:
-            QMessageBox.warning(self, 'Warning', "Please select Excel files and manufacturers first.", QMessageBox.Ok)
+        # 2) gather selected systems based on the slide‐toggle
+        if self.mode_switch.isChecked():   # Repair mode
+            selected_systems = [cb.text() for cb in self.repair_checkboxes if cb.isChecked()]
+        else:                              # ADAS mode
+            selected_systems = [cb.text() for cb in self.adas_checkboxes if cb.isChecked()]
+
+        # 3) sanity check
+        if not (self.excel_paths and selected_manufacturers and selected_systems):
+            QMessageBox.warning(self, 'Warning',
+                "Please select Excel files, manufacturers, and at least one system.", QMessageBox.Ok)
+            return
+
+        # 4) confirm and kick off
+        # — build Excel list
+        excel_list = "\n".join(f"{i+1}. {os.path.basename(path)}"
+                               for i, path in enumerate(self.excel_paths))
+        # — build manufacturers list
+        manu_list = "\n".join(f"{i+1}. {m}"
+                              for i, m in enumerate(selected_manufacturers))
+
+        confirm_message = (
+            "Excel files selected:\n"
+            f"{excel_list}\n\n"
+            "Manufacturers selected:\n"
+            f"{manu_list}\n\n"
+            "Systems selected:\n"
+            + ", ".join(selected_systems)
+            + "\n\nContinue?"
+        )
+
+        if QMessageBox.question(self, 'Confirmation', confirm_message,
+               QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+            return
+
+        # 5) stash for process_next_manufacturer
+        self.selected_manufacturers = selected_manufacturers
+        self.selected_systems       = selected_systems
+        self.mode_flag              = "repair" if self.mode_switch.isChecked() else "adas"
+        self.current_index          = 0
+
+        # 6) show or reuse terminal & start
+        if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
+            self.terminal = TerminalDialog(self)
+        self.terminal.show()
+        self.terminal.raise_()
+
+        self.process_next_manufacturer()
+
 
 
     def process_next_manufacturer(self):
-        if self.current_index < len(self.selected_manufacturers):
-            manufacturer = self.selected_manufacturers[self.current_index]
-            excel_path = self.excel_paths[self.current_index]
-            
-            if self.si_mode_toggle.isChecked():
-                sharepoint_link = self.repair_links.get(manufacturer)
-            else:
-                sharepoint_link = self.manufacturer_links.get(manufacturer)
-
+        if self.current_index >= len(self.selected_manufacturers):
+            # done!
+            completed = "\n".join(self.selected_manufacturers)
+            QMessageBox.information(self, 'Completed',
+                                    f"The Following Manufacturers have been completed:\n{completed}", QMessageBox.Ok)
+            return
     
-            if sharepoint_link:
-                # Define the script path
-                script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+        manufacturer = self.selected_manufacturers[self.current_index]
+        excel_path  = self.excel_paths[self.current_index]
+        # pick correct link dict
+        link_dict   = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
+        sharepoint_link = link_dict.get(manufacturer)
     
-                # Collect selected ADAS systems
-                selected_adas = [checkbox.text() for checkbox in self.adas_checkboxes if checkbox.isChecked()]
+        if not sharepoint_link:
+            QMessageBox.warning(self, 'Error',
+                f"No SharePoint link found for {manufacturer} in {self.mode_flag} mode.", QMessageBox.Ok)
+            return
     
-                # Arguments for the subprocess
-                adas_or_repair = [cb.text() for cb in (self.adas_checkboxes if not self.si_mode_toggle.isChecked() else self.repair_checkboxes) if cb.isChecked()]
-                mode_flag = "repair" if self.si_mode_toggle.isChecked() else "adas"
-                args = ["python", script_path, sharepoint_link, excel_path, ",".join(adas_or_repair), mode_flag]
-
-
+        # build and fire the subprocess
+        script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+        args = [
+            sys.executable,     # better than hard-coding "python"
+            script_path,
+            sharepoint_link,
+            excel_path,
+            ",".join(self.selected_systems),
+            self.mode_flag
+        ]
     
-                # Run the command in a thread
-                thread = WorkerThread(args, manufacturer)
-                thread.output_signal.connect(self.terminal.append_output)
-                thread.finished_signal.connect(self.on_manufacturer_finished)
-                thread.start()
-                self.threads.append(thread)
-
+        thread = WorkerThread(args, manufacturer)
+        thread.output_signal.connect(self.terminal.append_output)
+        thread.finished_signal.connect(self.on_manufacturer_finished)
+        thread.start()
+        self.threads.append(thread)
 
     def on_manufacturer_finished(self, manufacturer):
         # Mark manufacturer as completed
@@ -526,12 +638,8 @@ class SeleniumAutomationApp(QWidget):
 
         # If all manufacturers are completed, show a completion message
         if self.current_index >= len(self.selected_manufacturers):
-            completed_message = "The Following Manufacturers have been completed:\n"
-            completed_message += "\n".join(self.completed_manufacturers)
-            QMessageBox.information(self, 'Completed', completed_message, QMessageBox.Ok)
             self.terminal.append_output("All manufacturers processed successfully.")
-
-            
+          
     def activate_full_automation(self):
         if not self.excel_paths:
             QMessageBox.warning(self, 'Warning', "Please select Excel files first.", QMessageBox.Ok)
@@ -580,7 +688,6 @@ class SeleniumAutomationApp(QWidget):
         else:
             QMessageBox.warning(self, 'Warning', "Full automation process canceled.", QMessageBox.Ok)
 
-
     def select_all(self):
         select_all_checked = True
         for i in range(self.manufacturer_tree.topLevelItemCount()):
@@ -593,8 +700,6 @@ class SeleniumAutomationApp(QWidget):
             item = self.manufacturer_tree.topLevelItem(i)
             item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)
             
-    
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = SeleniumAutomationApp()
