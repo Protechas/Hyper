@@ -89,7 +89,70 @@ class SharepointExtractor:
     "2014 Volkswagen CC (ACC 1).pdf": "L155",
     "2015 Volkswagen CC (ACC 1).pdf": "L227",
     "2016 Volkswagen CC (ACC 1).pdf": "L299",
-    "2017 Volkswagen CC (ACC 1).pdf": "L371"
+    "2017 Volkswagen CC (ACC 1).pdf": "L371",
+    "2022 Kis Stinger (ACC 2)": "L956",
+    "2023 Kia Niro EV (ACC 2)": "L1010",
+    "2023 Kia Niro EV (AEB 2)": "L1011",
+    "2023 Kia Niro EV (APA 1).pdf": "L1013",
+    "2023 Kia Niro EV (BSW 1).pdf": "L1014",
+    "2023 Kia Niro EV (BUC).pdf": "L1015",
+    "2023 Kia Niro EV (LKA 1).pdf": "L1016",
+    "2023 Kia Niro HEV (ACC 2)": "L1019",
+    "2023 Kia Niro HEV (AEB 2)": "L1020",
+     #"2023 Kia Niro HEV (ACC 2).pdf": "L155", Dupliacate entry
+    "2023 Kia Niro HEV (APA 1).pdf": "L1022",
+    "2023 Kia Niro HEV (BSW 1).pdf": "L1023",
+    "2023 Kia Niro HEV (BUC).pdf": "L1024",
+    "2023 Kia Niro HEV (LKA 1).pdf": "L1025",
+    "2023 Kia Niro PHEV (ACC 2)": "L1028",
+    "2023 Kia Niro PHEV (AEB 2)": "L1029",
+    "2023 Kia Niro PHEV (APA 1).pdf": "L1031",
+    "2023 Kia Niro PHEV (BSW 1).pdf": "L1032",
+    "2023 Kia Niro PHEV (BUC).pdf": "L1033",
+    "2023 Kia Niro PHEV (LKA 1).pdf": "L1034",
+    "2023 Kia Sorento HEV (ACC 2)": "L1064",
+    "2023 Kia Sorento HEV (AEB 2)": "L1065",
+    "2023 Kia Sorento HEV (BSW 1)": "L1068",
+    "2023 Kia Sorento HEV (SVC 1)": "L1072",
+    "2023 Kia Sorento HEV (APA 1).pdf": "L1067",
+    "2023 Kia Sorento HEV (BUC).pdf": "L1069",
+    "2023 Kia Sorento HEV (LKA 1).pdf": "L1070",
+    "2023 Kia Sorento PHEV (BSW 1)": "L1077",
+    "2023 Kia Sorento PHEV (SVC 1)": "L1081",
+    "2023 Kia Sorento PHEV (ACC 2).pdf": "L1073",
+    "2023 Kia Sorento PHEV (AEB 2).pdf": "L1074",
+    "2023 Kia Sorento PHEV (APA 1).pdf": "L1076",
+    "2023 Kia Sorento PHEV (BUC).pdf": "L1078",
+    "2023 Kia Sorento PHEV (LKA 1).pdf": "L1079",
+    "2023 Kia Sportage (ACC 2)": "L1091",
+    "2023 Kia Sportage (AEB 2)": "L1092",
+    "2023 Kia Sportage (APA 1)": "L1094",
+    "2023 Kia Sportage (SVC 1)": "L1099",
+    "2023 Kia Sportage (BSW 1).pdf": "L1095",
+    "2023 Kia Sportage (BUC).pdf": "L1096",
+    "2023 Kia Sportage (LKA 1).pdf": "L1097",
+    "2023 Kia Sportage NG5 (AEB 2)": "L1101", #misspealt, Its NQ5, not NG5
+    "2023 Kia Sportage NQ5 (ACC 2)": "L1100",
+    "2023 Kia Sportage NQ5 (APA 1)": "L1103",
+    "2023 Kia Sportage NQ5 (BSW 1).pdf": "L1104",
+    "2023 Kia Sportage NQ5 (BUC).pdf": "L1105",
+    "2023 Kia Sportage NQ5 (LKA 1).pdf": "L1106",
+    "2023 Kia Sportage NQ5 (SVC 1).pdf": "L1108",
+    "2023 Kia Sportage PHEV (ACC 2)": "L1118",
+    "2023 Kia Sportage PHEV (AEB 2)": "L1119",
+    "2023 Kia Sportage PHEV (SVC 1)": "L1126",
+    "2023 Kia Sportage PHEV (APA 1).pdf": "L1121",
+    "2023 Kia Sportage PHEV (BSW 1).pdf": "L1122",
+    "2023 Kia Sportage PHEV (BUC).pdf": "L123",
+    "2023 Kia Sportage PHEV (LKA 1).pdf": "L1124", 
+    "2024 Kia Carnival (ACC 2).pdf": "L1145", # MPV?????
+    "2024 Kia Carnival (AEB 2).pdf": "L1146",
+    "2024 Kia Carnival (APA 1).pdf": "L1148",
+    "2024 Kia Carnival (BSW 1).pdf": "L1149",
+    "2024 Kia Carnival (BUC).pdf": "L1150",
+    "2024 Kia Carnival (LKA 1).pdf": "L1151",
+    "2024 Kia Carnival (SVC 1).pdf": "L1153"
+   
     # Add more mappings as needed
     }
     HYPERLINK_COLUMN_INDEX = 12  # Default is Column L (can change to 11 for K, etc.)
@@ -169,12 +232,13 @@ class SharepointExtractor:
         # Define the default wait timeout and setup a new selenium driver
         # This will download (if needed) and add the correct chromedriver to PATH
         chromedriver_autoinstaller.install()
-        
+               
         # Then just start Chrome normally:
         self.selenium_driver = webdriver.Chrome(
             options=self.__generate_chrome_options__()
         )
         self.selenium_wait = WebDriverWait(self.selenium_driver, 10)
+        time.sleep(5)
 
         # Navigate to the main SharePoint page for Acura
         print("Navigating to main SharePoint page link now...")
