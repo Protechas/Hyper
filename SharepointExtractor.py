@@ -238,7 +238,6 @@ class SharepointExtractor:
             options=self.__generate_chrome_options__()
         )
         self.selenium_wait = WebDriverWait(self.selenium_driver, 10)
-        time.sleep(5)
 
         # Navigate to the main SharePoint page for Acura
         print("Navigating to main SharePoint page link now...")
@@ -291,7 +290,7 @@ class SharepointExtractor:
             child_folders, child_files = self.__get_folder_rows__(folder_link)
     
             # ─── PAUSE TO LET THE FOLDER LIST SETTLE ───────────────────────────
-            time.sleep(2.0)
+            time.sleep(3.0)
 
             # Add child folders for further processing
             sharepoint_folders.extend(child_folders)
@@ -703,79 +702,110 @@ class SharepointExtractor:
         indexed_files = []
         indexed_folders = []
     
-        # Compile ADAS regex patterns
+        # Compile ADAS/Repair‐mode regex patterns
         if self.repair_mode and self.selected_adas:
             adas_patterns = [re.compile(re.escape(rs), re.IGNORECASE) for rs in self.selected_adas]
         elif self.selected_adas:
             adas_patterns = [
-                re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas
+                re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE)
+                for adas in self.selected_adas
             ]
         else:
             adas_patterns = None
     
-        # Locate the SharePoint list/table container
+        # ─── ROBUST WAIT FOR FOLDER ROWS ───
+        # 1) wait for the table container to appear
+        WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__).until(
+            EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
+        )
+        # 2) wait for any loading spinner to vanish
+        try:
+            WebDriverWait(self.selenium_driver, 5).until(
+                EC.invisibility_of_element_located((By.CSS_SELECTOR, ".loading-spinner"))
+            )
+        except TimeoutException:
+            pass
+    
+        # 3) grab all table containers on the page
         page_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)
     
         for page_element in page_elements:
-            try:
-                WebDriverWait(page_element, 15).until(
-                    EC.presence_of_element_located(
-                        (By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-                    )
-                )
-            except TimeoutException:
-                print("No table rows found in folder; waiting 10 seconds before continuing...")
-                time.sleep(10)
-                # Option 1: return empty lists so the process continues without error
-                return [indexed_folders, indexed_files]
-                # Option 2: if you want to keep going on the *next* page_element, you'd use 'continue' instead of 'return'
-            page_title = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
-            table_elements = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
+            # Poll the number of rows until it stabilizes
+            prev_count = -1
+            stable = 0
+            rows = []
+            while stable < 3:
+                rows = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
+                count = len(rows)
+                if count == prev_count:
+                    stable += 1
+                else:
+                    stable = 0
+                prev_count = count
+                time.sleep(0.5)
     
-            for row_element in table_elements:
+            if not rows:
+                print("No table rows found in folder; skipping...")
+                continue
+    
+            # Get the folder title from the page header
+            page_title = (
+                self.selenium_driver
+                .find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1]
+                .get_attribute("innerText")
+                .strip()
+            )
+    
+            # Now iterate the fully−loaded rows
+            for row_element in rows:
                 entry_name = self.__get_row_name__(row_element)
                 entry_hierarchy = self.__get_entry_heirarchy__(row_element)
     
                 if entry_name.lower().startswith("no"):
                     continue
-                # skip any entries containing these terms (case-insensitive)
+                # skip unwanted terms
                 ignore_terms = ["old", "part", "replacement", "data", "statement", "stament"]
                 if any(term in entry_name.lower() for term in ignore_terms):
                     continue
     
                 if self.__is_row_folder__(row_element):
-                    if page_title == self.sharepoint_make and re.search(r"\d{4}", entry_name) is None:
+                    if page_title == self.sharepoint_make and not re.search(r"\d{4}", entry_name):
                         continue
     
                     folder_link = self.__get_unencrypted_link__(row_element)
+                    # special deep-folder check
                     if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name):
                         self.selenium_driver.switch_to.new_window(WindowTypes.TAB)
                         self.selenium_driver.get(folder_link)
-    
                         try:
-                            sub_table_element = WebDriverWait(self.selenium_driver, 25).until(
+                            sub_table = WebDriverWait(self.selenium_driver, 25).until(
                                 EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
                             )
-                            sub_table_rows = sub_table_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-                            sub_table_entries = [self.__get_row_name__(row) for row in sub_table_rows]
+                            sub_rows = sub_table.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
+                            sub_names = [self.__get_row_name__(r) for r in sub_rows]
                         except:
-                            sub_table_entries = []
-    
+                            sub_names = []
                         self.selenium_driver.close()
                         self.selenium_driver.switch_to.window(self.selenium_driver.window_handles[0])
     
-                        if any(re.search(r"([PpAaRrTt]{4})|(\d+\s{0,}\.[^\s]+)", name) for name in sub_table_entries):
+                        if any(re.search(r"([PpAaRrTt]{4})|(\d+\s*\.[^\s]+)", name) for name in sub_names):
                             folder_link = self.__get_encrypted_link__(row_element)
                             indexed_files.append(
                                 SharepointExtractor.SharepointEntry(
-                                    entry_name, entry_hierarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY
+                                    entry_name,
+                                    entry_hierarchy,
+                                    folder_link,
+                                    SharepointExtractor.EntryTypes.FOLDER_ENTRTY
                                 )
                             )
                             continue
     
                     indexed_folders.append(
                         SharepointExtractor.SharepointEntry(
-                            entry_name, entry_hierarchy, folder_link, SharepointExtractor.EntryTypes.FOLDER_ENTRTY
+                            entry_name,
+                            entry_hierarchy,
+                            folder_link,
+                            SharepointExtractor.EntryTypes.FOLDER_ENTRTY
                         )
                     )
                     continue
@@ -783,26 +813,27 @@ class SharepointExtractor:
                 # === 🔍 FILTERING STARTS HERE ===
                 if self.selected_adas:
                     if self.repair_mode:
-                        # Try extracting repair module from (MODULE) or fallback to last word
                         module_match = re.search(r'\((.*?)\)', entry_name)
                         if module_match:
                             file_module = module_match.group(1).strip().upper()
                         else:
-                            name_without_ext = os.path.splitext(entry_name)[0]
-                            file_module = name_without_ext.split()[-1].strip().upper()
+                            file_module = os.path.splitext(entry_name)[0].split()[-1].upper()
     
                         if file_module not in [s.upper() for s in self.selected_adas]:
                             print(f"Skipping {entry_name} — '{file_module}' not in selected: {self.selected_adas}")
                             continue
                     else:
-                        if not any(pattern.search(entry_name) for pattern in adas_patterns):
+                        if not any(p.search(entry_name) for p in adas_patterns):
                             continue
                 # === 🔍 FILTERING ENDS HERE ===
     
                 file_link = self.__get_encrypted_link__(row_element)
                 indexed_files.append(
                     SharepointExtractor.SharepointEntry(
-                        entry_name, entry_hierarchy, file_link, SharepointExtractor.EntryTypes.FILE_ENTRY
+                        entry_name,
+                        entry_hierarchy,
+                        file_link,
+                        SharepointExtractor.EntryTypes.FILE_ENTRY
                     )
                 )
     
@@ -992,7 +1023,7 @@ if __name__ == '__main__':
     # (Usage with GUI, take away the # to perform whichever is needed)        
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = True
+    debug_run = False
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
