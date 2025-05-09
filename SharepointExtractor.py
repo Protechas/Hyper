@@ -414,29 +414,42 @@ class SharepointExtractor:
 
     def __generate_chrome_options__(self) -> Options:
         """
-        Configures Chrome to always use the existing user profile for multi-document processing.
-        Returns a built set of Chrome options configured to use the existing profile.
+        Configures Chrome to use a valid custom user profile.
+        Chrome requires --user-data-dir to be a non-default location for automation.
         """
-        
-        # Define a new chrome options object and setup some default configuration
+    
         chrome_options = Options()
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-extensions")  # Disable extensions to avoid conflicts
-        chrome_options.add_argument("--disable-infobars")  # Disable infobars
-        chrome_options.add_argument("--disable-browser-side-navigation")  # Disable side navigation issues
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Avoid detection as bot
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-infobars")
+        chrome_options.add_argument("--disable-browser-side-navigation")
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     
-        # Always use the existing Chrome profile
+        # Define a dedicated automation user data directory
         home_dir = os.path.expanduser("~")
-        user_data_dir = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data")
-        chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
-        profile_dir = "Default" 
-        chrome_options.add_argument(f"--profile-directory={profile_dir}")
-        
-        # Return the updated options object
+        automation_profile_base = os.path.join(home_dir, "ChromeAutomationProfiles")
+    
+        # Try Default first, then Profile 1
+        profile_name = "Default"
+        if not os.path.exists(os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data", "Default")):
+            profile_name = "Profile 1"
+    
+        # Copy the real profile to a custom folder if not already copied
+        original_profile = os.path.join(home_dir, "AppData", "Local", "Google", "Chrome", "User Data", profile_name)
+        target_profile = os.path.join(automation_profile_base, profile_name)
+    
+        if not os.path.exists(target_profile):
+            import shutil
+            shutil.copytree(original_profile, target_profile)
+    
+        chrome_options.add_argument(f"--user-data-dir={automation_profile_base}")
+        chrome_options.add_argument(f"--profile-directory={profile_name}")
+    
+        print(f"[Chrome Profile] Using copied profile: {profile_name}")
         return chrome_options
+
   
     
     def __is_row_folder__(self, row_element: WebElement) -> bool:
@@ -1023,7 +1036,7 @@ if __name__ == '__main__':
     # (Usage with GUI, take away the # to perform whichever is needed)        
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
+    debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
