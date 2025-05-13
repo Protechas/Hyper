@@ -300,19 +300,28 @@ class SharepointExtractor:
                 for file_entry in child_files:
                     entry_name = file_entry.entry_name
             
-                    # Try to extract module from parentheses first
-                    module_match = re.search(r'\((.*?)\)', entry_name)
-                    if module_match:
-                        file_module = module_match.group(1).strip().upper()
-                    else:
-                        # Fallback: try last word before .pdf
-                        name_without_ext = os.path.splitext(entry_name)[0]
-                        file_module = name_without_ext.split()[-1].strip().upper()
+                    # Try to extract ALL modules from parentheses
+                    module_matches = re.findall(r'\((.*?)\)', entry_name)
+                    found_match = False
             
-                    if file_module in [s.upper() for s in self.selected_adas]:
+                    if module_matches:
+                        for module in module_matches:
+                            module = module.strip().upper()
+                            if module in [s.upper() for s in self.selected_adas]:
+                                found_match = True
+                                break
+                    else:
+                        # fallback: last word before extension
+                        name_without_ext = os.path.splitext(entry_name)[0]
+                        last_word = name_without_ext.split()[-1].strip().upper()
+                        if last_word in [s.upper() for s in self.selected_adas]:
+                            found_match = True
+            
+                    if found_match:
                         filtered_files.append(file_entry)
                     else:
-                        print(f"Skipping {entry_name} — '{file_module}' not in selected: {self.selected_adas}")
+                        print(f"Skipping {entry_name} — No matching system found in {self.selected_adas}")
+
             
             elif adas_patterns:
                 for file_entry in child_files:
@@ -826,15 +835,25 @@ class SharepointExtractor:
                 # === 🔍 FILTERING STARTS HERE ===
                 if self.selected_adas:
                     if self.repair_mode:
-                        module_match = re.search(r'\((.*?)\)', entry_name)
-                        if module_match:
-                            file_module = module_match.group(1).strip().upper()
+                        module_matches = re.findall(r'\((.*?)\)', entry_name)
+                        found_match = False
+                    
+                        if module_matches:
+                            for module in module_matches:
+                                module = module.strip().upper()
+                                if module in [s.upper() for s in self.selected_adas]:
+                                    found_match = True
+                                    break
                         else:
-                            file_module = os.path.splitext(entry_name)[0].split()[-1].upper()
-    
-                        if file_module not in [s.upper() for s in self.selected_adas]:
-                            print(f"Skipping {entry_name} — '{file_module}' not in selected: {self.selected_adas}")
+                            name_without_ext = os.path.splitext(entry_name)[0]
+                            last_word = name_without_ext.split()[-1].strip().upper()
+                            if last_word in [s.upper() for s in self.selected_adas]:
+                                found_match = True
+                    
+                        if not found_match:
+                            print(f"Skipping {entry_name} — No matching system found in {self.selected_adas}")
                             continue
+
                     else:
                         if not any(p.search(entry_name) for p in adas_patterns):
                             continue
