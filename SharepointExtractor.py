@@ -300,7 +300,7 @@ class SharepointExtractor:
                 for file_entry in child_files:
                     entry_name = file_entry.entry_name
             
-                    # Try to extract ALL modules from parentheses
+                    # — extract ALL parenthetical modules —
                     module_matches = re.findall(r'\((.*?)\)', entry_name)
                     found_match = False
             
@@ -312,15 +312,16 @@ class SharepointExtractor:
                                 break
                     else:
                         # fallback: last word before extension
-                        name_without_ext = os.path.splitext(entry_name)[0]
-                        last_word = name_without_ext.split()[-1].strip().upper()
-                        if last_word in [s.upper() for s in self.selected_adas]:
+                        base = os.path.splitext(entry_name)[0]
+                        last = base.split()[-1].strip().upper()
+                        if last in [s.upper() for s in self.selected_adas]:
                             found_match = True
             
                     if found_match:
                         filtered_files.append(file_entry)
                     else:
-                        print(f"Skipping {entry_name} — No matching system found in {self.selected_adas}")
+                        print(f"Skipping {entry_name} — no matching system in {self.selected_adas}")
+
 
             
             elif adas_patterns:
@@ -379,19 +380,33 @@ class SharepointExtractor:
             file_year = year_match.group(1) if year_match else "Unknown"
         
             # === Model Extraction ===
+            # === Model Extraction (Repair only: capture non-module parentheses as part of model) ===
             base_name = re.sub(r'(20\d{2})', '', file_name)
             base_name = base_name.replace(".pdf", "").strip()
             base_name = re.sub(re.escape(self.sharepoint_make), "", base_name, flags=re.IGNORECASE).strip()
-        
+            
             model_tokens = []
-            for token in base_name.split():
-                # Stop if token starts with "(" or is a known module
-                if token.startswith("(") or token.upper().strip("()[]") in self.__DEFINED_MODULE_NAMES__:
-                    break
-                model_tokens.append(token)
-
+            # build an uppercase set for faster membership checks
+            mod_names = {m.upper() for m in self.__DEFINED_MODULE_NAMES__}
         
+            for token in base_name.split():
+                if token.startswith("("):
+                    content = token.strip("()")
+                    if content.strip().upper() in mod_names:
+                        # found a module (e.g. SWS or G-Force) ⇒ stop
+                        break
+                    else:
+                        # variant bracketed term (e.g. HEV) ⇒ include
+                        model_tokens.append(content)
+                elif token.upper().strip("()[]") in mod_names:
+                    # bare module token (no parentheses) ⇒ stop
+                    break
+                else:
+                    model_tokens.append(token)
+
+            
             file_model = " ".join(model_tokens).strip() if model_tokens else "Unknown"
+
         
             # === ✅ Fallback for Model from Hierarchy ===
             if file_model == "Unknown":
@@ -783,6 +798,22 @@ class SharepointExtractor:
                 entry_name = self.__get_row_name__(row_element)
                 entry_hierarchy = self.__get_entry_heirarchy__(row_element)
     
+                    # — SPECIAL: if Repair mode & SAS is selected, grab the SAS folder itself —
+                if self.repair_mode and 'SAS' in [s.upper() for s in self.selected_adas] \
+                   and entry_name.strip().upper() == 'SAS':
+                    # row_link is the folder URL we came in on
+                    folder_url = row_link or self.selenium_driver.current_url
+                    indexed_files.append(
+                        SharepointExtractor.SharepointEntry(
+                            entry_name,
+                            entry_hierarchy,
+                            folder_url,
+                            SharepointExtractor.EntryTypes.FILE_ENTRY
+                        )
+                    )
+                    continue
+
+
                 if entry_name.lower().startswith("no"):
                     continue
                 # skip unwanted terms
@@ -859,6 +890,21 @@ class SharepointExtractor:
                             continue
                 # === 🔍 FILTERING ENDS HERE ===
     
+                    # — SPECIAL: if file mentions MDPS, hyperlink the parent folder instead —
+                if not self.__is_row_folder__(row_element) \
+                   and any(phrase in entry_name.upper() for phrase in ['EXCEPT MDPS', 'MDPS ONLY']):
+                    folder_url = row_link or self.selenium_driver.current_url
+                    indexed_files.append(
+                        SharepointExtractor.SharepointEntry(
+                            entry_name,
+                            entry_hierarchy,
+                            folder_url,
+                            SharepointExtractor.EntryTypes.FILE_ENTRY
+                        )
+                    )
+                    continue
+
+
                 file_link = self.__get_encrypted_link__(row_element)
                 indexed_files.append(
                     SharepointExtractor.SharepointEntry(
@@ -911,8 +957,20 @@ class SharepointExtractor:
     
         # Create a unique key for tracking the row (includes system/module name now for Repair SI)
         if self.repair_mode:
-            system_match = re.search(r"\((.*?)\)", doc_name)
-            system_name = system_match.group(1).upper() if system_match else doc_name.split()[-1].upper()
+            module_matches = re.findall(r'\((.*?)\)', doc_name)
+            system_name = None
+            # pick the first module that’s in selected_adas
+            for mod in module_matches:
+                if mod.strip().upper() in [s.upper() for s in self.selected_adas]:
+                    system_name = mod.strip().upper()
+                    break
+            # fallback to first parenthesis or last word
+            if not system_name:
+                if module_matches:
+                    system_name = module_matches[0].strip().upper()
+                else:
+                    system_name = os.path.splitext(doc_name)[0].split()[-1].strip().upper()
+
             key = (year, self.sharepoint_make, model, system_name)
         else:
             key = (year, self.sharepoint_make, model, doc_name)
@@ -968,10 +1026,19 @@ class SharepointExtractor:
     
         # ⬇️ REPAIR MODE LOGIC
         if repair_mode:
-            # Extract system name from file name
-            system_match = re.search(r"\((.*?)\)", file_name)
-            system_name = system_match.group(1).strip().upper() if system_match else file_name.split()[-1].strip().upper()
+            module_matches = re.findall(r'\((.*?)\)', file_name)
+            system_name = None
+            for mod in module_matches:
+                if mod.strip().upper() in [s.upper() for s in self.selected_adas]:
+                    system_name = mod.strip().upper()
+                    break
+            if not system_name:
+                if module_matches:
+                    system_name = module_matches[0].strip().upper()
+                else:
+                    system_name = file_name.split()[-1].strip().upper()
             normalized_system = re.sub(r"[^A-Z0-9]", "", system_name).upper().strip()
+
     
             key = (
                 year.strip().upper(),
