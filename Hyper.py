@@ -710,8 +710,9 @@ class SeleniumAutomationApp(QWidget):
         if not output:
             return
 
-        # ensure Logs folder exists next to this script
-        logs_dir = os.path.join(os.path.dirname(__file__), "Logs")
+        # put Logs folder in the current user's Documents folder
+        docs = os.path.join(os.path.expanduser("~"), "Documents")
+        logs_dir = os.path.join(docs, "Hyper Logs")
         os.makedirs(logs_dir, exist_ok=True)
 
         # prune oldest logs if we already have 30 or more
@@ -729,7 +730,7 @@ class SeleniumAutomationApp(QWidget):
             f.write(output)
 
     def closeEvent(self, event):
-        # when the GUI closes, dump the terminal contents (if any) to Logs/
+        # when the GUI closes, dump the terminal contents (if any) to Documents/Logs
         self.write_terminal_log()
         super().closeEvent(event)
             
