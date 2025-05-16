@@ -81,6 +81,7 @@ class SharepointExtractor:
         'Video Processing'
     ]
     SPECIFIC_HYPERLINKS = {
+    # ADAS SI Manual Placeholders
     "2013 GMC Acadia (BSW-RCTW 1)-PL-PW072NLB.pdf": "L79",
     "2016 Acura RLX (LKA 1) [FCW-LDW].pdf": "L248",
     "2016 Acura RLX (LKA 1) [Multipurpose].pdf": "L249",
@@ -151,10 +152,187 @@ class SharepointExtractor:
     "2024 Kia Carnival (BSW 1).pdf": "L1149",
     "2024 Kia Carnival (BUC).pdf": "L1150",
     "2024 Kia Carnival (LKA 1).pdf": "L1151",
-    "2024 Kia Carnival (SVC 1).pdf": "L1153"
+    "2024 Kia Carnival (SVC 1).pdf": "L1153",
+    
+    #Repair SI Manual Placeholders
+    "2020 Kia Niro EV (DE PHEV)(G-Force)":    "H2842",
+    "2020 Kia Niro EV (DE PHEV)(SAS)":        "H2840",
+    "2020 Kia Niro EV (DE PHEV)(YAW)":        "H2841",
+    "2020 Kia Niro EV (DE PHEV)(SWS).pdf":    "H2843",
+    
+    #2021 Kia Niro (Excel) and Below dosent match, but placing links anyway (it is named completely wrong in the Excel as a normal model should never reflect the EV version)
+    "2021 Kia Niro EV (DE PHEV)(G-Force)":    "H2413",
+    "2021 Kia Niro EV (DE PHEV)(SAS)":        "H2411",
+    "2021 Kia Niro EV (DE PHEV)(YAW)":        "H2412",
+    "2021 KIA Niro EV (DE PHEV)(ESC).pdf":    "H2418",
+    "2021 KIA Niro EV (DE PHEV)(HLI).pdf":    "H2422",
+    "2021 KIA Niro EV (DE PHEV)(SCI).pdf":    "H2420",
+    "2021 KIA Niro EV (DE PHEV)(SRR).pdf":    "H2421",
+    "2021 KIA Niro EV (DE PHEV)(SRS D&E).pdf":"H2419",
+    "2021 Kia Niro EV (DE PHEV)(SWS).pdf":    "H2414",
+    "2021 KIA Niro EV (DE PHEV)(TPMS).pdf":   "H2423",
+
+    #2022 Kia Niro (Excel) and Below dosent match, but placing links anyway (it is named completely wrong in the Excel as a normal model should never reflect the EV version)
+    "2022 Kia Niro EV (G-Force)":             "H2050",
+    "2022 Kia Niro EV (SAS)":                 "H2048",
+    "2022 Kia Niro EV (SRR)":                 "H2058",
+    "2022 Kia Niro EV (YAW)":                 "H2049",
+    "2022 Kia Niro EV (ESC).pdf":             "H2055",
+    "2022 Kia Niro EV (HLI).pdf":             "H2059",
+    "2022 Kia Niro EV (SCI).pdf":             "H2057",
+    "2022 Kia Niro EV (SRS D&E).pdf":         "H2056",
+    "2022 Kia Niro EV (SWS).pdf":             "H2051",
+    "2022 Kia Niro EV (TPMS).pdf":            "H2060",
+
+    "2023 Kia Niro (EV)(G-Force)":            "H1423",
+    "2023 Kia Niro (EV)(SAS)":                "H1421",
+    "2023 Kia Niro (EV)(YAW)":                "H1422",
+    "2023 Kia Niro (EV) (SWS).pdf":           "H1424",
+    "2023 Kia Niro (EV)(ESC).pdf":            "H1428",
+    "2023 Kia Niro (EV)(HLI).pdf":            "H1432",
+    "2023 Kia Niro (EV)(SCI).pdf":            "H1430",
+    "2023 Kia Niro (EV)(SRR).pdf":            "H1431",
+    "2023 Kia Niro (EV)(SRS D&E).pdf":        "H1429",
+    "2023 Kia Niro (EV)(TPMS).pdf":           "H1433",
+
+    "2023 Kia Niro (HEV)(G-Force)":           "H1456",
+    "2023 Kia Niro (HEV)(YAW)":               "H1455",
+    "2023 Kia Niro (HEV) (SAS).pdf":          "H1454",
+    "2023 Kia Niro (HEV) (SWS).pdf":          "H1457",
+    "2023 Kia Niro (HEV)(ESC).pdf":           "H1461",
+    "2023 Kia Niro (HEV)(HLI).pdf":           "H1465",
+    "2023 Kia Niro (HEV)(SCI).pdf":           "H1463",
+    "2023 Kia Niro (HEV)(SRR).pdf":           "H1464",
+    "2023 Kia Niro (HEV)(SRS D&E).pdf":       "H1462",
+    "2023 Kia Niro (HEV)(TPMS).pdf":          "H1466",
+
+    "2023 Kia Niro (PHEV)(G-Force)":          "H1489",
+    "2023 Kia Niro (PHEV)(YAW)":              "H1488",
+    "2023 Kia Niro (PHEV) (SAS).pdf":         "H1487",
+    "2023 Kia Niro (PHEV) (SWS).pdf":         "H1490",
+    "2023 Kia Niro (PHEV)(ESC).pdf":          "H1494",
+    "2023 Kia Niro (PHEV)(HLI).pdf":          "H1498",
+    "2023 Kia Niro (PHEV)(SCI).pdf":          "H1496",
+    "2023 Kia Niro (PHEV)(SRR).pdf":          "H1497",
+    "2023 Kia Niro (PHEV)(SRS D&E).pdf":      "H1495",
+    "2023 Kia Niro (PHEV)(TPMS).pdf":         "H1499",
+
+    "2023 Kia Sorento (HEV)(ESC)":            "H1626",
+    "2023 Kia Sorento (HEV)(G-Force)":        "H1621",
+    "2023 Kia Sorento (HEV)(SAS)":            "H1619",
+    "2023 Kia Sorento (HEV)(SRR)":            "H1629",
+    "2023 Kia Sorento (HEV)(YAW)":            "H1620",
+    "2023 Kia Sorento (HEV)(HLI).pdf":        "H1630",
+    "2023 Kia Sorento (HEV)(SCI).pdf":        "H1628",
+    "2023 Kia Sorento (HEV)(SRS D&E).pdf":    "H1627",
+    "2023 Kia Sorento (HEV)(SWS).pdf":        "H1622",
+    "2023 Kia Sorento (HEV)(TPMS).pdf":       "H1631",
+
+    "2023 Kia Sorento (PHEV)(SAS)":           "H1652",
+    "2023 Kia Sorento PHEV (ESC)":            "H1659",
+    "2023 Kia Sorento PHEV (SRR)":            "H1662",
+    "2023 Kia Sorento (PHEV)(G-Force).pdf":   "H1654",
+    "2023 Kia Sorento (PHEV)(HLI).pdf":       "H1663",
+    "2023 Kia Sorento (PHEV)(SCI).pdf":       "H1661",
+    "2023 Kia Sorento (PHEV)(SRS D&E).pdf":   "H1660",
+    "2023 Kia Sorento (PHEV)(SWS).pdf":       "H1655",
+    "2023 Kia Sorento (PHEV)(TPMS).pdf":      "H1664",
+    "2023 Kia Sorento (PHEV)(YAW).pdf":       "H1653",
+
+    "2023 Kia Sportage (HEV)(G-Force)":       "H1720",
+    "2023 Kia Sportage (HEV)(YAW)":           "H1719",
+    "2023 Kia Sportage HEV (SRR)":            "H1728",
+    "2023 Kia Sportage (HEV)(ESC).pdf":       "H1725",
+    "2023 Kia Sportage (HEV)(HLI).pdf":       "H1729",
+    "2023 Kia Sportage (HEV)(SAS).pdf":       "H1718",
+    "2023 Kia Sportage (HEV)(SCI).pdf":       "H1727",
+    "2023 Kia Sportage (HEV)(SRS D&E).pdf":   "H1726",
+    "2023 Kia Sportage (HEV)(SWS).pdf":       "H1721",
+    "2023 Kia Sportage (HEV)(TPMS).pdf":      "H1730",
+
+    "2023 Kia Sportage (NQ5)(ESC)":           "H1758",
+    "2023 Kia Sportage (NQ5)(G-Force)":       "H1753",
+    "2023 Kia Sportage (NQ5)(SAS)":           "H1751",
+    "2023 Kia Sportage (NQ5)(SRR)":           "H1761",
+    "2023 Kia Sportage (NQ5)(YAW)":           "H1752",
+    "2023 Kia Sportage (NQ5)(HLI).pdf":       "H1762",
+    "2023 Kia Sportage (NQ5)(SCI).pdf":       "H1760",
+    "2023 Kia Sportage (NQ5)(SRS D&E).pdf":   "H1759",
+    "2023 Kia Sportage (NQ5)(SWS).pdf":       "H1754",
+    "2023 Kia Sportage (NQ5)(TPMS).pdf":      "H1763",
+
+    "2023 Kia Sportage (NQ5A)(ESC)":          "H1791",
+    "2023 Kia Sportage (NQ5A)(G-Force)":      "H1786",
+    "2023 Kia Sportage (NQ5A)(SRR)":          "H1794",
+    "2023 Kia Sportage (NQ5A)(YAW)":          "H1785",
+    "2023 Kia Sportage (NQ5A)(HLI).pdf":      "H1795",
+    "2023 Kia Sportage (NQ5A)(SAS).pdf":      "H1784",
+    "2023 Kia Sportage (NQ5A)(SCI).pdf":      "H1793",
+    "2023 Kia Sportage (NQ5A)(SRS D&E).pdf":  "H1792",
+    "2023 Kia Sportage (NQ5A)(SWS).pdf":      "H1787",
+    "2023 Kia Sportage (NQ5A)(TPMS).pdf":     "H1796",
+
+    "2023 Kia Sportage (PHEV)(SRR)":          "H1827",
+    "2023 Kia Sportage (PHEV)(ESC).pdf":      "H1824",
+    "2023 Kia Sportage (PHEV)(G-Force).pdf":  "H1819",
+    "2023 Kia Sportage (PHEV)(HLI).pdf":      "H1828",
+    "2023 Kia Sportage (PHEV)(SAS).pdf":      "H1817",
+    "2023 Kia Sportage (PHEV)(SCI).pdf":      "H1826",
+    "2023 Kia Sportage (PHEV)(SRS D&E).pdf":  "H1825",
+    "2023 Kia Sportage (PHEV)(SWS).pdf":      "H1820",
+    "2023 Kia Sportage (PHEV)(TPMS).pdf":     "H1829",
+    "2023 Kia Sportage (PHEV)(YAW).pdf":      "H1818"
    
     # Add more mappings as needed
     }
+
+    REPAIR_SYNONYMS = {
+        # Core driver-assist sensors
+        "Steering Angle Sensor":           "SAS",
+        "Yaw Rate Sensor":                 "YAW",
+        "G Force Sensor":                  "G-Force",
+        "Seat Weight Sensor":              "SWS",
+        "Adaptive Head Lamps":             "AHL",
+        "Night Vision":                    "NV",
+        "Heads Up Display":                "HUD",
+        "Electronic Stability Control Relearn": "ESC",
+        "Airbag Disengagement/Engagement": "SRS D&E",
+        "Steering Column Inspection":      "SCI",
+        "Steering Rack Relearn":           "SRR",
+        "Headlamp Initialization":         "HLI",
+        "Tire Pressure Monitor Relearn":   "TPMS",
+        "Seat Belt Inspection":            "SBI",
+
+        # Electric/hybrid battery systems
+        "Battery Disengagement":           "EBDE (1)",
+        "Battery Engagement":              "EBDE (2)",
+        "Hybrid Disengagement":            "HDE (1)",
+        "Hybrid Engagement":               "HDE (2)",
+
+        # Miscellaneous vehicle-level relearns
+        "Liftgate Relearn":                "LGR",
+        "Power Seat Initialization":       "PSI",
+        "Window Relearn":                  "WRL",
+
+        # Module programming routines
+        "Powertrain Control Module Program":       "PCM",
+        "Transmission Control Module Program":     "TRANS",
+        "Airbag Control Module Program":           "AIR",
+        "Antilock Brake Control Module Program":   "ABS",
+        "Body Control Module Program":             "BCM",
+        "Key Program":                             "KEY",
+        "Key FOB Relearn":                         "FOB",
+
+        # HVAC & coolant
+        "Heating, Air Conditioning, Ventilation EVAC":    "HVAC (1)",
+        "Heating, Air Conditioning, Ventilation Recharge":"HVAC (2)",
+        "Coolant Services":                               "COOL",
+
+        # Headset resets
+        "Headset Reset (Spring Style)":       "HEAD (1)",
+        "Headset Reset (Squib Style)":        "HEAD (2)",
+    }
+
     HYPERLINK_COLUMN_INDEX = 12  # Default is Column L (can change to 11 for K, etc.)
 
     #################################################################################################################################################
@@ -374,6 +552,12 @@ class SharepointExtractor:
         for file_entry in file_entries:
             print(f"Processing file: {file_entry.entry_name}")
             file_name = file_entry.entry_name
+            for desc, acr in self.REPAIR_SYNONYMS.items():
+                pattern = f"({desc})"
+                if pattern in file_name:
+                    file_name = file_name.replace(pattern, f"({acr})")
+                    file_entry.entry_name = file_name
+                    break
         
             # === Year Extraction ===
             year_match = re.search(r'(20\d{2})', file_name)
@@ -1122,7 +1306,7 @@ if __name__ == '__main__':
     # (Usage with GUI, take away the # to perform whichever is needed)        
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = True
+    debug_run = False
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)

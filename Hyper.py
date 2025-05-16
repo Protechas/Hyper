@@ -353,8 +353,44 @@ class SeleniumAutomationApp(QWidget):
             "ESC", "SRS D&E", "SCI", "SRR", "HLI", "TPMS", "SBI", "RC",
             "EBDE (1)", "EBDE (2)", "HDE (1)", "HDE (2)", "LGR", "PSI", "WRL",
             "PCM", "TRANS", "AIR", "ABS", "BCM","ODS","OCS","OCS2","OCS3","OCS4",
-            "KEY", "FOB", "HVAC (1)", "HVAC (2)", "COOL", "HEAD (1)", "HEAD (2)"
+            "KEY", "FOB", "HVAC (1)", "HVAC (2)", "COOL", "HEAD (1)", "HEAD (2)",
+        
+            # human-readable names
+            "Steering Angle Sensor",
+            "Yaw Rate Sensor",
+            "G Force Sensor",
+            "Seat Weight Sensor",
+            "Adaptive Head Lamps",
+            "Night Vision",
+            "Heads Up Display",
+            "Electronic Stability Control Relearn",
+            "Airbag Disengagement/Engagement",
+            "Steering Column Inspection",
+            "Steering Rack Relearn",
+            "Headlamp Initialization",
+            "Tire Pressure Monitor Relearn",
+            "Seat Belt Inspection",
+            "Battery Disengagement",
+            "Battery Engagement",
+            "Hybrid Disengagement",
+            "Hybrid Engagement",
+            "Liftgate Relearn",
+            "Power Seat Initialization",
+            "Window Relearn",
+            "Powertrain Control Module Program",
+            "Transmission Control Module Program",
+            "Airbag Control Module Program",
+            "Antilock Brake Control Module Program",
+            "Body Control Module Program",
+            "Key Program",
+            "Key FOB Relearn",
+            "Heating, Air Conditioning, Ventilation EVAC",
+            "Heating, Air Conditioning, Ventilation Recharge",
+            "Coolant Services",
+            "Headset Reset (Spring Style)",
+            "Headset Reset (Squib Style)",
         ]
+
         self.repair_checkboxes = []
 
         for adas in adas_acronyms:
