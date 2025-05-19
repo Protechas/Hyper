@@ -23,6 +23,8 @@ from selenium.webdriver.edge.webdriver import WebDriver
 from selenium.webdriver.common.window import WindowTypes
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.remote.webelement import WebElement
+import urllib.parse
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 
 
@@ -661,13 +663,13 @@ class SharepointExtractor:
   
     
     def __is_row_folder__(self, row_element: WebElement) -> bool:
-        # Get the row name from the aria-label attribute
-        row_name = self.__get_row_name__(row_element)
-        # If the row name contains a common file extension, assume it is a file.
-        if re.search(r'\.(pdf|docx?|xlsx?|pptx?)$', row_name, re.IGNORECASE):
+        # grab just the real name
+        name = self.__get_row_name__(row_element).splitlines()[0]
+        # if it’s got a .pdf/.docx/.xlsx/.pptx *anywhere* in that name, it’s a file
+        if re.search(r'\.(pdf|docx?|xlsx?|pptx?)\b', name, re.IGNORECASE):
             return False
-        # Otherwise, treat it as a folder.
         return True
+
      
     
     def __get_row_name__(self, row_element: WebElement) -> str:
@@ -678,31 +680,44 @@ class SharepointExtractor:
         # Fallback: return the text content if aria-label is not available
         return row_element.text.strip()
            
-    
+   
+
     def __get_unencrypted_link__(self, row_element: WebElement) -> str:
         """
-        Generates the unencrypted link for a given row element.
-    
-        row_element: WebElement
-            The row element for which the unencrypted link is to be generated.
-    
-        Returns:
-        str
-            The unencrypted link for the row element.
+        Build the “AllItems.aspx?id=…” URL for this row, but:
+          • Only use the first line of the aria-label (the real name)
+          • Strip *exactly* one trailing “%2F” if present (no more)
+          • Preserve everything after the first '&' (viewid, ga, noAuthRedirect…)
         """
-        try:
-            # Pull the folder name and add the name of it to our URL name
-            base_url = self.selenium_driver.current_url.split("&p=true")[0]  # Current URL Split up for the path of the current folder
-            row_name = self.__get_row_name__(row_element)                    # The name we're looking to open
-            encoded_row_name = urllib.parse.quote(row_name)                  # URL-encode the row name to handle special characters
-            plain_link = base_url + "%2F" + encoded_row_name                 # Relative folder URL based on drive layout
+        # 1) grab only the real name (no date/author)
+        full_label = self.__get_row_name__(row_element)        # e.g. "2012\nJune 15…"
+        item_name  = full_label.splitlines()[0]                # “2012”
 
-            # Return the built URL here
-            return plain_link
-    
-        except IndexError as e:
-            print(f"Error while generating unencrypted link: {e}")
-            raise Exception(f"Failed to generate unencrypted link for row: {self.__get_row_name__(row_element)}")    
+        # 2) split off base & query
+        current = self.selenium_driver.current_url
+        try:
+            base_url, query = current.split('?', 1)
+        except ValueError:
+            raise RuntimeError(f"Unexpected URL format: {current!r}")
+
+        # 3) split into the id= piece and the rest
+        id_part, rest = query.split('&', 1)
+        key, old_val = id_part.split('=', 1)
+
+        # 4) remove at most one trailing "%2F"
+        if old_val.endswith('%2F'):
+            base_id = old_val[:-3]
+        else:
+            base_id = old_val
+
+        # 5) URL-encode only the item_name, tack it on
+        encoded_name = urllib.parse.quote(item_name, safe='')
+        new_val      = f"{base_id}%2F{encoded_name}"
+
+        # 6) rebuild
+        return f"{base_url}?{key}={new_val}&{rest}"
+
+      
         
     def __get_encrypted_link__(self, row_element: WebElement) -> str:
                   
