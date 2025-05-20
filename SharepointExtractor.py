@@ -673,13 +673,19 @@ class SharepointExtractor:
      
     
     def __get_row_name__(self, row_element: WebElement) -> str:
-        # Try to get the row name from the 'aria-label' attribute
-        row_name = row_element.get_attribute("aria-label")
-        if row_name and row_name.strip():
-            return row_name.strip()
-        # Fallback: return the text content if aria-label is not available
-        return row_element.text.strip()
-           
+        """
+        Read only the *first line* of the aria-label or innerText,
+        so we never pull in date/author on subsequent prints.
+        """
+        raw = row_element.get_attribute("aria-label")
+        if raw and raw.strip():
+            # only the actual name, before any newline/date/author lines
+            return raw.strip().splitlines()[0]
+
+        # Fallback to the visible text, again only first line
+        text = row_element.text.strip()
+        return text.splitlines()[0]
+
    
 
     def __get_unencrypted_link__(self, row_element: WebElement) -> str:
@@ -1188,7 +1194,7 @@ class SharepointExtractor:
             # Place error info in the correct column: K (11) for ADAS, G (7) for Repair
             error_column = 11 if not self.repair_mode else 7
             error_cell = ws.cell(row=cell.row, column=error_column)
-            error_cell.value = doc_name
+            error_cell.value = doc_name.splitlines()[0]
             error_cell.font = Font(color="FF0000")
 
     
@@ -1321,7 +1327,7 @@ if __name__ == '__main__':
     # (Usage with GUI, take away the # to perform whichever is needed)        
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
+    debug_run = True
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
