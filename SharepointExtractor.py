@@ -433,7 +433,8 @@ class SharepointExtractor:
         self.sharepoint_make = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
         print(f"Configured new SharepointExtractor for {self.sharepoint_make} correctly!")
         
-
+        if self.sharepoint_make.lower() == "toyota" and self.repair_mode:
+           self.HYPERLINK_COLUMN_INDEX = 10  # Excel column J
 
     def extract_contents(self) -> tuple[list, list]:
         """
@@ -1305,10 +1306,11 @@ class SharepointExtractor:
             model = str(row[2].value).strip().upper() if row[2].value else ''
             
             if repair_mode:
-                system = str(row[3].value).strip().upper() if row[3].value else ''
+                # Toyota puts the “Protech Generic System Name” in column E, others still in D
+                sys_cell = row[4] if self.sharepoint_make.lower() == "toyota" else row[3]
+                system = str(sys_cell.value).strip().upper() if sys_cell.value else ''
             else:
                 system = str(row[4].value).strip().upper() if row[4].value else ''
-    
             normalized_system = re.sub(r"[^A-Z0-9]", "", system)
             key = (year, make, model, normalized_system)
             index[key] = row[0].row
@@ -1327,7 +1329,7 @@ if __name__ == '__main__':
     # (Usage with GUI, take away the # to perform whichever is needed)        
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = True
+    debug_run = False
 
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
