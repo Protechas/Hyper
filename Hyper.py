@@ -12,7 +12,7 @@ import os
 #Adds Terminal infoormation
 class WorkerThread(QThread):
     output_signal = pyqtSignal(str)
-    finished_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(str, bool)
 
     def __init__(self, command, manufacturer, parent=None):
         super(WorkerThread, self).__init__(parent)
@@ -43,12 +43,14 @@ class WorkerThread(QThread):
 
         # Wait for the process to finish and emit any error lines
         process.wait()
-        if process.returncode != 0:
+        success = (process.returncode == 0)
+        # if there was an error, stream stderr out to the terminal
+        if not success:
             for stderr_line in iter(process.stderr.readline, ""):
                 self.output_signal.emit(stderr_line.strip())
-        
         process.stderr.close()
-        self.finished_signal.emit(self.manufacturer)  # Emit when a manufacturer is finished
+        # emit both the name and whether it succeeded
+        self.finished_signal.emit(self.manufacturer, success)
 
 class TerminalDialog(QDialog):
     def __init__(self, parent=None):
@@ -260,6 +262,8 @@ class SeleniumAutomationApp(QWidget):
 
         self.completed_manufacturers = []
         self.threads = []
+        self.failed_manufacturers = []
+        self.failed_excels        = []
         
     def initUI(self):
         self.setWindowTitle('Hyperlink Automation')
@@ -412,11 +416,13 @@ class SeleniumAutomationApp(QWidget):
         repair_label.setStyleSheet("font-size: 14px; padding: 5px;")
         repair_box_layout.addWidget(repair_label)
         
-        # Scrollable checkbox area
-        repair_scroll_area = QScrollArea()
-        repair_scroll_area.setWidgetResizable(True)
-        repair_scroll_area.setFixedWidth(180)
-        repair_scroll_area.setStyleSheet("background-color: #3e3e3e; border: 1px solid #555555; border-radius: 5px;")
+        # Scrollable checkbox area (keep a reference so we can restyle it later)
+        self.repair_scroll_area = QScrollArea()
+        self.repair_scroll_area.setWidgetResizable(True)
+        self.repair_scroll_area.setFixedWidth(180)
+        self.repair_scroll_area.setStyleSheet(
+            "background-color: #3e3e3e; border: 1px solid #555555; border-radius: 5px;"
+        )
         
         repair_container = QWidget()
         repair_selection_layout = QVBoxLayout(repair_container)
@@ -428,8 +434,8 @@ class SeleniumAutomationApp(QWidget):
             self.repair_checkboxes.append(checkbox)
             repair_selection_layout.addWidget(checkbox)
         
-        repair_scroll_area.setWidget(repair_container)
-        repair_box_layout.addWidget(repair_scroll_area)
+        self.repair_scroll_area.setWidget(repair_container)
+        repair_box_layout.addWidget(self.repair_scroll_area)
         
         # Add the full repair module section to the right side
         manufacturer_selection_layout.addLayout(repair_box_layout)
@@ -557,13 +563,47 @@ class SeleniumAutomationApp(QWidget):
          
     def toggle_theme(self):
         if self.theme_toggle.isChecked():
+            # light
             self.setStyleSheet("background-color: #ffffff; color: black;")
-            self.manufacturer_tree.setStyleSheet("background-color: #f0f0f0; color: black; border: 1px solid #cccccc; border-radius: 5px;")
-            self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #cccccc; border-radius: 5px; background-color: #f0f0f0;")
+            self.manufacturer_tree.setStyleSheet(
+                "background-color: #f0f0f0; color: black; "
+                "border: 1px solid #cccccc; border-radius: 5px;"
+            )
+            self.excel_path_label.setStyleSheet(
+                "font-size: 14px; padding: 5px; "
+                "border: 1px solid #cccccc; border-radius: 5px; "
+                "background-color: #f0f0f0;"
+            )
+            self.excel_list.setStyleSheet(
+                "font-size: 14px; padding: 5px; "
+                "border: 1px solid #cccccc; border-radius: 5px; "
+                "background-color: #f0f0f0; color: black;"
+            )
+            self.repair_scroll_area.setStyleSheet(
+                "background-color: #f0f0f0; "
+                "border: 1px solid #cccccc; border-radius: 5px;"
+            )
         else:
+            # dark
             self.setStyleSheet("background-color: #2e2e2e; color: white;")
-            self.manufacturer_tree.setStyleSheet("background-color: #3e3e3e; color: white; border: 1px solid #555555; border-radius: 5px;")
-            self.excel_path_label.setStyleSheet("font-size: 14px; padding: 5px; border: 1px solid #555555; border-radius: 5px; background-color: #3e3e3e;")
+            self.manufacturer_tree.setStyleSheet(
+                "background-color: #3e3e3e; color: white; "
+                "border: 1px solid #555555; border-radius: 5px;"
+            )
+            self.excel_path_label.setStyleSheet(
+                "font-size: 14px; padding: 5px; "
+                "border: 1px solid #555555; border-radius: 5px; "
+                "background-color: #3e3e3e;"
+            )
+            self.excel_list.setStyleSheet(
+                "font-size: 14px; padding: 5px; "
+                "border: 1px solid #555555; border-radius: 5px; "
+                "background-color: #3e3e3e; color: white;"
+            )
+            self.repair_scroll_area.setStyleSheet(
+                "background-color: #3e3e3e; "
+                "border: 1px solid #555555; border-radius: 5px;"
+            )
 
     def start_automation(self):
         # 1) gather selected manufacturers
@@ -659,23 +699,56 @@ class SeleniumAutomationApp(QWidget):
         thread.start()
         self.threads.append(thread)
 
-    def on_manufacturer_finished(self, manufacturer):
-        # Mark manufacturer as completed
-        self.completed_manufacturers.append(manufacturer)
-
-        # Show success message in terminal for this manufacturer
-        self.terminal.append_output(f"Completed {manufacturer}. Waiting 10 seconds before next manufacturer...")
-
-        # Wait for 10 seconds before starting the next manufacturer
+    def on_manufacturer_finished(self, manufacturer, success):
+        # record outcome
+        if success:
+            self.completed_manufacturers.append(manufacturer)
+        else:
+            # grab the Excel for this index
+            err_excel = self.excel_paths[self.current_index]
+            self.failed_manufacturers.append(manufacturer)
+            self.failed_excels.append(err_excel)
+            self.terminal.append_output(f"❗ {manufacturer} FAILED—will retry later." )
+        
+        # show status
+        self.terminal.append_output(
+            f"Finished {manufacturer} ({'OK' if success else 'ERROR'}). "
+            "Waiting 10s before next..."
+        )
         sleep(10)
 
-        # Move to the next manufacturer
+        # move on
         self.current_index += 1
-        self.process_next_manufacturer()
 
-        # If all manufacturers are completed, show a completion message
-        if self.current_index >= len(self.selected_manufacturers):
-            self.terminal.append_output("All manufacturers processed successfully.")
+        # if we're not at the end, just keep going
+        if self.current_index < len(self.selected_manufacturers):
+            self.process_next_manufacturer()
+            return
+
+        # we've run the full list once; check for failures
+        if self.failed_manufacturers:
+            retry_list = "\n".join(self.failed_manufacturers)
+            # write to your terminal instead of popping up
+            self.terminal.append_output(f"🔄 Retrying in 10 Seconds, Redoing failed manufacturers:\n{retry_list}")
+            # wait 10 seconds before kicking off the retry pass
+            sleep(10)
+        
+            # now reset state and retry
+            self.selected_manufacturers = self.failed_manufacturers
+            self.excel_paths            = self.failed_excels
+            self.current_index          = 0
+            self.failed_manufacturers   = []
+            self.failed_excels          = []
+            self.process_next_manufacturer()
+        else:
+            # all done, none failed
+            comp = "\n".join(self.completed_manufacturers)
+            QMessageBox.information(
+                self, 'All Completed',
+                f"The Following Manufacturers have been completed:\n{comp}", QMessageBox.Ok
+            )
+            self.terminal.append_output("🎉 All manufacturers processed successfully.")
+
           
     def activate_full_automation(self):
         if not self.excel_paths:
