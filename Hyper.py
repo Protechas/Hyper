@@ -260,10 +260,21 @@ class SeleniumAutomationApp(QWidget):
             # Add Repair SI Sharepoint Links here
         }
 
+        # how many times to try each manufacturer before giving up
+        self.max_attempts = 3
+
+        # track how many times we've tried each one
+        self.attempts = {}
+
+        # lists for status
         self.completed_manufacturers = []
-        self.threads = []
-        self.failed_manufacturers = []
-        self.failed_excels        = []
+        self.failed_manufacturers    = []
+        self.failed_excels           = []
+        self.given_up_manufacturers  = []
+        
+        self.thread         = None    # your singular thread slot, if you have one
+        # add this:
+        self.threads        = []      # ← now you can safely append to self.threads
         
     def initUI(self):
         self.setWindowTitle('Hyperlink Automation')
@@ -700,54 +711,63 @@ class SeleniumAutomationApp(QWidget):
         self.threads.append(thread)
 
     def on_manufacturer_finished(self, manufacturer, success):
-        # record outcome
+        # 1) count this run
+        prev = self.attempts.get(manufacturer, 0)
+        self.attempts[manufacturer] = prev + 1
+        attempt_no = self.attempts[manufacturer]
+
+        # 2) route based on success / attempt count
         if success:
             self.completed_manufacturers.append(manufacturer)
+            self.terminal.append_output(f"✅ {manufacturer} succeeded on attempt {attempt_no}.")
         else:
-            # grab the Excel for this index
-            err_excel = self.excel_paths[self.current_index]
-            self.failed_manufacturers.append(manufacturer)
-            self.failed_excels.append(err_excel)
-            self.terminal.append_output(f"❗ {manufacturer} FAILED—will retry later." )
-        
-        # show status
-        self.terminal.append_output(
-            f"Finished {manufacturer} ({'OK' if success else 'ERROR'}). "
-            "Waiting 10s before next..."
-        )
-        sleep(10)
+            if attempt_no < self.max_attempts:
+                # schedule for retry
+                err_excel = self.excel_paths[self.current_index]
+                self.failed_manufacturers.append(manufacturer)
+                self.failed_excels.append(err_excel)
+                self.terminal.append_output(
+                    f"❗ {manufacturer} failed on attempt {attempt_no}; will retry later."
+                )
+            else:
+                # give up
+                self.given_up_manufacturers.append(manufacturer)
+                self.terminal.append_output(
+                    f"❌ {manufacturer} failed on attempt {attempt_no}; giving up after {self.max_attempts} tries."
+                )
 
-        # move on
+        # 3) pause, then advance index
+        self.terminal.append_output("⏱ Waiting 10s before next…")
+        sleep(10)
         self.current_index += 1
 
-        # if we're not at the end, just keep going
+        # 4) if still in this pass, keep going
         if self.current_index < len(self.selected_manufacturers):
             self.process_next_manufacturer()
             return
 
-        # we've run the full list once; check for failures
+        # 5) end of pass: if anyone still eligible for retry, do another pass
         if self.failed_manufacturers:
-            retry_list = "\n".join(self.failed_manufacturers)
-            # write to your terminal instead of popping up
-            self.terminal.append_output(f"🔄 Retrying in 10 Seconds, Redoing failed manufacturers:\n{retry_list}")
-            # wait 10 seconds before kicking off the retry pass
+            retry_list = ", ".join(self.failed_manufacturers)
+            self.terminal.append_output(f"🔄 Retrying: {retry_list}")
             sleep(10)
-        
-            # now reset state and retry
+
+            # reset for only the ones to retry
             self.selected_manufacturers = self.failed_manufacturers
             self.excel_paths            = self.failed_excels
             self.current_index          = 0
             self.failed_manufacturers   = []
             self.failed_excels          = []
+
             self.process_next_manufacturer()
-        else:
-            # all done, none failed
-            comp = "\n".join(self.completed_manufacturers)
-            QMessageBox.information(
-                self, 'All Completed',
-                f"The Following Manufacturers have been completed:\n{comp}", QMessageBox.Ok
-            )
-            self.terminal.append_output("🎉 All manufacturers processed successfully.")
+            return
+
+        # 6) all done—report summary
+        summary = (
+            f"✅ Completed: {', '.join(self.completed_manufacturers)}\n"
+            f"❌ Gave up:   {', '.join(self.given_up_manufacturers)}"
+        )
+        self.terminal.append_output("🏁 All runs finished.\n" + summary)
 
           
     def activate_full_automation(self):
