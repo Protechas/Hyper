@@ -5,51 +5,73 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt,pyqtSignal,QThread
 from threading import Thread
 import subprocess
+import signal
+import psutil
 from time import sleep
 import datetime
 import os
 
 #Adds Terminal infoormation
 class WorkerThread(QThread):
-    output_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(str, bool)
+    output_signal   = pyqtSignal(str)
 
-    def __init__(self, command, manufacturer, parent=None):
-        super(WorkerThread, self).__init__(parent)
-        self.command = command
+    def __init__(self, command: list[str], manufacturer: str, parent=None):
+        # ⚠️ Only pass the QObject parent (or None) to QThread.__init__
+        super().__init__(parent)
+
+        # now store your lists/strings on self
+        self.command      = command
         self.manufacturer = manufacturer
+        self.process      = None
 
     def run(self):
-        # Set up the environment to disable buffering
+        # ── Prepare env ──
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
 
-        # Run the subprocess with unbuffered output
-        process = subprocess.Popen(
+        # ── Make a new process‐group so we can signal the entire tree ──
+        if os.name == "nt":
+            # Windows: CREATE_NEW_PROCESS_GROUP lets us use CTRL_BREAK_EVENT
+            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+            preexec_fn    = None
+        else:
+            # Unix: start new session
+            creationflags = 0
+            preexec_fn    = os.setsid
+
+        # ── Launch and store the Popen, not a local var ──
+        self.process = subprocess.Popen(
             self.command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=1,
             universal_newlines=True,
-            encoding='utf-8',  # 💡 Add this to avoid UnicodeDecodeError
-            errors='replace',  # 💡 Replaces unknown characters with � instead of crashing
-            env=env
-)
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+            creationflags=creationflags,
+            preexec_fn=preexec_fn
+        )
 
-        # Read stdout line by line and emit each line
-        for stdout_line in iter(process.stdout.readline, ""):
-            self.output_signal.emit(stdout_line.strip())
-        process.stdout.close()
+        # ── Stream stdout ──
+        for line in iter(self.process.stdout.readline, ""):
+            if not line:
+                break
+            self.output_signal.emit(line.rstrip("\n"))
+        self.process.stdout.close()
 
-        # Wait for the process to finish and emit any error lines
-        process.wait()
-        success = (process.returncode == 0)
-        # if there was an error, stream stderr out to the terminal
+        # ── Wait & then stream stderr if error ──
+        ret = self.process.wait()
+        success = (ret == 0)
         if not success:
-            for stderr_line in iter(process.stderr.readline, ""):
-                self.output_signal.emit(stderr_line.strip())
-        process.stderr.close()
-        # emit both the name and whether it succeeded
+            for e in iter(self.process.stderr.readline, ""):
+                if not e:
+                    break
+                self.output_signal.emit(e.rstrip("\n"))
+        self.process.stderr.close()
+
+        # ── Notify done ──
         self.finished_signal.emit(self.manufacturer, success)
 
 class TerminalDialog(QDialog):
@@ -261,7 +283,7 @@ class SeleniumAutomationApp(QWidget):
         }
 
         # how many times to try each manufacturer before giving up
-        self.max_attempts = 3
+        self.max_attempts = 5
 
         # track how many times we've tried each one
         self.attempts = {}
@@ -273,8 +295,10 @@ class SeleniumAutomationApp(QWidget):
         self.given_up_manufacturers  = []
         
         self.thread         = None    # your singular thread slot, if you have one
-        # add this:
         self.threads        = []      # ← now you can safely append to self.threads
+        self.is_running     = False
+        self.stop_requested = False
+
         
     def initUI(self):
         self.setWindowTitle('Hyperlink Automation')
@@ -283,7 +307,7 @@ class SeleniumAutomationApp(QWidget):
     
         # Excel file selection layout
         file_selection_layout = QHBoxLayout()
-        self.select_file_button = CustomButton('Select Excel Files', '#e63946', self)
+        self.select_file_button = CustomButton('Select Excel Files', '#008000', self)
         self.select_file_button.clicked.connect(self.select_excel_files)
         file_selection_layout.addWidget(self.select_file_button)
     
@@ -485,10 +509,11 @@ class SeleniumAutomationApp(QWidget):
         theme_switch_section.addWidget(self.theme_toggle)
         layout.addLayout(theme_switch_section)
     
-        # Start button
-        self.start_button = CustomButton('Start Automation', '#e63946', self)
-        self.start_button.clicked.connect(self.start_automation)
+        # ── Start/Stop Button ──
+        self.start_button = CustomButton('Start Automation', '#008000', self)
+        self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
+
     
                 # after adding all widgets and layouts…
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
@@ -657,6 +682,21 @@ class SeleniumAutomationApp(QWidget):
         if QMessageBox.question(self, 'Confirmation', confirm_message,
                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
             return
+        
+        # user clicked YES → mark running
+        self.is_running     = True
+        self.stop_requested = False
+        
+        # rip out the old “Start” button and insert a red “Stop Automation”
+        layout = self.start_button.parent().layout()
+        layout.removeWidget(self.start_button)
+        self.start_button.deleteLater()
+        self.start_button = CustomButton("Stop Automation", "#e63946", self)
+        self.start_button.clicked.connect(self.on_start_stop)
+        layout.addWidget(self.start_button)
+        
+        # now proceed with the rest of your existing automation logic…
+
 
         # 5) stash for process_next_manufacturer
         self.selected_manufacturers = selected_manufacturers
@@ -675,22 +715,34 @@ class SeleniumAutomationApp(QWidget):
 
 
     def process_next_manufacturer(self):
+        # ── STOP BAILOUT ──
+        if self.stop_requested:
+            return
+    
         if self.current_index >= len(self.selected_manufacturers):
             # done!
-            completed = "\n".join(self.selected_manufacturers)
-            QMessageBox.information(self, 'Completed',
-                                    f"The Following Manufacturers have been completed:\n{completed}", QMessageBox.Ok)
+            completed = "\n".join(sorted(self.selected_manufacturers, key=str.lower))
+            QMessageBox.information(
+                self,
+                'Completed',
+                f"The Following Manufacturers have been completed:\n{completed}",
+                QMessageBox.Ok
+            )
             return
     
         manufacturer = self.selected_manufacturers[self.current_index]
-        excel_path  = self.excel_paths[self.current_index]
+        excel_path   = self.excel_paths[self.current_index]
         # pick correct link dict
-        link_dict   = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
+        link_dict    = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
         sharepoint_link = link_dict.get(manufacturer)
     
         if not sharepoint_link:
-            QMessageBox.warning(self, 'Error',
-                f"No SharePoint link found for {manufacturer} in {self.mode_flag} mode.", QMessageBox.Ok)
+            QMessageBox.warning(
+                self,
+                'Error',
+                f"No SharePoint link found for {manufacturer} in {self.mode_flag} mode.",
+                QMessageBox.Ok
+            )
             return
     
         # build and fire the subprocess
@@ -704,13 +756,22 @@ class SeleniumAutomationApp(QWidget):
             self.mode_flag
         ]
     
-        thread = WorkerThread(args, manufacturer)
+        # ── instantiate the WorkerThread correctly and keep a handle for stopping ──
+        thread = WorkerThread(args, manufacturer, parent=self)
+        self.thread = thread                      # ← ensure on_stop can find the current thread
         thread.output_signal.connect(self.terminal.append_output)
         thread.finished_signal.connect(self.on_manufacturer_finished)
         thread.start()
+    
+        # ── keep a list of all threads in case you need it later ──
         self.threads.append(thread)
 
+
     def on_manufacturer_finished(self, manufacturer, success):
+            # ── STOP BAILOUT ──
+        if self.stop_requested:
+            return
+        
         # 1) count this run
         prev = self.attempts.get(manufacturer, 0)
         self.attempts[manufacturer] = prev + 1
@@ -763,60 +824,19 @@ class SeleniumAutomationApp(QWidget):
             return
 
         # 6) all done—report summary
+        completed_sorted = sorted(self.completed_manufacturers, key=str.lower)
+        given_up_sorted  = sorted(self.given_up_manufacturers,  key=str.lower)
+    
         summary = (
-            f"✅ Completed: {', '.join(self.completed_manufacturers)}\n"
-            f"❌ Gave up:   {', '.join(self.given_up_manufacturers)}"
+            f"✅ Completed: {', '.join(completed_sorted)}\n"
+            f"❌ Gave up:   {', '.join(given_up_sorted)}"
         )
         self.terminal.append_output("🏁 All runs finished.\n" + summary)
+        
+        self.startButton.setText("Start Automation")
+        self.startButton.setStyleSheet("background-color: #E91E63; color: white;")
+        self.is_running = False
 
-          
-    def activate_full_automation(self):
-        if not self.excel_paths:
-            QMessageBox.warning(self, 'Warning', "Please select Excel files first.", QMessageBox.Ok)
-            return
-
-        selected_manufacturers = []
-        for i in range(self.manufacturer_tree.topLevelItemCount()):
-            item = self.manufacturer_tree.topLevelItem(i)
-            if item.checkState(0) == Qt.Checked:
-                selected_manufacturers.append(item.text(0))
-
-        if not selected_manufacturers:
-            QMessageBox.warning(self, 'Warning', "Please select manufacturers first.", QMessageBox.Ok)
-            return
-
-        confirm_message = ("WARNING!!! This will take a LONG time to complete, ETA N/A as of yet. "
-                           "Please prepare to not touch your computer for a period of time. "
-                           "Also ensure that every Excel file is put in the proper order or this will mess all the Longsheets up. Continue?")
-        confirm = QMessageBox.question(self, 'Confirmation', confirm_message, QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-
-        if confirm == QMessageBox.Yes:
-            # Show the terminal window
-            self.terminal = TerminalDialog(self)
-            self.terminal.show()
-
-            # Start processing manufacturers one by one
-            for manufacturer, excel_path in zip(selected_manufacturers, self.excel_paths):
-                
-                if self.si_mode_toggle.isChecked():
-                    sharepoint_link = self.repair_links.get(manufacturer)
-                else:
-                    sharepoint_link = self.manufacturer_links.get(manufacturer)
-    
-                    if sharepoint_link:
-                        script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
-                        excel_path = excel_path.strip()
-                        sharepoint_link = sharepoint_link.strip()
-                        args = ["python", script_path, sharepoint_link, excel_path]
-    
-                        # Run the command in a thread and show the output in the terminal
-                        thread = WorkerThread(args, manufacturer)
-                        thread.output_signal.connect(self.terminal.append_output)
-                        thread.finished_signal.connect(self.on_manufacturer_finished)
-                        thread.start()
-                        self.threads.append(thread)
-        else:
-            QMessageBox.warning(self, 'Warning', "Full automation process canceled.", QMessageBox.Ok)
 
     def select_all(self):
         select_all_checked = True
@@ -862,7 +882,80 @@ class SeleniumAutomationApp(QWidget):
         # when the GUI closes, dump the terminal contents (if any) to Documents/Logs
         self.write_terminal_log()
         super().closeEvent(event)
+        
+    def on_start_stop(self):
+        # — START path — (unchanged) —
+        if not self.is_running:
+            self.start_automation()
+            return
+    
+        # — STOP path —
+        reply = QMessageBox.question(
+            self,
+            "Confirm Stop",
+            "Are you sure you want to end this automation?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            return
+    
+        # tell loops not to launch any more work
+        self.stop_requested = True
+        
+        # 1) Ask the Python extractor to shut down nicely
+        if self.thread is not None and hasattr(self.thread, "process"):
+            try:
+                # On Windows this sends CTRL+BREAK to the whole group
+                if os.name == "nt":
+                    self.thread.process.send_signal(signal.CTRL_BREAK_EVENT)
+                else:
+                    # On Unix, send SIGTERM to the entire session
+                    os.killpg(os.getpgid(self.thread.process.pid), signal.SIGTERM)
+            except Exception:
+                pass
+        
+            # 2) As a fallback, and to clean up any stragglers, kill children by name
+            def kill_children(pid: int):
+                """
+                Kills the given process *and* any Chrome/Chromedriver children it spawned,
+                but never blows up if a PID vanishes underneath us.
+                """
             
+                try:
+                    parent = psutil.Process(pid)
+                except psutil.NoSuchProcess:
+                    return
+            
+                for child in parent.children(recursive=True):
+                    # guard retrieving the name
+                    try:
+                        pname = child.name().lower()
+                    except psutil.NoSuchProcess:
+                        continue
+            
+                    if "chrome" in pname or "chromedriver" in pname:
+                        try:
+                            child.kill()
+                        except psutil.NoSuchProcess:
+                            pass
+            
+                # finally kill the parent itself (if it’s still around)
+                try:
+                    parent.kill()
+                except psutil.NoSuchProcess:
+                    pass
+        
+        # 3) Give it a moment, then report & swap button back
+        sleep(1)
+        self.terminal.append_output("❌ Hyperlink Automation has stopped.")
+        layout = self.start_button.parent().layout()
+        layout.removeWidget(self.start_button)
+        self.start_button.deleteLater()
+        self.start_button = CustomButton("Start Automation", "#008000", self)
+        self.start_button.clicked.connect(self.on_start_stop)
+        layout.addWidget(self.start_button)
+        self.is_running = False
+         
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = SeleniumAutomationApp()
