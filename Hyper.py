@@ -868,7 +868,7 @@ class SeleniumAutomationApp(QWidget):
         self.terminal.append_output("")
     
         # ── summary lines ──
-        self.terminal.append_output("🏁 All runs finished.")
+        self.terminal.append_output("🏁 All Manufacturers finished.")
         self.terminal.append_output(f"✅ Completed: {', '.join(completed_sorted)}")
         self.terminal.append_output(f"❌ Gave up:   {', '.join(given_up_sorted)}")
     
