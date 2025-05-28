@@ -10,6 +10,28 @@ import psutil
 from time import sleep
 import datetime
 import os
+import logging
+
+# ── configure a “Logs” folder in Documents ──
+LOG_DIR = os.path.join(os.path.expanduser("~"), "Documents", "Hyper Logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# ── log filename with timestamp ──
+now = datetime.datetime.now()   # ← module.datetime.now()
+log_file = os.path.join(
+    LOG_DIR,
+    now.strftime("Hyper_Log_%m_%d_%Y_%H-%M-%S.log")
+)
+
+# ── basicConfig writes to both file and console ──
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+    handlers=[
+        logging.FileHandler(log_file, encoding="utf-8"),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 #Adds Terminal infoormation
 class WorkerThread(QThread):
@@ -707,6 +729,14 @@ class SeleniumAutomationApp(QWidget):
         # 6) show or reuse terminal & start
         if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
             self.terminal = TerminalDialog(self)
+
+            # ── MONKEY‐PATCH for live logging ──
+            _orig_append = self.terminal.append_output
+            def _live_append(text: str):
+                _orig_append(text)       # write to on‐screen terminal
+                logging.info(text)       # write to logfile
+            self.terminal.append_output = _live_append
+
         self.terminal.show()
         self.terminal.raise_()
 
@@ -780,25 +810,32 @@ class SeleniumAutomationApp(QWidget):
         # 2) route based on success / attempt count
         if success:
             self.completed_manufacturers.append(manufacturer)
-            self.terminal.append_output(f"✅ {manufacturer} succeeded on attempt {attempt_no}.")
+            msg = f"✅ {manufacturer} succeeded on attempt {attempt_no}."
+            self.terminal.append_output(msg)
+            logging.info(msg)
         else:
             if attempt_no < self.max_attempts:
                 # schedule for retry
                 err_excel = self.excel_paths[self.current_index]
                 self.failed_manufacturers.append(manufacturer)
                 self.failed_excels.append(err_excel)
-                self.terminal.append_output(
-                    f"❗ {manufacturer} failed on attempt {attempt_no}; will retry later."
-                )
+                msg = f"❗ {manufacturer} failed on attempt {attempt_no}; will retry later."
+                self.terminal.append_output(msg)
+                logging.warning(msg)
             else:
                 # give up
                 self.given_up_manufacturers.append(manufacturer)
-                self.terminal.append_output(
-                    f"❌ {manufacturer} failed on attempt {attempt_no}; giving up after {self.max_attempts} tries."
+                msg = (
+                    f"❌ {manufacturer} failed on attempt {attempt_no}; "
+                    f"giving up after {self.max_attempts} tries."
                 )
+                self.terminal.append_output(msg)
+                logging.error(msg)
 
         # 3) pause, then advance index
-        self.terminal.append_output("⏱ Waiting 10s before next…")
+        msg = "⏱ Checking in 10s if i Need to run another Manufacturer…"
+        self.terminal.append_output(msg)
+        logging.info(msg)
         sleep(10)
         self.current_index += 1
 
@@ -833,8 +870,13 @@ class SeleniumAutomationApp(QWidget):
         )
         self.terminal.append_output("🏁 All runs finished.\n" + summary)
         
-        self.startButton.setText("Start Automation")
-        self.startButton.setStyleSheet("background-color: #E91E63; color: white;")
+        # ── swap back to a fresh “Start Automation” button ──
+        layout = self.start_button.parent().layout()
+        layout.removeWidget(self.start_button)
+        self.start_button.deleteLater()
+        self.start_button = CustomButton("Start Automation", "#008000", self)
+        self.start_button.clicked.connect(self.on_start_stop)
+        layout.addWidget(self.start_button)
         self.is_running = False
 
 
@@ -956,8 +998,12 @@ class SeleniumAutomationApp(QWidget):
         layout.addWidget(self.start_button)
         self.is_running = False
          
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = SeleniumAutomationApp()
-    ex.show()
-    sys.exit(app.exec_())
+if __name__ == "__main__":
+    try:
+        app = QApplication(sys.argv)
+        window = SeleniumAutomationApp()
+        window.show()
+        sys.exit(app.exec_())
+    except Exception:
+        logging.exception("Unhandled exception — crashing out")
+        raise
