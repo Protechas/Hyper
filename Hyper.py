@@ -864,12 +864,17 @@ class SeleniumAutomationApp(QWidget):
         completed_sorted = sorted(self.completed_manufacturers, key=str.lower)
         given_up_sorted  = sorted(self.given_up_manufacturers,  key=str.lower)
     
-        summary = (
-            f"✅ Completed: {', '.join(completed_sorted)}\n"
-            f"❌ Gave up:   {', '.join(given_up_sorted)}"
-        )
-        self.terminal.append_output("🏁 All runs finished.\n" + summary)
-        
+        # ── blank line before summary ──
+        self.terminal.append_output("")
+    
+        # ── summary lines ──
+        self.terminal.append_output("🏁 All runs finished.")
+        self.terminal.append_output(f"✅ Completed: {', '.join(completed_sorted)}")
+        self.terminal.append_output(f"❌ Gave up:   {', '.join(given_up_sorted)}")
+    
+        # ── separator ──
+        self.terminal.append_output("=" * 66)
+    
         # ── swap back to a fresh “Start Automation” button ──
         layout = self.start_button.parent().layout()
         layout.removeWidget(self.start_button)
