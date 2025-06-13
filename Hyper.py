@@ -320,6 +320,7 @@ class SeleniumAutomationApp(QWidget):
         self.threads        = []      # ← now you can safely append to self.threads
         self.is_running     = False
         self.stop_requested = False
+        self.pause_requested= False
 
         
     def initUI(self):
@@ -531,13 +532,19 @@ class SeleniumAutomationApp(QWidget):
         theme_switch_section.addWidget(self.theme_toggle)
         layout.addLayout(theme_switch_section)
     
+        # ── Pause/Resume Button ──
+        self.pause_button = CustomButton('Pause Automation', '#e3a008', self)
+        self.pause_button.clicked.connect(self.on_pause_resume)
+        self.pause_button.setEnabled(False)                # off until we start
+        layout.addWidget(self.pause_button)
+
+
         # ── Start/Stop Button ──
         self.start_button = CustomButton('Start Automation', '#008000', self)
         self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
 
-    
-                # after adding all widgets and layouts…
+        # after adding all widgets and layouts…
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
         # set initial enabled/disabled state based on default toggle
@@ -716,9 +723,13 @@ class SeleniumAutomationApp(QWidget):
         self.start_button = CustomButton("Stop Automation", "#e63946", self)
         self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
-        
-        # now proceed with the rest of your existing automation logic…
 
+        # ── step 3: enable the Pause button when we start ──
+        self.pause_button.setEnabled(True)
+        self.pause_button.setText('Pause Automation')
+        self.pause_requested = False
+
+        # now proceed with the rest of your existing automation logic…
 
         # 5) stash for process_next_manufacturer
         self.selected_manufacturers = selected_manufacturers
@@ -741,8 +752,6 @@ class SeleniumAutomationApp(QWidget):
         self.terminal.raise_()
 
         self.process_next_manufacturer()
-
-
 
     def process_next_manufacturer(self):
         # ── STOP BAILOUT ──
@@ -799,6 +808,10 @@ class SeleniumAutomationApp(QWidget):
 
     def on_manufacturer_finished(self, manufacturer, success):
             # ── STOP BAILOUT ──
+        if self.pause_requested:
+            # nothing more until user hits Resume
+            return
+
         if self.stop_requested:
             return
         
@@ -931,9 +944,15 @@ class SeleniumAutomationApp(QWidget):
         super().closeEvent(event)
         
     def on_start_stop(self):
-        # — START path — (unchanged) —
+        # — START path —
         if not self.is_running:
             self.start_automation()
+    
+            # ── enable & reset Pause/Resume button when starting ──
+            self.pause_requested = False
+            self.pause_button.setText('Pause Automation')
+            self.pause_button.setEnabled(True)
+    
             return
     
         # — STOP path —
@@ -946,9 +965,22 @@ class SeleniumAutomationApp(QWidget):
         if reply != QMessageBox.Yes:
             return
     
+        # If we were paused, first resume the subprocess so it can be cleanly terminated
+        if self.pause_requested and self.thread is not None and hasattr(self.thread, "process"):
+            try:
+                proc = psutil.Process(self.thread.process.pid)
+                proc.resume()
+                for child in proc.children(recursive=True):
+                    child.resume()
+            except Exception as e:
+                self.terminal.append_output(f"⚠️ Couldn’t resume before stopping: {e}")
+    
+        # clear pause flag
+        self.pause_requested = False
+    
         # tell loops not to launch any more work
         self.stop_requested = True
-        
+    
         # 1) Ask the Python extractor to shut down nicely
         if self.thread is not None and hasattr(self.thread, "process"):
             try:
@@ -960,38 +992,36 @@ class SeleniumAutomationApp(QWidget):
                     os.killpg(os.getpgid(self.thread.process.pid), signal.SIGTERM)
             except Exception:
                 pass
-        
-            # 2) As a fallback, and to clean up any stragglers, kill children by name
+    
+            # 2) Fallback: kill Chrome/Chromedriver children and parent
             def kill_children(pid: int):
-                """
-                Kills the given process *and* any Chrome/Chromedriver children it spawned,
-                but never blows up if a PID vanishes underneath us.
-                """
-            
                 try:
                     parent = psutil.Process(pid)
                 except psutil.NoSuchProcess:
                     return
-            
+    
                 for child in parent.children(recursive=True):
-                    # guard retrieving the name
                     try:
                         pname = child.name().lower()
                     except psutil.NoSuchProcess:
                         continue
-            
                     if "chrome" in pname or "chromedriver" in pname:
                         try:
                             child.kill()
                         except psutil.NoSuchProcess:
                             pass
-            
-                # finally kill the parent itself (if it’s still around)
+    
                 try:
                     parent.kill()
                 except psutil.NoSuchProcess:
                     pass
-        
+    
+            kill_children(self.thread.process.pid)
+    
+        # ── reset & disable Pause/Resume button when stopping ──
+        self.pause_button.setText('Pause Automation')
+        self.pause_button.setEnabled(False)
+    
         # 3) Give it a moment, then report & swap button back
         sleep(1)
         self.terminal.append_output("❌ Hyperlink Automation has stopped.")
@@ -1002,7 +1032,48 @@ class SeleniumAutomationApp(QWidget):
         self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
         self.is_running = False
+
+
          
+    def on_pause_resume(self):
+        # only when running and we have a live subprocess
+        if not self.is_running or self.thread is None or not hasattr(self.thread, "process"):
+            return
+    
+        proc = psutil.Process(self.thread.process.pid)
+    
+        if not self.pause_requested:
+            # ── PAUSE ──
+            self.pause_requested = True
+            self.pause_button.setText('Resume Automation')
+            self.terminal.append_output("⏸️ Pausing automation…")
+    
+            # suspend main process & children
+            try:
+                proc.suspend()
+                for child in proc.children(recursive=True):
+                    child.suspend()
+            except Exception as e:
+                self.terminal.append_output(f"⚠️ Couldn’t pause process: {e}")
+    
+        else:
+            # ── RESUME ──
+            self.pause_requested = False
+            self.pause_button.setText('Pause Automation')
+            self.terminal.append_output("▶️ Resuming automation…")
+    
+            # resume main process & children
+            try:
+                proc.resume()
+                for child in proc.children(recursive=True):
+                    child.resume()
+            except Exception as e:
+                self.terminal.append_output(f"⚠️ Couldn’t resume process: {e}")
+    
+            # <-- no call to process_next_manufacturer() here!
+            # the suspended extractor will continue its own loop
+
+
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
