@@ -398,6 +398,8 @@ class SharepointExtractor:
         self.mode = sys.argv[4] if len(sys.argv) > 4 else "adas"
         self.repair_mode = self.mode == "repair"
         self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
+        self.cleanup_mode = sys.argv[5] == "cleanup" if len(sys.argv) > 5 else False
+        self.broken_entries = []  # ← Store broken hyperlinks here for cleanup mode
         
         # Set correct column index
         self.HYPERLINK_COLUMN_INDEX = 8 if self.repair_mode else 12  # K for repair, L for ADAS
@@ -441,12 +443,93 @@ class SharepointExtractor:
         Extracts the file and folder links from the defined sharepoint location for the current extractor object.
         Returns a tuple of lists. The first list holds all of our SharepointEntry objects for the folders in the sharepoint,
         and the second list holds all of our SharepointEntry objects for the files in the sharepoint.
-        If no ADAS systems are selected, processes all files.
         """
-
-        # ─── PAUSE TO LET THE FOLDER LIST SETTLE ───────────────────────────
+    
         time.sleep(2.0)
-        
+    
+        if self.cleanup_mode:
+            print("🔍 Clean up Mode: Navigating per broken link...")
+    
+            matched_files = []
+    
+            for _, (yr, mk, mdl, sys) in self.broken_entries:
+                print(f"🔎 Seeking: {yr} ➝ {mdl} ➝ {sys}")
+    
+                # STEP 1: reset to root folder
+                self.selenium_driver.get(self.sharepoint_link)
+                time.sleep(2.0)
+    
+                # STEP 2: find year folder
+                year_folders, _ = self.__get_folder_rows__()
+                target_year = next((f for f in year_folders if yr.strip() == f.entry_name.strip()), None)
+                if not target_year:
+                    print(f"❌ Year folder '{yr}' not found.")
+                    continue
+                self.selenium_driver.get(target_year.entry_link)
+                time.sleep(1.5)
+    
+                # STEP 3: find model folder
+                model_folders, _ = self.__get_folder_rows__()
+                target_model = next((f for f in model_folders if mdl.strip().upper() == f.entry_name.strip().upper()), None)
+                if not target_model:
+                    print(f"❌ Model folder '{mdl}' not found under year '{yr}'.")
+                    continue
+                self.selenium_driver.get(target_model.entry_link)
+                time.sleep(1.5)
+    
+                # STEP 4: look for the file matching the system
+                try:
+                    # Locate SharePoint table rows directly from current model folder page
+                    table = WebDriverWait(self.selenium_driver, 15).until(
+                        EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
+                    )
+                    rows = table.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
+                
+                    sys_patterns = [re.compile(rf"\({re.escape(sys)}\s*\d*\)", re.IGNORECASE)]
+                    if self.repair_mode:
+                        sys_patterns.append(re.compile(re.escape(sys), re.IGNORECASE))
+                
+                    for row in rows:
+                        name = self.__get_row_name__(row)
+                
+                        if not any(p.search(name) for p in sys_patterns):
+                            continue
+                
+                        # Also check year
+                        year_match = re.search(r'(20\d{2})', name)
+                        file_year = year_match.group(1) if year_match else ""
+                        if file_year.strip() != yr.strip():
+                            continue
+                
+                        # Also check model (soft match)
+                        clean_name = re.sub(r'\(.*?\)', '', name)
+                        clean_name = re.sub(r'(20\d{2})', '', clean_name).replace(".pdf", "").strip().upper()
+                        if mdl.strip().upper() not in clean_name:
+                            continue
+                
+                        # ✅ MATCHED! Get encrypted link and add to matched_files
+                        encrypted_link = self.__get_encrypted_link__(row)
+                        matched_files.append(
+                            SharepointExtractor.SharepointEntry(
+                                name=name,
+                                heirarchy=self.__get_entry_heirarchy__(row),
+                                link=encrypted_link,
+                                type=SharepointExtractor.EntryTypes.FILE_ENTRY
+                            )
+                        )
+                        
+                        print(f"✅ Direct match: {name}")
+                        break
+                    else:
+                        print(f"❌ No direct match in visible rows: {mdl}, {sys}")
+                
+                except Exception as e:
+                    print(f"⚠️ Failed to locate system file row: {e}")
+
+    
+            return [[], matched_files]
+
+  
         # Index and store base folders and files here
         sharepoint_folders, sharepoint_files = self.__get_folder_rows__()
     
@@ -521,9 +604,6 @@ class SharepointExtractor:
         print(f"Indexing routine took {elapsed_time:.2f} seconds.")
         return [sharepoint_folders, filtered_files]
 
-
-
-
     def populate_excel_file(self, file_entries: list) -> None:
         """
         Populates the excel file for the current make and stores all hyperlinks built in correct 
@@ -543,14 +623,48 @@ class SharepointExtractor:
             self.row_index = self.__build_row_index__(model_worksheet, self.repair_mode)
         else:
             model_worksheet = model_workbook[sheet_name]
-
+    
         print(f"Workbook loaded successfully: {self.excel_file_path}")
     
         # Setup trackers for correct row insertion during population
         current_model = ""
         adas_last_row = {}
         self.row_index = self.__build_row_index__(model_worksheet, self.repair_mode)
+    
+        # ── Clean up Mode: Detect and clear broken links ──
+        if self.cleanup_mode:
+            print("🧹 Clean up Mode: Scanning for broken hyperlinks...")
+    
+            for key, row in self.row_index.items():
+                cell = model_worksheet.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
+                url = str(cell.value).strip() if cell.value else None
+                if not url:
+                    continue
 
+                # Ignore links that contain "part" in the name
+                if "part" in url.lower():
+                    print(f"⏩ Skipping 'part' link at row {row}: {url}")
+                    continue
+
+
+                if self.is_broken_sharepoint_link(url):
+                    # Show which entry is being queued for fix
+                    yr, mk, mdl, sys = key
+                    print(f"🔧 Broken link found → Year: {yr}, Make: {mk}, Model: {mdl}, System: {sys}")
+    
+                    # Clear bad link
+                    cell.value = None
+                    cell.hyperlink = None
+    
+                    self.broken_entries.append((row, key))
+    
+            # ── After checking for broken links, reload SharePoint homepage ──
+            print("🔄 Re-loading SharePoint root page to resume indexing...")
+            self.selenium_driver.get(self.sharepoint_link)
+            time.sleep(2.0)
+
+
+    
         # Iterate through the filtered file entries
         for file_entry in file_entries:
             print(f"Processing file: {file_entry.entry_name}")
@@ -561,67 +675,56 @@ class SharepointExtractor:
                     file_name = file_name.replace(pattern, f"({acr})")
                     file_entry.entry_name = file_name
                     break
-        
+    
             # === Year Extraction ===
             year_match = re.search(r'(20\d{2})', file_name)
             file_year = year_match.group(1) if year_match else "Unknown"
-        
+    
             # === Model Extraction ===
-            # === Model Extraction (Repair only: capture non-module parentheses as part of model) ===
             base_name = re.sub(r'(20\d{2})', '', file_name)
             base_name = base_name.replace(".pdf", "").strip()
             base_name = re.sub(re.escape(self.sharepoint_make), "", base_name, flags=re.IGNORECASE).strip()
-            
+    
             model_tokens = []
-            # build an uppercase set for faster membership checks
             mod_names = {m.upper() for m in self.__DEFINED_MODULE_NAMES__}
-        
+    
             for token in base_name.split():
                 if token.startswith("("):
                     content = token.strip("()")
                     if content.strip().upper() in mod_names:
-                        # found a module (e.g. SWS or G-Force) ⇒ stop
                         break
                     else:
-                        # variant bracketed term (e.g. HEV) ⇒ include
                         model_tokens.append(content)
                 elif token.upper().strip("()[]") in mod_names:
-                    # bare module token (no parentheses) ⇒ stop
                     break
                 else:
                     model_tokens.append(token)
-
-            
+    
             file_model = " ".join(model_tokens).strip() if model_tokens else "Unknown"
-
-        
-            # === ✅ Fallback for Model from Hierarchy ===
+    
+            # ✅ Fallback for Model from Hierarchy
             if file_model == "Unknown":
                 segments = file_entry.entry_heirarchy.split("\\")
                 if len(segments) > 1:
                     file_model = segments[-2]  # Usually the model folder
-        
-            # Check if ADAS last row needs to be reset or not
+    
+            # Reset model row tracker
             if file_model != current_model:
                 current_model = file_model
                 adas_last_row = {}
-        
-            # Proceed with placing the hyperlink
+    
+            # Place hyperlink
             if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
                 continue
             self.__update_excel__(model_worksheet, file_year, file_model, file_name, file_entry.entry_link, adas_last_row, None)
-        
     
-        # Save the workbook after processing
+        # Save the workbook
         print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
         model_workbook.save(self.excel_file_path)
         model_workbook.close()
     
-        # Log the time taken to populate
         elapsed_time = time.time() - start_time
         print(f"Sheet population routine took {elapsed_time:.2f} seconds.")
-
-
 
     def __generate_chrome_options__(self) -> Options:
         """
@@ -818,7 +921,66 @@ class SharepointExtractor:
                 
                     # Wait a moment before retrying to open the clipboard 
                     win32clipboard.CloseClipboard()
-                    time.sleep(1.0)    
+                    time.sleep(1.0)  
+                    
+    def is_broken_sharepoint_link(self, url: str) -> bool:
+        try:
+            original_tab = self.selenium_driver.current_window_handle
+    
+            # Open new tab and switch to it
+            self.selenium_driver.execute_script("window.open('');")
+            WebDriverWait(self.selenium_driver, 5).until(lambda d: len(d.window_handles) > 1)
+    
+            new_tabs = [h for h in self.selenium_driver.window_handles if h != original_tab]
+            if not new_tabs:
+                print("⚠️ New tab did not open.")
+                return True
+    
+            new_tab = new_tabs[0]
+            self.selenium_driver.switch_to.window(new_tab)
+    
+            # Load URL in new tab
+            self.selenium_driver.get(url)
+    
+            WebDriverWait(self.selenium_driver, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
+    
+            # Check for SharePoint error
+            error_element = self.selenium_driver.find_elements(
+                By.ID, "ctl00_PlaceHolderPageTitleInTitleArea_ErrorPageTitlePanel"
+            )
+            if error_element:
+                if "something went wrong" in error_element[0].text.lower():
+                    return True
+    
+            body_text = self.selenium_driver.find_element(By.TAG_NAME, "body").text.lower()
+            if "sorry, something went wrong" in body_text:
+                return True
+
+            # 🔍 Check that the PDF viewer loaded the filename span
+            try:
+                WebDriverWait(self.selenium_driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "span.fui-Text"))
+                )
+            except:
+                print("❌ File viewer didn't load filename — treating as broken.")
+                return True
+    
+            return False
+    
+        except Exception as e:
+            print(f"⚠️ Error checking link: {url} → {e}")
+            return True
+    
+        finally:
+            # Close ONLY if on the new tab and it’s not the only tab open
+            if self.selenium_driver.current_window_handle != original_tab:
+                if len(self.selenium_driver.window_handles) > 1:
+                    self.selenium_driver.close()
+                    self.selenium_driver.switch_to.window(original_tab)
+
+
     def __get_entry_heirarchy__(self, row_element: WebElement) -> str:
         # Find all breadcrumb elements
         title_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)
@@ -1334,11 +1496,17 @@ if __name__ == '__main__':
     # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
-    print("="*100)
-    extracted_folders, extracted_files = extractor.extract_contents()
+print("="*100)
 
-    print("="*100)
-    extractor.populate_excel_file(extracted_files)
+# Step 1: Load Excel & detect broken links (this will set .broken_entries)
+extractor.populate_excel_file([])
 
-    print("="*100)
-    print(f"Extraction and population for {extractor.sharepoint_make} is complete!")
+# Step 2: In clean up mode, re-fetch only the needed file entries
+if extractor.cleanup_mode and extractor.broken_entries:
+    print("🔁 Re-indexing SharePoint to replace broken links...")
+    extracted_folders, filtered_files = extractor.extract_contents()
+    print(f"📥 Matched {len(filtered_files)} files for repair.")
+    extractor.populate_excel_file(filtered_files)
+
+print("="*100)
+print(f"Extraction and population for {extractor.sharepoint_make} is complete!")

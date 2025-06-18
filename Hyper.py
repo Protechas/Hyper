@@ -532,6 +532,12 @@ class SeleniumAutomationApp(QWidget):
         theme_switch_section.addWidget(self.theme_toggle)
         layout.addLayout(theme_switch_section)
     
+        # ── Clean up Mode checkbox ──
+        self.cleanup_mode_checkbox = QCheckBox("Clean up Mode")
+        self.cleanup_mode_checkbox.setStyleSheet("font-size: 14px; padding: 5px;")
+        layout.addWidget(self.cleanup_mode_checkbox)
+
+
         # ── Pause/Resume Button ──
         self.pause_button = CustomButton('Pause Automation', '#e3a008', self)
         self.pause_button.clicked.connect(self.on_pause_resume)
@@ -787,12 +793,13 @@ class SeleniumAutomationApp(QWidget):
         # build and fire the subprocess
         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
         args = [
-            sys.executable,     # better than hard-coding "python"
+            sys.executable,
             script_path,
             sharepoint_link,
             excel_path,
             ",".join(self.selected_systems),
-            self.mode_flag
+            self.mode_flag,
+            "cleanup" if self.cleanup_mode_checkbox.isChecked() else "full"
         ]
     
         # ── instantiate the WorkerThread correctly and keep a handle for stopping ──
@@ -887,6 +894,14 @@ class SeleniumAutomationApp(QWidget):
     
         # ── separator ──
         self.terminal.append_output("=" * 66)
+        
+        # ── Reset manufacturer tracking lists for next run ──
+        self.completed_manufacturers = []
+        self.failed_manufacturers    = []
+        self.failed_excels           = []
+        self.given_up_manufacturers  = []
+        self.attempts                = {}
+        
     
         # ── swap back to a fresh “Start Automation” button ──
         layout = self.start_button.parent().layout()
