@@ -56,7 +56,7 @@ class SharepointExtractor:
     __DEFINED_MODULE_NAMES__ = [
         'ACC', 'SCC', 'AEB', 'AHL', 'APA', 'BSW', 'BSW/RCTW', 'BSW-RCTW',
         'BSW & RCTW', 'BSW RCTW', 'BSW-RCT W', 'BSW RCT W', 'BSM-RCTW', 'BSW-RTCW', 'BSW_RCTW',
-        'BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC',
+        'BCW-RCTW', 'BUC', 'LKA', 'LW', 'NV', 'SVC', 'WAMC', 'FRS', 'PDS', 'RRS', 'WSC', 
     
         # 🔧 Repair SI modules added below
         'YAW', 'G-Force', 'SWS', 'HUD', 'SRS D&E', 'SCI', 'SRR', 'TPMS', 'SBI',
@@ -453,6 +453,13 @@ class SharepointExtractor:
             matched_files = []
     
             for _, (yr, mk, mdl, sys) in self.broken_entries:
+                # Reverse map if Excel gave us a normalized string like "GFORCE"
+                for desc, acronym in self.REPAIR_SYNONYMS.items():
+                    normalized = acronym.replace(" ", "").replace("&", "").replace("-", "").upper()
+                    if normalized == sys.strip().upper():
+                        sys = acronym
+                        break
+            
                 print(f"🔎 Seeking: {yr} ➝ {mdl} ➝ {sys}")
     
                 # STEP 1: reset to root folder
@@ -485,15 +492,34 @@ class SharepointExtractor:
                     )
                     rows = table.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
                 
-                    sys_patterns = [re.compile(rf"\({re.escape(sys)}\s*\d*\)", re.IGNORECASE)]
-                    if self.repair_mode:
-                        sys_patterns.append(re.compile(re.escape(sys), re.IGNORECASE))
-                
                     for row in rows:
                         name = self.__get_row_name__(row)
-                
-                        if not any(p.search(name) for p in sys_patterns):
+                    
+                        found_match = False
+                    
+                        if self.repair_mode:
+                            # REUSE YOUR EXACT MATCH LOGIC FROM __get_folder_rows__
+                            module_matches = re.findall(r'\((.*?)\)', name)
+                            if module_matches:
+                                for module in module_matches:
+                                    if module.strip().upper() == sys.strip().upper():
+                                        found_match = True
+                                        break
+                            else:
+                                # fallback: look at last word
+                                base = os.path.splitext(name)[0]
+                                last = base.split()[-1].strip().upper()
+                                if last == sys.strip().upper():
+                                    found_match = True
+                        else:
+                            # ADAS match style
+                            match_pattern = re.compile(rf"\({re.escape(sys)}\s*\d*\)", re.IGNORECASE)
+                            if match_pattern.search(name):
+                                found_match = True
+                    
+                        if not found_match:
                             continue
+
                 
                         # Also check year
                         year_match = re.search(r'(20\d{2})', name)

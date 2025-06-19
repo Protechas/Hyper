@@ -135,7 +135,6 @@ class ModeSwitch(QCheckBox):
             }
         """)
 
-
 class CustomButton(QPushButton):
     def __init__(self, text, color, parent=None):
         super().__init__(text, parent)
@@ -525,7 +524,6 @@ class SeleniumAutomationApp(QWidget):
         # after creating self.si_mode_toggle …
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
-
         # Dark mode toggle
         theme_switch_section.addStretch()
         self.theme_toggle = ToggleSwitch(self)
@@ -533,17 +531,15 @@ class SeleniumAutomationApp(QWidget):
         layout.addLayout(theme_switch_section)
     
         # ── Clean up Mode checkbox ──
-        self.cleanup_mode_checkbox = QCheckBox("Clean up Mode")
-        self.cleanup_mode_checkbox.setStyleSheet("font-size: 14px; padding: 5px;")
-        layout.addWidget(self.cleanup_mode_checkbox)
-
+        self.cleanup_checkbox = QCheckBox("Broken Hyperlink Mode", self)
+        self.cleanup_checkbox.setStyleSheet("font-size: 14px; padding: 5px;")
+        layout.addWidget(self.cleanup_checkbox)
 
         # ── Pause/Resume Button ──
         self.pause_button = CustomButton('Pause Automation', '#e3a008', self)
         self.pause_button.clicked.connect(self.on_pause_resume)
         self.pause_button.setEnabled(False)                # off until we start
         layout.addWidget(self.pause_button)
-
 
         # ── Start/Stop Button ──
         self.start_button = CustomButton('Start Automation', '#008000', self)
@@ -703,7 +699,16 @@ class SeleniumAutomationApp(QWidget):
         # — build manufacturers list
         manu_list = "\n".join(f"{i+1}. {m}"
                               for i, m in enumerate(selected_manufacturers))
-
+        
+        cleanup_note = ""
+        if self.cleanup_checkbox.isChecked():
+            cleanup_note = (
+                "\n\n⚠️ Broken Hyperlink Mode Activated:\n"
+                "With this selected, it will ignore all the ADAS/Repair arguments\n"
+                "and find the broken links. Based off of those results, it will\n"
+                "find the matching links and repair them."
+            )
+        
         confirm_message = (
             "Excel files selected:\n"
             f"{excel_list}\n\n"
@@ -711,8 +716,9 @@ class SeleniumAutomationApp(QWidget):
             f"{manu_list}\n\n"
             "Systems selected:\n"
             + ", ".join(selected_systems)
-            + "\n\nContinue?"
+            + cleanup_note + "\n\nContinue?"
         )
+        
 
         if QMessageBox.question(self, 'Confirmation', confirm_message,
                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
@@ -756,7 +762,6 @@ class SeleniumAutomationApp(QWidget):
 
         self.terminal.show()
         self.terminal.raise_()
-
         self.process_next_manufacturer()
 
     def process_next_manufacturer(self):
@@ -799,7 +804,7 @@ class SeleniumAutomationApp(QWidget):
             excel_path,
             ",".join(self.selected_systems),
             self.mode_flag,
-            "cleanup" if self.cleanup_mode_checkbox.isChecked() else "full"
+            "cleanup" if self.cleanup_checkbox.isChecked() else "full"
         ]
     
         # ── instantiate the WorkerThread correctly and keep a handle for stopping ──
@@ -901,8 +906,7 @@ class SeleniumAutomationApp(QWidget):
         self.failed_excels           = []
         self.given_up_manufacturers  = []
         self.attempts                = {}
-        
-    
+           
         # ── swap back to a fresh “Start Automation” button ──
         layout = self.start_button.parent().layout()
         layout.removeWidget(self.start_button)
@@ -1047,9 +1051,7 @@ class SeleniumAutomationApp(QWidget):
         self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
         self.is_running = False
-
-
-         
+      
     def on_pause_resume(self):
         # only when running and we have a live subprocess
         if not self.is_running or self.thread is None or not hasattr(self.thread, "process"):
@@ -1087,7 +1089,6 @@ class SeleniumAutomationApp(QWidget):
     
             # <-- no call to process_next_manufacturer() here!
             # the suspended extractor will continue its own loop
-
 
 if __name__ == "__main__":
     try:
