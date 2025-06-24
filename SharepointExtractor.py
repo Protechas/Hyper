@@ -1508,31 +1508,35 @@ class SharepointExtractor:
 #####################################################################################################################################################
 
 if __name__ == '__main__':   
-    
-    # (Individual File testing without GUI, take away the # to perform whichever is needed)) 
-    #excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Toyota Pre-Qual Long Sheet v6.3.xlsx'
-    #sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EiB53aPXartJhkxyWzL5AFABZQsY3x-XDWPXQCqgFIrvoQ?e=m4DrKQ'
-    #debug_run = True
 
-    # (Usage with GUI, take away the # to perform whichever is needed)        
+   # (Individual File testing without GUI, take away the # to perform whichever is needed)) 
+   # excel_file_path = r'C:\Users\dromero3\Desktop\Excel Documents\Toyota Pre-Qual Long Sheet v6.3.xlsx'
+   # sharepoint_link = 'https://calibercollision.sharepoint.com/:f:/g/enterpriseprojects/VehicleServiceInformation/EiB53aPXartJhkxyWzL5AFABZQsY3x-XDWPXQCqgFIrvoQ?e=m4DrKQ'
+   # debug_run = True
+
+
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
     debug_run = False
 
-    # Build a new sharepoint extractor with configuration values as defined above
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
-print("="*100)
+    print("=" * 100)
 
-# Step 1: Load Excel & detect broken links (this will set .broken_entries)
-extractor.populate_excel_file([])
+    if extractor.cleanup_mode:
+        # Clean up mode: find broken links → re-index only those
+        extractor.populate_excel_file([])
 
-# Step 2: In clean up mode, re-fetch only the needed file entries
-if extractor.cleanup_mode and extractor.broken_entries:
-    print("🔁 Re-indexing SharePoint to replace broken links...")
-    extracted_folders, filtered_files = extractor.extract_contents()
-    print(f"📥 Matched {len(filtered_files)} files for repair.")
-    extractor.populate_excel_file(filtered_files)
+        if extractor.broken_entries:
+            print("🔁 Re-indexing SharePoint to replace broken links...")
+            _, filtered_files = extractor.extract_contents()
+            print(f"📥 Matched {len(filtered_files)} files for repair.")
+            extractor.populate_excel_file(filtered_files)
 
-print("="*100)
-print(f"Extraction and population for {extractor.sharepoint_make} is complete!")
+    else:
+        # Normal mode: index entire folder and populate Excel
+        folders, files = extractor.extract_contents()
+        extractor.populate_excel_file(files)
+
+    print("=" * 100)
+    print(f"Extraction and population for {extractor.sharepoint_make} is complete!")
