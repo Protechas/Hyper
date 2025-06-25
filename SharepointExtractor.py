@@ -912,11 +912,15 @@ class SharepointExtractor:
         time.sleep(1.00)
         selector_element.click()
         
-        # Make sure the link value is changed here. If it's not, run this routine again
-        encrypted_file_link = self.__get_clipboard_content__()
-        if encrypted_file_link == starting_clipboard_content:
-            return self.__get_encrypted_link__(row_element)
-    
+        # Retry up to 3 times if clipboard didn't update
+        retry_limit = 3
+        for attempt in range(retry_limit):
+            encrypted_file_link = self.__get_clipboard_content__()
+            if encrypted_file_link != starting_clipboard_content:
+                break
+            time.sleep(1.0)
+        else:
+            raise Exception("Failed to retrieve new encrypted link after multiple attempts.")        
         # Return the stored link from the clipboard
         return encrypted_file_link
          
