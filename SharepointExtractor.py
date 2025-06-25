@@ -913,7 +913,7 @@ class SharepointExtractor:
         selector_element.click()
         
         # Retry up to 3 times if clipboard didn't update
-        retry_limit = 3
+        retry_limit = 999
         for attempt in range(retry_limit):
             encrypted_file_link = self.__get_clipboard_content__()
             if encrypted_file_link != starting_clipboard_content:
