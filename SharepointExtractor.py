@@ -413,8 +413,44 @@ class SharepointExtractor:
         self.excel_file_path = excel_file_path
         self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
 
-        # Define the default wait timeout and setup a new selenium driver
-        # This will download (if needed) and add the correct chromedriver to PATH
+        # Check installed Chrome version
+        def get_chrome_version():
+            try:
+                output = subprocess.check_output(
+                    r'reg query "HKEY_CURRENT_USER\Software\Google\Chrome\BLBeacon" /v version',
+                    shell=True, stderr=subprocess.DEVNULL, text=True
+                )
+                match = re.search(r"version\s+REG_SZ\s+([^\s]+)", output)
+                return match.group(1) if match else None
+            except Exception:
+                return None
+        
+        # Detect local chromedriver version folder
+        def get_local_chromedriver_version():
+            base = os.path.join(os.path.expanduser("~"),
+                "AppData", "Roaming", "Python", "Python311",
+                "site-packages", "chromedriver_autoinstaller")
+            for folder in os.listdir(base):
+                if folder.isdigit():
+                    return folder  # return version like "138"
+            return None
+        
+        chrome_version = get_chrome_version()
+        driver_version = get_local_chromedriver_version()
+        
+        if chrome_version and driver_version:
+            if not chrome_version.startswith(driver_version):
+                # Mismatch detected → remove outdated driver
+                mismatch_path = os.path.join(
+                    os.path.expanduser("~"),
+                    "AppData", "Roaming", "Python", "Python311",
+                    "site-packages", "chromedriver_autoinstaller", driver_version
+                )
+                if os.path.exists(mismatch_path):
+                    print(f"Deleting mismatched ChromeDriver v{driver_version} for Chrome v{chrome_version}")
+                    shutil.rmtree(mismatch_path)
+        
+        # Then install the correct version
         chromedriver_autoinstaller.install()
                
         # Then just start Chrome normally:
@@ -886,34 +922,29 @@ class SharepointExtractor:
         # Attempt the share routine in a loop to retry when buttons don't appear correctly
         for retry_count in range(3):
             try:
+                # Find the share button element using the new locator and click it
                 row_element.find_element(By.XPATH, ".//button[@data-automationid='shareHeroId']").click()
                 time.sleep(1.00)
-        
-                # Slowly send each key with delay
-                keys = [Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER]
-                for key in keys:
-                    ActionChains(self.selenium_driver).send_keys(key).perform()
-                    time.sleep(0.25)
-        
+                ActionChains(self.selenium_driver).send_keys(
+                    Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER
+                ).perform()
                 time.sleep(1.25)
-        
-                keys2 = [Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER]
-                for key in keys2:
-                    ActionChains(self.selenium_driver).send_keys(key).perform()
-                    time.sleep(0.25)
-        
+                ActionChains(self.selenium_driver).send_keys(
+                    Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER
+                ).perform()           
                 time.sleep(1.25)
-        
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
                 time.sleep(1.25)
-        
                 ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
-                break  # Success
+                
+                # Break this loop if this logic completes correctly
+                break
             except:
-                if retry_count == 2:
+                # Check if we can retry or not
+                if retry_count == 3:
                     raise Exception("ERROR! Failed to open the share dialog for the current entry!")
+                # Wait a moment before retrying
                 time.sleep(1.0)
-
         
         # Unselect the element for the row 
         time.sleep(1.00)
