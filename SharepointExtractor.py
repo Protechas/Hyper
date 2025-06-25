@@ -425,14 +425,13 @@ class SharepointExtractor:
             except Exception:
                 return None
         
-        # Detect local chromedriver version folder
         def get_local_chromedriver_version():
-            base = os.path.join(os.path.expanduser("~"),
-                "AppData", "Roaming", "Python", "Python311",
-                "site-packages", "chromedriver_autoinstaller")
+            base = os.path.dirname(chromedriver_autoinstaller.__file__)
+            if not os.path.exists(base):
+                return None
             for folder in os.listdir(base):
                 if folder.isdigit():
-                    return folder  # return version like "138"
+                    return folder
             return None
         
         chrome_version = get_chrome_version()
@@ -440,17 +439,12 @@ class SharepointExtractor:
         
         if chrome_version and driver_version:
             if not chrome_version.startswith(driver_version):
-                # Mismatch detected → remove outdated driver
-                mismatch_path = os.path.join(
-                    os.path.expanduser("~"),
-                    "AppData", "Roaming", "Python", "Python311",
-                    "site-packages", "chromedriver_autoinstaller", driver_version
-                )
+                mismatch_path = os.path.join(os.path.dirname(chromedriver_autoinstaller.__file__), driver_version)
                 if os.path.exists(mismatch_path):
                     print(f"Deleting mismatched ChromeDriver v{driver_version} for Chrome v{chrome_version}")
                     shutil.rmtree(mismatch_path)
         
-        # Then install the correct version
+        # Always install the correct version
         chromedriver_autoinstaller.install()
                
         # Then just start Chrome normally:
