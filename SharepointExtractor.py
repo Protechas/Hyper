@@ -2,7 +2,9 @@
 import re
 import sys
 import time
+import shutil
 import openpyxl
+import subprocess
 import urllib.parse
 import tkinter as tk
 from enum import Enum
@@ -884,45 +886,47 @@ class SharepointExtractor:
         # Attempt the share routine in a loop to retry when buttons don't appear correctly
         for retry_count in range(3):
             try:
-                # Find the share button element using the new locator and click it
                 row_element.find_element(By.XPATH, ".//button[@data-automationid='shareHeroId']").click()
                 time.sleep(1.00)
-                ActionChains(self.selenium_driver).send_keys(
-                    Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER
-                ).perform()
+        
+                # Slowly send each key with delay
+                keys = [Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER]
+                for key in keys:
+                    ActionChains(self.selenium_driver).send_keys(key).perform()
+                    time.sleep(0.25)
+        
                 time.sleep(1.25)
-                ActionChains(self.selenium_driver).send_keys(
-                    Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER
-                ).perform()           
+        
+                keys2 = [Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER]
+                for key in keys2:
+                    ActionChains(self.selenium_driver).send_keys(key).perform()
+                    time.sleep(0.25)
+        
                 time.sleep(1.25)
+        
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
                 time.sleep(1.25)
+        
                 ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
-                
-                # Break this loop if this logic completes correctly
-                break
+                break  # Success
             except:
-                # Check if we can retry or not
-                if retry_count == 3:
+                if retry_count == 2:
                     raise Exception("ERROR! Failed to open the share dialog for the current entry!")
-                # Wait a moment before retrying
                 time.sleep(1.0)
+
         
         # Unselect the element for the row 
         time.sleep(1.00)
         selector_element.click()
         
-        # Retry up to 3 times if clipboard didn't update
-        retry_limit = 999
-        for attempt in range(retry_limit):
-            encrypted_file_link = self.__get_clipboard_content__()
-            if encrypted_file_link != starting_clipboard_content:
-                break
-            time.sleep(1.0)
-        else:
-            raise Exception("Failed to retrieve new encrypted link after multiple attempts.")        
+        # Make sure the link value is changed here. If it's not, run this routine again
+        encrypted_file_link = self.__get_clipboard_content__()
+        if encrypted_file_link == starting_clipboard_content:
+            return self.__get_encrypted_link__(row_element)
+    
         # Return the stored link from the clipboard
         return encrypted_file_link
+        
          
     def __get_clipboard_content__(self) -> str:
             """
