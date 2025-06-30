@@ -927,39 +927,10 @@ class SeleniumAutomationApp(QWidget):
         
         for i in range(self.manufacturer_tree.topLevelItemCount()):
             item = self.manufacturer_tree.topLevelItem(i)
-            item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)
-            
-    def write_terminal_log(self):
-        # only log if we ever created a terminal and it has some output
-        if not getattr(self, 'terminal', None):
-            return
-
-        output = self.terminal.terminal_output.toPlainText().strip()
-        if not output:
-            return
-
-        # put Logs folder in the current user's Documents folder
-        docs = os.path.join(os.path.expanduser("~"), "Documents")
-        logs_dir = os.path.join(docs, "Hyper Logs")
-        os.makedirs(logs_dir, exist_ok=True)
-
-        # prune oldest logs if we already have 30 or more
-        log_files = [os.path.join(logs_dir, f)
-                     for f in os.listdir(logs_dir)
-                     if os.path.isfile(os.path.join(logs_dir, f))]
-        log_files.sort(key=lambda f: os.path.getctime(f))
-        while len(log_files) >= 30:
-            os.remove(log_files.pop(0))
-
-        # write a new timestamped log
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        fname = f"{timestamp}.log"
-        with open(os.path.join(logs_dir, fname), 'w', encoding='utf-8') as f:
-            f.write(output)
+            item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)            
 
     def closeEvent(self, event):
         # when the GUI closes, dump the terminal contents (if any) to Documents/Logs
-        self.write_terminal_log()
         super().closeEvent(event)
         
     def on_start_stop(self):
