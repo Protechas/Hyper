@@ -1,6 +1,6 @@
 ﻿import sys
 from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, QScrollArea, QListWidget)
+                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, QScrollArea, QListWidget, QProgressBar)
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt,pyqtSignal,QThread
 from threading import Thread
@@ -11,6 +11,8 @@ from time import sleep
 import datetime
 import os
 import logging
+import re
+
 
 # ── configure a “Logs” folder in Documents ──
 LOG_DIR = os.path.join(os.path.expanduser("~"), "Documents", "Hyper Logs")
@@ -37,12 +39,10 @@ logging.basicConfig(
 class WorkerThread(QThread):
     finished_signal = pyqtSignal(str, bool)
     output_signal   = pyqtSignal(str)
+    progress_signal = pyqtSignal(int)  # ← added for live percentage updates
 
     def __init__(self, command: list[str], manufacturer: str, parent=None):
-        # ⚠️ Only pass the QObject parent (or None) to QThread.__init__
         super().__init__(parent)
-
-        # now store your lists/strings on self
         self.command      = command
         self.manufacturer = manufacturer
         self.process      = None
@@ -52,17 +52,13 @@ class WorkerThread(QThread):
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
 
-        # ── Make a new process‐group so we can signal the entire tree ──
         if os.name == "nt":
-            # Windows: CREATE_NEW_PROCESS_GROUP lets us use CTRL_BREAK_EVENT
             creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
             preexec_fn    = None
         else:
-            # Unix: start new session
             creationflags = 0
             preexec_fn    = os.setsid
 
-        # ── Launch and store the Popen, not a local var ──
         self.process = subprocess.Popen(
             self.command,
             stdout=subprocess.PIPE,
@@ -76,11 +72,21 @@ class WorkerThread(QThread):
             preexec_fn=preexec_fn
         )
 
+        # Estimate total line count (for basic progress calculation)
+        estimated_total_lines = 300  # ← adjust this if you want more accuracy
+        processed_lines = 0
+
         # ── Stream stdout ──
         for line in iter(self.process.stdout.readline, ""):
             if not line:
                 break
             self.output_signal.emit(line.rstrip("\n"))
+            processed_lines += 1
+
+            # Emit progress signal
+            percent = min(100, int((processed_lines / estimated_total_lines) * 100))
+            self.progress_signal.emit(percent)
+
         self.process.stdout.close()
 
         # ── Wait & then stream stderr if error ──
@@ -93,8 +99,11 @@ class WorkerThread(QThread):
                 self.output_signal.emit(e.rstrip("\n"))
         self.process.stderr.close()
 
-        # ── Notify done ──
+        # Ensure final progress is 100%
+        self.progress_signal.emit(100)
+
         self.finished_signal.emit(self.manufacturer, success)
+
 
 class TerminalDialog(QDialog):
     def __init__(self, parent=None):
@@ -534,17 +543,63 @@ class SeleniumAutomationApp(QWidget):
         self.cleanup_checkbox = QCheckBox("Broken Hyperlink Mode", self)
         self.cleanup_checkbox.setStyleSheet("font-size: 14px; padding: 5px;")
         layout.addWidget(self.cleanup_checkbox)
-
-        # ── Pause/Resume Button ──
+        
+        # … after all your other widgets but *before* the progress bars …
+    
+        # ── Pause/Resume & Start/Stop Buttons ──
         self.pause_button = CustomButton('Pause Automation', '#e3a008', self)
         self.pause_button.clicked.connect(self.on_pause_resume)
-        self.pause_button.setEnabled(False)                # off until we start
-        layout.addWidget(self.pause_button)
-
-        # ── Start/Stop Button ──
+        self.pause_button.setEnabled(False)
+    
         self.start_button = CustomButton('Start Automation', '#008000', self)
         self.start_button.clicked.connect(self.on_start_stop)
-        layout.addWidget(self.start_button)
+    
+        # Use a vertical layout here so Pause sits above Start
+        self.button_layout = QVBoxLayout()  
+        self.button_layout.addWidget(self.pause_button)
+        self.button_layout.addWidget(self.start_button)
+        layout.addLayout(self.button_layout)
+    
+        # ── Progress Bars ──
+        self.current_manufacturer_label = QLabel("Current Manufacturer: None")
+        self.current_manufacturer_label.setStyleSheet("font-size: 13px; padding: 5px;")
+        self.current_manufacturer_progress = QProgressBar()
+        self.current_manufacturer_progress.setMaximum(100)
+        self.current_manufacturer_progress.setValue(0)
+        self.current_manufacturer_progress.setFormat("%p%")
+        self.current_manufacturer_progress.setStyleSheet("""
+            QProgressBar {
+                font-size: 12px;
+                padding: 4px;
+                color: black;           /* text color */
+                text-align: center;     /* center the % */
+            }
+        """)
+    
+        self.overall_progress_label = QLabel("Overall Progress: 0%")
+        self.overall_progress_label.setStyleSheet("font-size: 13px; padding: 5px;")
+        self.overall_progress_bar = QProgressBar()
+        self.overall_progress_bar.setMaximum(100)
+        self.overall_progress_bar.setValue(0)
+        self.overall_progress_bar.setFormat("%p%")
+        self.overall_progress_bar.setStyleSheet("""
+            QProgressBar {
+                font-size: 12px;
+                padding: 4px;
+                color: black;           /* text color */
+                text-align: center;     /* center the % */
+            }
+        """)
+    
+        layout.addWidget(self.current_manufacturer_label)
+        layout.addWidget(self.current_manufacturer_progress)
+        layout.addWidget(self.overall_progress_label)
+        layout.addWidget(self.overall_progress_bar)
+    
+    # … then finish with setLayout, resize, etc.
+
+        
+        
 
         # after adding all widgets and layouts…
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
@@ -554,6 +609,29 @@ class SeleniumAutomationApp(QWidget):
 
         self.setLayout(layout)
         self.resize(600, 400)
+
+    def handle_extractor_output(self, line: str):
+        # always print to your on-screen terminal
+        self.terminal.append_output(line)
+    
+        m = re.search(r'(\d+)\s+Folders Remain', line)
+        if m:
+            remaining = int(m.group(1))
+    
+            # record the very first—or any larger—remaining count we see
+            if not hasattr(self, '_initial_folder_count') or self._initial_folder_count is None:
+                self._initial_folder_count = remaining
+            else:
+                self._initial_folder_count = max(self._initial_folder_count, remaining)
+    
+            initial = self._initial_folder_count
+            # compute percent done
+            percent = int((initial - remaining) / initial * 100)
+            # clamp
+            percent = max(0, min(100, percent))
+    
+            self.current_manufacturer_progress.setValue(percent)
+
     
     def on_si_mode_toggled(self, state):
         """Enable one list & button, disable—and clear—the other."""
@@ -729,12 +807,14 @@ class SeleniumAutomationApp(QWidget):
         self.stop_requested = False
         
         # rip out the old “Start” button and insert a red “Stop Automation”
-        layout = self.start_button.parent().layout()
+        # ── swap Start → Stop inside our vertical button_layout ──
+        layout = self.button_layout
         layout.removeWidget(self.start_button)
         self.start_button.deleteLater()
         self.start_button = CustomButton("Stop Automation", "#e63946", self)
         self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
+        
 
         # ── step 3: enable the Pause button when we start ──
         self.pause_button.setEnabled(True)
@@ -748,6 +828,16 @@ class SeleniumAutomationApp(QWidget):
         self.selected_systems       = selected_systems
         self.mode_flag              = "repair" if self.mode_switch.isChecked() else "adas"
         self.current_index          = 0
+        
+        # ── Initialize Overall Progress ──
+        self.total_manufacturers = len(self.selected_manufacturers)
+        # ── NEW: reset progress bars for new run ──
+        self.overall_progress_bar.setValue(0)
+        self.current_manufacturer_progress.setValue(0)
+        self.overall_progress_label.setText(f"Overall Progress: 0 / {self.total_manufacturers}")
+        self.current_manufacturer_label.setText("Current Manufacturer: None")
+
+
 
         # 6) show or reuse terminal & start
         if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
@@ -780,10 +870,15 @@ class SeleniumAutomationApp(QWidget):
             )
             return
     
+        # Reset per‐manufacturer progress tracking
+        self._initial_folder_count = None
+    
         manufacturer = self.selected_manufacturers[self.current_index]
-        excel_path   = self.excel_paths[self.current_index]
-        # pick correct link dict
-        link_dict    = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
+        self.current_manufacturer_label.setText(f"Current Manufacturer: {manufacturer}")
+        self.current_manufacturer_progress.setValue(0)
+    
+        excel_path = self.excel_paths[self.current_index]
+        link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
         sharepoint_link = link_dict.get(manufacturer)
     
         if not sharepoint_link:
@@ -795,7 +890,6 @@ class SeleniumAutomationApp(QWidget):
             )
             return
     
-        # build and fire the subprocess
         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
         args = [
             sys.executable,
@@ -807,40 +901,63 @@ class SeleniumAutomationApp(QWidget):
             "cleanup" if self.cleanup_checkbox.isChecked() else "full"
         ]
     
-        # ── instantiate the WorkerThread correctly and keep a handle for stopping ──
         thread = WorkerThread(args, manufacturer, parent=self)
-        self.thread = thread                      # ← ensure on_stop can find the current thread
-        thread.output_signal.connect(self.terminal.append_output)
+        self.thread = thread
+    
+        # ── Connect to our custom handler for both terminal + progress parsing ──
+        thread.output_signal.connect(self.handle_extractor_output)
+    
+        # ── Overall‐style progress remains wired to the bar directly ──
+        # thread.progress_signal.connect(self.current_manufacturer_progress.setValue)
+    
         thread.finished_signal.connect(self.on_manufacturer_finished)
         thread.start()
-    
-        # ── keep a list of all threads in case you need it later ──
         self.threads.append(thread)
 
-
     def on_manufacturer_finished(self, manufacturer, success):
-            # ── STOP BAILOUT ──
-        if self.pause_requested:
-            # nothing more until user hits Resume
+        # ── HARD BAIL-OUT: if we're not running, stop immediately ──
+        if not self.is_running:
+            # Reset UI to Stopped state
+            self.current_manufacturer_progress.setValue(0)
+            self.overall_progress_bar.setValue(0)
+            self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
+            self.overall_progress_label.setText("Overall Progress: Manually Stopped")
+    
+            # Swap back to Start button
+            layout = self.button_layout
+            layout.removeWidget(self.start_button)
+            self.start_button.deleteLater()
+            self.start_button = CustomButton("Start Automation", "#008000", self)
+            self.start_button.clicked.connect(self.on_start_stop)
+            layout.addWidget(self.start_button)
+    
+            # Disable Pause
+            self.pause_button.setEnabled(False)
             return
-
-        if self.stop_requested:
-            return
-        
+    
+        # ── YOUR ORIGINAL LOGIC STARTS HERE ──
+    
         # 1) count this run
         prev = self.attempts.get(manufacturer, 0)
         self.attempts[manufacturer] = prev + 1
         attempt_no = self.attempts[manufacturer]
-
+    
         # 2) route based on success / attempt count
         if success:
             self.completed_manufacturers.append(manufacturer)
             msg = f"✅ {manufacturer} succeeded on attempt {attempt_no}."
             self.terminal.append_output(msg)
             logging.info(msg)
+    
+            # update overall on success
+            finalized = len(self.completed_manufacturers) + len(self.given_up_manufacturers)
+            percent   = int(finalized / self.total_manufacturers * 100)
+            self.overall_progress_bar.setValue(percent)
+            self.overall_progress_label.setText(
+                f"Overall Progress: {finalized} / {self.total_manufacturers}"
+            )
         else:
             if attempt_no < self.max_attempts:
-                # schedule for retry
                 err_excel = self.excel_paths[self.current_index]
                 self.failed_manufacturers.append(manufacturer)
                 self.failed_excels.append(err_excel)
@@ -848,7 +965,6 @@ class SeleniumAutomationApp(QWidget):
                 self.terminal.append_output(msg)
                 logging.warning(msg)
             else:
-                # give up
                 self.given_up_manufacturers.append(manufacturer)
                 msg = (
                     f"❌ {manufacturer} failed on attempt {attempt_no}; "
@@ -856,65 +972,73 @@ class SeleniumAutomationApp(QWidget):
                 )
                 self.terminal.append_output(msg)
                 logging.error(msg)
-
+    
+                # update overall on final give-up
+                finalized = len(self.completed_manufacturers) + len(self.given_up_manufacturers)
+                percent   = int(finalized / self.total_manufacturers * 100)
+                self.overall_progress_bar.setValue(percent)
+                self.overall_progress_label.setText(
+                    f"Overall Progress: {finalized} / {self.total_manufacturers}"
+                )
+    
         # 3) pause, then advance index
         msg = "⏱ Checking in 10s if i Need to run another Manufacturer…"
         self.terminal.append_output(msg)
         logging.info(msg)
         sleep(10)
         self.current_index += 1
-
+    
         # 4) if still in this pass, keep going
         if self.current_index < len(self.selected_manufacturers):
             self.process_next_manufacturer()
             return
-
-        # 5) end of pass: if anyone still eligible for retry, do another pass
+    
+        # 5) end of pass: retry logic…
         if self.failed_manufacturers:
             retry_list = ", ".join(self.failed_manufacturers)
             self.terminal.append_output(f"🔄 Retrying: {retry_list}")
             sleep(10)
-
-            # reset for only the ones to retry
             self.selected_manufacturers = self.failed_manufacturers
             self.excel_paths            = self.failed_excels
             self.current_index          = 0
             self.failed_manufacturers   = []
             self.failed_excels          = []
-
             self.process_next_manufacturer()
             return
-
-        # 6) all done—report summary
+    
+        # 6) final summary
         completed_sorted = sorted(self.completed_manufacturers, key=str.lower)
         given_up_sorted  = sorted(self.given_up_manufacturers,  key=str.lower)
     
-        # ── blank line before summary ──
         self.terminal.append_output("")
-    
-        # ── summary lines ──
         self.terminal.append_output("🏁 All Manufacturers finished.")
         self.terminal.append_output(f"✅ Completed: {', '.join(completed_sorted)}")
         self.terminal.append_output(f"❌ Gave up:   {', '.join(given_up_sorted)}")
     
-        # ── separator ──
+        # lock bars at 100%
+        self.current_manufacturer_progress.setValue(100)
+        self.overall_progress_bar.setValue(100)
+        self.current_manufacturer_label.setText("Current Manufacturer: Complete")
+        self.overall_progress_label.setText("Overall Progress: Complete")
         self.terminal.append_output("=" * 66)
-        
-        # ── Reset manufacturer tracking lists for next run ──
-        self.completed_manufacturers = []
-        self.failed_manufacturers    = []
-        self.failed_excels           = []
-        self.given_up_manufacturers  = []
-        self.attempts                = {}
-           
-        # ── swap back to a fresh “Start Automation” button ──
-        layout = self.start_button.parent().layout()
+    
+        # reset tracking for next run
+        self.completed_manufacturers    = []
+        self.failed_manufacturers       = []
+        self.failed_excels              = []
+        self.given_up_manufacturers     = []
+        self.attempts                   = {}
+    
+        # swap back to Start button
+        layout = self.button_layout
         layout.removeWidget(self.start_button)
         self.start_button.deleteLater()
         self.start_button = CustomButton("Start Automation", "#008000", self)
         self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
+        self.pause_button.setEnabled(False)
         self.is_running = False
+
 
 
     def select_all(self):
@@ -1015,13 +1139,27 @@ class SeleniumAutomationApp(QWidget):
         # 3) Give it a moment, then report & swap button back
         sleep(1)
         self.terminal.append_output("❌ Hyperlink Automation has stopped.")
-        layout = self.start_button.parent().layout()
+        # Example in on_start_stop STOP path:
+        # ── swap back to a fresh “Start Automation” button ──
+        layout = self.button_layout
         layout.removeWidget(self.start_button)
         self.start_button.deleteLater()
         self.start_button = CustomButton("Start Automation", "#008000", self)
         self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
-        self.is_running = False
+    
+        self.pause_button.setEnabled(False)
+    
+        # ── NEW: clear running state so clicks now start again ──
+        self.is_running     = False
+        self.stop_requested = False
+
+        
+        # Ensure it goes above the progress bars
+        insert_index = layout.indexOf(self.current_manufacturer_label)  # before labels and bars
+        layout.insertWidget(insert_index, self.start_button)
+
+
       
     def on_pause_resume(self):
         # only when running and we have a live subprocess
