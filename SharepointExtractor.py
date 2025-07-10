@@ -666,9 +666,6 @@ class SharepointExtractor:
         """
         Populates the excel file for the current make and stores all hyperlinks built in correct 
         locations.
-    
-        file_entries: list[SharepointEntry]
-            The list of all file entries we're looking to put into our excel file
         """
     
         # Load the Excel file
@@ -684,6 +681,12 @@ class SharepointExtractor:
     
         print(f"Workbook loaded successfully: {self.excel_file_path}")
     
+        # ── NEW: Detect cleanup mode and initialize list ──
+        cleanup_mode = (len(sys.argv) > 5 and sys.argv[5] == "cleanup")
+        self.cleanup_mode = cleanup_mode
+        if cleanup_mode:
+            self.broken_entries = []
+    
         # Setup trackers for correct row insertion during population
         current_model = ""
         adas_last_row = {}
@@ -698,17 +701,16 @@ class SharepointExtractor:
                 url = str(cell.value).strip() if cell.value else None
                 if not url:
                     continue
-
+    
                 # Ignore links that contain "part" in the name
                 if "part" in url.lower():
                     print(f"⏩ Skipping 'part' link at row {row}: {url}")
                     continue
-
-
+    
                 if self.is_broken_sharepoint_link(url):
                     # Show which entry is being queued for fix
-                    yr, mk, mdl, sys = key
-                    print(f"🔧 Broken link found → Year: {yr}, Make: {mk}, Model: {mdl}, System: {sys}")
+                    yr, mk, mdl, system_name = key
+                    print(f"🔧 Broken link found → Year: {yr}, Make: {mk}, Model: {mdl}, System: {system_name}")
     
                     # Clear bad link
                     cell.value = None
@@ -716,17 +718,23 @@ class SharepointExtractor:
     
                     self.broken_entries.append((row, key))
     
+            # ── NEW: announce total broken hyperlinks to fix ──
+            total_broken = len(self.broken_entries)
+            print(f"Total broken hyperlinks: {total_broken}")
+    
             # ── After checking for broken links, reload SharePoint homepage ──
             print("🔄 Re-loading SharePoint root page to resume indexing...")
             self.selenium_driver.get(self.sharepoint_link)
             time.sleep(2.0)
-
-
     
+    
+        # Iterate through the filtered file entries
         # Iterate through the filtered file entries
         for file_entry in file_entries:
             print(f"Processing file: {file_entry.entry_name}")
             file_name = file_entry.entry_name
+    
+            # … your existing RENAMING logic …
             for desc, acr in self.REPAIR_SYNONYMS.items():
                 pattern = f"({desc})"
                 if pattern in file_name:
@@ -764,17 +772,33 @@ class SharepointExtractor:
             if file_model == "Unknown":
                 segments = file_entry.entry_heirarchy.split("\\")
                 if len(segments) > 1:
-                    file_model = segments[-2]  # Usually the model folder
+                    file_model = segments[-2]
     
-            # Reset model row tracker
+            # Reset model‐row tracker
             if file_model != current_model:
                 current_model = file_model
                 adas_last_row = {}
     
             # Place hyperlink
             if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
+                if self.cleanup_mode:
+                    print(f"Fixed hyperlink for: {file_entry.entry_name}")
                 continue
-            self.__update_excel__(model_worksheet, file_year, file_model, file_name, file_entry.entry_link, adas_last_row, None)
+    
+            # **Now file_year and file_model are defined, no squiggles**
+            self.__update_excel__(
+                model_worksheet,
+                file_year,
+                file_model,
+                file_name,
+                file_entry.entry_link,
+                adas_last_row,
+                None
+            )
+    
+            if self.cleanup_mode:
+                print(f"Fixed hyperlink for: {file_entry.entry_name}")
+    
     
         # Save the workbook
         print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
@@ -783,6 +807,8 @@ class SharepointExtractor:
     
         elapsed_time = time.time() - start_time
         print(f"Sheet population routine took {elapsed_time:.2f} seconds.")
+    
+
 
     def __generate_chrome_options__(self) -> Options:
         """

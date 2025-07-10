@@ -854,6 +854,42 @@ class SeleniumAutomationApp(QWidget):
         self.terminal.raise_()
         self.process_next_manufacturer()
 
+    def handle_extractor_output(self, line: str):
+        # always append to terminal
+        self.terminal.append_output(line)
+    
+        # ── broken‐link mode? ──
+        if getattr(self, '_cleanup_mode', False):
+            # detect total count
+            m_total = re.search(r'Total broken hyperlinks:\s*(\d+)', line)
+            if m_total:
+                self._initial_broken = int(m_total.group(1))
+                self._fixed_count    = 0
+                # reset the bar
+                # self.current_manufacturer_progress.setValue(0)
+                return
+    
+            # detect each fix (either our explicit print *or* any "✅ Direct match:")
+            if line.startswith("Fixed hyperlink for") or line.startswith("✅"):
+                self._fixed_count += 1
+                if self._initial_broken > 0:
+                    pct = int(self._fixed_count / self._initial_broken * 100)
+                    self.current_manufacturer_progress.setValue(pct)
+                return
+    
+        # ── existing ADAS/Repair‐mode logic ──
+        m = re.search(r'(\d+)\s+Folders Remain', line)
+        if m:
+            remaining = int(m.group(1))
+            if not hasattr(self, '_initial_folder_count') or self._initial_folder_count is None:
+                self._initial_folder_count = remaining
+            else:
+                self._initial_folder_count = max(self._initial_folder_count, remaining)
+            initial = self._initial_folder_count
+            percent = int((initial - remaining) / initial * 100)
+            self.current_manufacturer_progress.setValue(percent)
+
+
     def process_next_manufacturer(self):
         # ── STOP BAILOUT ──
         if self.stop_requested:
@@ -901,6 +937,12 @@ class SeleniumAutomationApp(QWidget):
             "cleanup" if self.cleanup_checkbox.isChecked() else "full"
         ]
     
+        # ── NEW: remember cleanup mode & reset its counters ──
+        self._cleanup_mode = self.cleanup_checkbox.isChecked()
+        if self._cleanup_mode:
+            self._initial_broken = None
+            self._fixed_count    = 0
+    
         thread = WorkerThread(args, manufacturer, parent=self)
         self.thread = thread
     
@@ -913,6 +955,7 @@ class SeleniumAutomationApp(QWidget):
         thread.finished_signal.connect(self.on_manufacturer_finished)
         thread.start()
         self.threads.append(thread)
+
 
     def on_manufacturer_finished(self, manufacturer, success):
         # ── HARD BAIL-OUT: if we're not running, stop immediately ──
