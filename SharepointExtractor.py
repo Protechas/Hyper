@@ -3,6 +3,8 @@ import re
 import sys
 import time
 import shutil
+import winreg
+import platform
 import openpyxl
 import subprocess
 import urllib.parse
@@ -662,6 +664,58 @@ class SharepointExtractor:
         print(f"Indexing routine took {elapsed_time:.2f} seconds.")
         return [sharepoint_folders, filtered_files]
 
+    def __simulate_entry_from_no_entry__(self, entry_name: str, real_link: str, heirarchy: str, sibling_files: list) -> 'SharepointExtractor.SharepointEntry':
+        """
+        Replaces 'No XYZ...' file with a simulated one using year/make/model from known good entries.
+        """
+        # Try to extract acronym (inside parentheses or inferred from known acronyms)
+        acronym_match = re.search(r'\((.*?)\)', entry_name)
+        if acronym_match:
+            acronym = acronym_match.group(1)
+        else:
+            acronym = next((key for key in self.__DEFINED_MODULE_NAMES__ if key in entry_name.upper()), None)
+        if not acronym:
+            return None
+    
+        # Look for a similar file to simulate from
+        for sibling in sibling_files:
+            sibling_name = sibling.entry_name
+            year_match = re.search(r'(20\d{2})', sibling_name)
+            if not year_match:
+                continue
+            year = year_match.group(1)
+    
+            # Strip down to extract model like original logic
+            base_name = re.sub(r'(20\d{2})', '', sibling_name)
+            base_name = base_name.replace(".pdf", "").strip()
+            base_name = re.sub(re.escape(self.sharepoint_make), "", base_name, flags=re.IGNORECASE).strip()
+    
+            tokens = []
+            mod_names = {m.upper() for m in self.__DEFINED_MODULE_NAMES__}
+            for token in base_name.split():
+                if token.startswith("("):
+                    content = token.strip("()")
+                    if content.upper() in mod_names:
+                        break
+                    tokens.append(content)
+                elif token.upper().strip("()[]") in mod_names:
+                    break
+                else:
+                    tokens.append(token)
+    
+            model = " ".join(tokens)
+            if model:
+                new_name = f"{year} {self.sharepoint_make} {model} ({acronym})"
+                return SharepointExtractor.SharepointEntry(
+                    name=new_name,
+                    heirarchy=heirarchy,
+                    link=real_link,
+                    type=SharepointExtractor.EntryTypes.FILE_ENTRY
+                )
+    
+        return None
+
+
     def populate_excel_file(self, file_entries: list) -> None:
         """
         Populates the excel file for the current make and stores all hyperlinks built in correct 
@@ -1266,9 +1320,18 @@ class SharepointExtractor:
                     )
                     continue
 
-
+                # Special handling for "No ..." entries
                 if entry_name.lower().startswith("no"):
-                    continue
+                    simulated_entry = self.__simulate_entry_from_no_entry__(
+                        entry_name,
+                        self.__get_encrypted_link__(row_element),   # Get real SharePoint link
+                        self.__get_entry_heirarchy__(row_element),
+                        indexed_files
+                    )
+                    if simulated_entry:
+                        indexed_files.append(simulated_entry)
+                    continue  # Do not add the original "No ..." item
+                                
                 # skip unwanted terms
                 ignore_terms = ["old", "part", "replacement", "data", "statement", "stament"]
                 if any(term in entry_name.lower() for term in ignore_terms):
