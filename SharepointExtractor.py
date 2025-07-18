@@ -403,10 +403,18 @@ class SharepointExtractor:
         self.repair_mode = self.mode == "repair"
         self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
         self.cleanup_mode = sys.argv[5] == "cleanup" if len(sys.argv) > 5 else False
+        self.excel_mode = sys.argv[6] if len(sys.argv) > 6 else "og"
         self.broken_entries = []  # ← Store broken hyperlinks here for cleanup mode
         
         # Set correct column index
-        self.HYPERLINK_COLUMN_INDEX = 8 if self.repair_mode else 12  # K for repair, L for ADAS
+        # New mode: Column M (13), OG mode: Column L (12), or Repair: K (11)
+        if self.repair_mode:
+            self.HYPERLINK_COLUMN_INDEX = 8  # Column H (standard for repair mode)
+        elif self.excel_mode == "new":
+            self.HYPERLINK_COLUMN_INDEX = 13  # Column M
+        else:
+            self.HYPERLINK_COLUMN_INDEX = 12  # Column L (OG)
+        
         
         
         # Store attributes for the Extractor on this instance
@@ -1577,35 +1585,47 @@ class SharepointExtractor:
             return None, file_name
     
         # ⬇️ ADAS LOGIC
-        for row in ws.iter_rows(min_row=2, max_col=8):
-            year_value = str(row[0].value).strip() if row[0].value is not None else ''
-            make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value is not None else ''
+        # Build once per file
+        adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "")
+        adas_file_name = re.sub(r"[\[\]()\-]", "", adas_file_name).replace("WL", "").replace("BSM-RCTW", "BSW-RCTW").strip().upper()
+        
+        for row in ws.iter_rows(min_row=2, max_col=20):
+            if not any(cell.value for cell in row):
+                continue  # skip empty rows
+        
+            year_value = str(row[0].value).strip() if row[0].value else ''
+            make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value else ''
             model_value = str(row[2].value).replace("Super Duty F-250", "F-250 SUPER DUTY") \
                 .replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY") \
                 .replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY") \
                 .replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible") \
                 .replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR") \
                 .replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT") \
-                .replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value is not None else ''
-    
-            adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
-                .replace("SCC 1", "ACC").replace(".pdf", "").strip() if row[4].value is not None else ''
-    
-            year_error = year_value.strip().upper() != year.strip().upper()
-            make_error = make_value.strip().upper() != make.strip().upper()
-            model_error = model_value.strip().upper() != model.strip().upper()
-            adas_error = adas_value.strip().upper() not in adas_file_name.upper()
-    
-            if year_error or make_error or model_error or adas_error:
-                continue
-    
-            for term in self.__ROW_SEARCH_TERMS__:
-                if term.upper() in adas_file_name:
-                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
-    
-            return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
-    
+                .replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value else ''
+        
+            # ADAS column (E vs T)
+            if self.excel_mode == "new" and len(row) > 19 and row[19].value:
+                adas_value = str(row[19].value).replace(".pdf", "").replace("(", "").replace(")", "").strip()
+            elif len(row) > 4 and row[4].value:
+                adas_value = str(row[4].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
+                    .replace("SCC 1", "ACC").replace(".pdf", "").strip()
+            else:
+                adas_value = ''
+        
+            # Compare
+            if (
+                year_value.strip().upper() == year.strip().upper()
+                and make_value.strip().upper() == make.strip().upper()
+                and model_value.strip().upper() == model.strip().upper()
+                and adas_value.strip().upper() in adas_file_name
+            ):
+                #print(f"✅ MATCHED: {year_value} {make_value} {model_value} {adas_value}")
+                return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+        
+        # If no match found
+        print(f"❌ No match found in any row for {file_name}")
         return None, file_name
+
 
        
     def __build_row_index__(self, ws, repair_mode=False):
@@ -1616,11 +1636,21 @@ class SharepointExtractor:
             model = str(row[2].value).strip().upper() if row[2].value else ''
             
             if repair_mode:
-                # Toyota puts the “Protech Generic System Name” in column E, others still in D
-                sys_cell = row[4] if self.sharepoint_make.lower() == "toyota" else row[3]
+                if self.excel_mode == "new":
+                    sys_cell = row[19]  # Column T
+                elif self.sharepoint_make.lower() == "toyota":
+                    sys_cell = row[4]   # Column E
+                else:
+                    sys_cell = row[3]   # Column D
+            
                 system = str(sys_cell.value).strip().upper() if sys_cell.value else ''
             else:
-                system = str(row[4].value).strip().upper() if row[4].value else ''
+                if self.excel_mode == "new" and len(row) > 19:
+                    system = str(row[19].value).strip().upper() if row[19].value else ''
+                else:
+                    system = str(row[4].value).strip().upper() if len(row) > 4 and row[4].value else ''
+            
+
             normalized_system = re.sub(r"[^A-Z0-9]", "", system)
             key = (year, make, model, normalized_system)
             index[key] = row[0].row
@@ -1639,7 +1669,7 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
+    debug_run = True
 
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 

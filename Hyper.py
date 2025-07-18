@@ -142,6 +142,9 @@ class ModeSwitch(QCheckBox):
             QCheckBox::indicator:checked {
                 margin-left: 27px;
             }
+            QCheckBox:disabled {
+                background-color: #555;
+            }               
         """)
 
 class CustomButton(QPushButton):
@@ -533,6 +536,27 @@ class SeleniumAutomationApp(QWidget):
         # after creating self.si_mode_toggle …
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
+        # Excel Format Toggle Layout (OG / New)
+        excel_mode_layout = QHBoxLayout()
+        excel_mode_layout.setSpacing(8)
+        
+        label_og   = QLabel("OG")
+        label_new  = QLabel("New")
+        for lbl in (label_og, label_new):
+            lbl.setStyleSheet("font-size:14px; padding:5px;")
+        
+        self.excel_mode_switch = ModeSwitch(self)
+        self.excel_mode_switch.setChecked(False)  # Start in OG mode
+        
+        excel_mode_layout.addWidget(label_og)
+        excel_mode_layout.addWidget(self.excel_mode_switch)
+        excel_mode_layout.addWidget(label_new)
+        excel_mode_layout.addStretch()
+        
+        layout.addLayout(excel_mode_layout)
+
+
+
         # Dark mode toggle
         theme_switch_section.addStretch()
         self.theme_toggle = ToggleSwitch(self)
@@ -656,6 +680,15 @@ class SeleniumAutomationApp(QWidget):
         self.select_all_adas_button.setEnabled(not is_repair)
         if is_repair:
             self.select_all_adas_button.setChecked(False)
+        # ✅ Disable Excel Format toggle if Repair SI is active
+        # ✅ Disable Excel Format toggle and reset to OG when Repair SI is active
+        if self.excel_mode_switch:
+            if is_repair:
+                self.excel_mode_switch.setChecked(False)   # ← Reset to OG
+                self.excel_mode_switch.setEnabled(False)   # ← Gray out
+            else:
+                self.excel_mode_switch.setEnabled(True)
+
 
     # Function to select/unselect all manufacturers
     def select_all_manufacturers(self):
@@ -927,6 +960,8 @@ class SeleniumAutomationApp(QWidget):
             return
     
         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+        excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
+        
         args = [
             sys.executable,
             script_path,
@@ -934,9 +969,10 @@ class SeleniumAutomationApp(QWidget):
             excel_path,
             ",".join(self.selected_systems),
             self.mode_flag,
-            "cleanup" if self.cleanup_checkbox.isChecked() else "full"
+            "cleanup" if self.cleanup_checkbox.isChecked() else "full",
+            excel_mode  # 🆕 Append "og" or "new"
         ]
-    
+           
         # ── NEW: remember cleanup mode & reset its counters ──
         self._cleanup_mode = self.cleanup_checkbox.isChecked()
         if self._cleanup_mode:
