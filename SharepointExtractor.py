@@ -1614,8 +1614,7 @@ class SharepointExtractor:
         
             # ADAS column (E vs T)
             if self.excel_mode == "new" and len(row) > 19 and row[19].value:
-                adas_value = str(row[18].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
-                    .replace("SCC 1", "ACC").replace(".pdf", "").replace("1", "").replace("2", "").replace("3", "").strip()
+                adas_value = str(row[18].value).replace(".pdf", "").replace("(", "").replace(")", "").strip()
             elif len(row) > 4 and row[7].value:
                 adas_value = str(row[7].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
                     .replace("SCC 1", "ACC").replace(".pdf", "").strip()
