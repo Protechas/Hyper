@@ -407,11 +407,11 @@ class SharepointExtractor:
         self.broken_entries = []  # ← Store broken hyperlinks here for cleanup mode
         
         # Set correct column index
-        # New mode: Column M (13), OG mode: Column L (12), or Repair: K (11)
+        # New mode: Column K (11), OG mode: Column L (12), or Repair: K (11)
         if self.repair_mode:
             self.HYPERLINK_COLUMN_INDEX = 8  # Column H (standard for repair mode)
         elif self.excel_mode == "new":
-            self.HYPERLINK_COLUMN_INDEX = 11  # Column M
+            self.HYPERLINK_COLUMN_INDEX = 11  # Column K
         else:
             self.HYPERLINK_COLUMN_INDEX = 12  # Column L (OG)
         
@@ -1473,11 +1473,10 @@ class SharepointExtractor:
             cell = ws[self.SPECIFIC_HYPERLINKS[doc_name]]
             error_message = None
         else:
-           cell, error_message = self.__find_row_in_excel__(
-               ws, year, self.sharepoint_make, model, doc_name,
-               repair_mode=self.repair_mode, row_index=self.row_index
-           )
-
+            cell, error_message = self.__find_row_in_excel__(
+                ws, year, self.sharepoint_make, model, doc_name,
+                repair_mode=self.repair_mode, row_index=self.row_index
+            )
     
         # Create a unique key for tracking the row (includes system/module name now for Repair SI)
         if self.repair_mode:
@@ -1494,11 +1493,12 @@ class SharepointExtractor:
                     system_name = module_matches[0].strip().upper()
                 else:
                     system_name = os.path.splitext(doc_name)[0].split()[-1].strip().upper()
-
+    
             key = (year, self.sharepoint_make, model, system_name)
         else:
             key = (year, self.sharepoint_make, model, doc_name)
     
+        # If we didn’t find a matching cell, create one at the bottom
         if not cell:
             if cell_address:
                 cell = ws[cell_address]
@@ -1509,20 +1509,29 @@ class SharepointExtractor:
                 else:
                     adas_last_row[key] = row
                 cell = ws.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
-        
-            # Place error info in the correct column: K (11) for ADAS, G (7) for Repair
-            error_column = 11 if not self.repair_mode else 7
+    
+            # ✅ Place RED NAME text in the correct column depending on mode
+            if self.repair_mode:
+                error_column = 7    # Column G for Repair mode
+            elif self.excel_mode == "new":
+                error_column = 10   # Column J for New mode
+            else:
+                error_column = 11   # Column K for OG mode
+    
             error_cell = ws.cell(row=cell.row, column=error_column)
             error_cell.value = doc_name.splitlines()[0]
             error_cell.font = Font(color="FF0000")
-
     
+        # ✅ Place the hyperlink itself
         cell.hyperlink = document_url
         cell.value = document_url
         cell.font = Font(color="0000FF", underline='single')
-        adas_last_row[key] = cell.row  # Store row used to prevent duplicates
+    
+        # ✅ Track the row so we don’t add duplicates later
+        adas_last_row[key] = cell.row
     
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
+
         
     def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
         def normalize_system_name(name):
@@ -1605,7 +1614,8 @@ class SharepointExtractor:
         
             # ADAS column (E vs T)
             if self.excel_mode == "new" and len(row) > 19 and row[19].value:
-                adas_value = str(row[18].value).replace(".pdf", "").replace("(", "").replace(")", "").strip()
+                adas_value = str(row[18].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
+                    .replace("SCC 1", "ACC").replace(".pdf", "").replace("1", "").replace("2", "").replace("3", "").strip()
             elif len(row) > 4 and row[7].value:
                 adas_value = str(row[7].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
                     .replace("SCC 1", "ACC").replace(".pdf", "").strip()
@@ -1626,8 +1636,7 @@ class SharepointExtractor:
         print(f"❌ No match found in any row for {file_name}")
         return None, file_name
 
-
-       
+   
     def __build_row_index__(self, ws, repair_mode=False):
         index = {}
         for row in ws.iter_rows(min_row=2, max_col=8):
@@ -1669,8 +1678,8 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
-
+    debug_run = True
+    
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
     print("=" * 100)
