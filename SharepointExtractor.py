@@ -861,14 +861,14 @@ class SharepointExtractor:
                 print(f"❌ Could not retrieve link for: {file_name}")
     
                 # Build placeholder text
-                error_text = f"{file_name} - Hyperlink Error, Check SharePoint"
+                #error_text = f"{file_name} - Hyperlink Error, Check SharePoint"
     
                 # Send placeholder to Excel instead of skipping
                 self.__update_excel__(
                     model_worksheet,
                     file_year,
                     file_model,
-                    error_text,   # use placeholder text
+                    #error_text,   # use placeholder text
                     "",           # no hyperlink
                     adas_last_row,
                     None
@@ -1542,33 +1542,7 @@ class SharepointExtractor:
             if self.selected_adas and not any(adas in doc_name.upper() for adas in self.selected_adas):
                 return
     
-        # ✅ If there’s no URL, we log it ONCE at the bottom (no duplicate red text, no black text).
-        if not document_url:
-            row = ws.max_row + 1
-    
-            # Write Year, Make, Model
-            ws.cell(row=row, column=1).value = year
-            ws.cell(row=row, column=2).value = self.sharepoint_make
-            ws.cell(row=row, column=3).value = model
-    
-            # ✅ Extract ADAS/Repair system from doc_name (whatever is inside parentheses)
-            module_matches = re.findall(r'\((.*?)\)', doc_name)
-            if module_matches:
-                system_name = module_matches[0]
-            else:
-                system_name = "UNKNOWN SYSTEM"
-    
-            # ✅ Put the system name into Column S
-            ws.cell(row=row, column=19).value = system_name
-    
-            # ✅ Column K gets the ONLY red placeholder text
-            ws.cell(row=row, column=11).value = f"{doc_name} - Hyperlink Error, Check SharePoint"
-            ws.cell(row=row, column=11).font = Font(color="FF0000")
-    
-            print(f"❌ No hyperlink → logged to bottom for {doc_name}")
-            return  # ✅ Stop here — don’t write to any “error columns” or extra cells
-    
-        # If we get here, there IS a hyperlink → normal matching behavior
+        # Try to find the correct Excel row for this system
         if doc_name in self.SPECIFIC_HYPERLINKS:
             cell = ws[self.SPECIFIC_HYPERLINKS[doc_name]]
             error_message = None
@@ -1608,10 +1582,37 @@ class SharepointExtractor:
                     adas_last_row[key] = row
                 cell = ws.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
     
-        # ✅ Only place the hyperlink itself if there IS one
-        cell.hyperlink = document_url
-        cell.value = doc_name
-        cell.font = Font(color="0000FF", underline='single')
+            # ✅ Place RED NAME text in the correct column depending on mode
+            if self.repair_mode:
+                error_column = 7    # Column G for Repair mode
+            elif self.excel_mode == "new":
+                error_column = 10   # Column J for New mode
+            else:
+                error_column = 11   # Column K for OG mode
+    
+            error_cell = ws.cell(row=cell.row, column=error_column)
+            error_cell.value = doc_name.splitlines()[0]
+            error_cell.font = Font(color="FF0000")
+    
+        # ✅ Always set visible text
+        if document_url:
+            # 🔵 GOOD LINK → show doc_name as visible text (not just the URL)
+            cell.hyperlink = document_url
+            cell.value = document_url
+            cell.font = Font(color="0000FF", underline='single')
+        else:
+            # 🔴 NO LINK → write doc_name in red & track it in mismatched list
+            cell.hyperlink = None
+            cell.value = f"{doc_name} - Hyperlink Error, Check SharePoint"
+            cell.font = Font(color="FF0000")
+    
+            # ✅ Make sure we have a mismatched list on this instance
+            if not hasattr(self, "mismatched_files"):
+                self.mismatched_files = []
+    
+            # ✅ Add to mismatched list for reporting
+            self.mismatched_files.append(doc_name)
+            print(f"⚠️ No hyperlink for {doc_name} → adding to proper location as placeholder")
     
         # ✅ Track the row so we don’t add duplicates later
         adas_last_row[key] = cell.row
