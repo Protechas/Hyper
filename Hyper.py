@@ -635,26 +635,37 @@ class SeleniumAutomationApp(QWidget):
         self.resize(600, 400)
 
     def handle_extractor_output(self, line: str):
-        # always print to your on-screen terminal
+        # always append to terminal
         self.terminal.append_output(line)
     
+        # ── broken‐link mode? ──
+        if getattr(self, '_cleanup_mode', False):
+            # detect total broken‐link count
+            m_total = re.search(r'Total broken hyperlinks:\s*(\d+)', line)
+            if m_total:
+                self._initial_broken = int(m_total.group(1))
+                self._fixed_count    = 0
+                return
+            # detect each fix
+            if line.startswith(("Fixed hyperlink for","✅","❌")) and self._initial_broken:
+                self._fixed_count += 1
+                self.current_manufacturer_progress.setValue(
+                    int(self._fixed_count / self._initial_broken * 100)
+                )
+                return
+
+        # ── normal (ADAS/Repair) progress by folder‐count ──
         m = re.search(r'(\d+)\s+Folders Remain', line)
         if m:
             remaining = int(m.group(1))
-    
-            # record the very first—or any larger—remaining count we see
             if not hasattr(self, '_initial_folder_count') or self._initial_folder_count is None:
                 self._initial_folder_count = remaining
             else:
                 self._initial_folder_count = max(self._initial_folder_count, remaining)
-    
             initial = self._initial_folder_count
-            # compute percent done
-            percent = int((initial - remaining) / initial * 100)
-            # clamp
-            percent = max(0, min(100, percent))
-    
-            self.current_manufacturer_progress.setValue(percent)
+            pct = max(0, min(100, int((initial - remaining) / initial * 100)))
+            self.current_manufacturer_progress.setValue(pct)
+
 
     
     def on_si_mode_toggled(self, state):
@@ -886,45 +897,6 @@ class SeleniumAutomationApp(QWidget):
         self.terminal.show()
         self.terminal.raise_()
         self.process_next_manufacturer()
-
-    def handle_extractor_output(self, line: str):
-        # always append to terminal
-        self.terminal.append_output(line)
-    
-        # ── broken‐link mode? ──
-        if getattr(self, '_cleanup_mode', False):
-            # detect total count
-            m_total = re.search(r'Total broken hyperlinks:\s*(\d+)', line)
-            if m_total:
-                self._initial_broken = int(m_total.group(1))
-                self._fixed_count    = 0
-                # reset the bar
-                # self.current_manufacturer_progress.setValue(0)
-                return
-    
-            # detect each fix (either our explicit print *or* any "✅ Direct match:")
-            if (line.startswith("Fixed hyperlink for") 
-                or line.startswith("✅") 
-                or line.startswith("❌")):
-                self._fixed_count += 1
-                if self._initial_broken and self._initial_broken > 0:
-                    pct = int(self._fixed_count / self._initial_broken * 100)
-                    self.current_manufacturer_progress.setValue(pct)
-                return
-
-    
-        # ── existing ADAS/Repair‐mode logic ──
-        m = re.search(r'(\d+)\s+Folders Remain', line)
-        if m:
-            remaining = int(m.group(1))
-            if not hasattr(self, '_initial_folder_count') or self._initial_folder_count is None:
-                self._initial_folder_count = remaining
-            else:
-                self._initial_folder_count = max(self._initial_folder_count, remaining)
-            initial = self._initial_folder_count
-            percent = int((initial - remaining) / initial * 100)
-            self.current_manufacturer_progress.setValue(percent)
-
 
     def process_next_manufacturer(self):
         # ── STOP BAILOUT ──

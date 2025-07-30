@@ -642,9 +642,24 @@ class SharepointExtractor:
     
             print(f'{len(sharepoint_folders)} Folders Remain | {len(filtered_files)} Files Indexed')
     
+        # ── DEDUPE indexed_files by name (drops later duplicates, keeps first) ──
+        seen = set()
+        unique = []
+        for entry in self.indexed_files:
+            if entry.name not in seen:
+                seen.add(entry.name)
+                unique.append(entry)
+        self.indexed_files = unique
+    
+        # ── OPTIONAL: dedupe your mismatched_files list too ──
+        if hasattr(self, 'mismatched_files'):
+            # preserves original order, drops later dups
+            self.mismatched_files = list(dict.fromkeys(self.mismatched_files))
+    
         elapsed_time = time.time() - start_time
         print(f"Indexing routine took {elapsed_time:.2f} seconds.")
         return sharepoint_folders, filtered_files
+
 
     def __simulate_entry_from_no_entry__(self, entry_name: str, real_link: str, heirarchy: str, sibling_files: list) -> 'SharepointExtractor.SharepointEntry':
         """
