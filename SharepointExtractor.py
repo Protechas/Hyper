@@ -1542,7 +1542,7 @@ class SharepointExtractor:
             if self.selected_adas and not any(adas in doc_name.upper() for adas in self.selected_adas):
                 return
     
-        # ✅ NEW: if there’s no URL, log it to the bottom with ADAS/Repair system name included
+        # ✅ If there’s no URL, we log it ONCE at the bottom (no duplicate red text, no black text).
         if not document_url:
             row = ws.max_row + 1
     
@@ -1554,19 +1554,19 @@ class SharepointExtractor:
             # ✅ Extract ADAS/Repair system from doc_name (whatever is inside parentheses)
             module_matches = re.findall(r'\((.*?)\)', doc_name)
             if module_matches:
-                system_name = module_matches[0]   # grab first match like "AEB 2"
+                system_name = module_matches[0]
             else:
                 system_name = "UNKNOWN SYSTEM"
     
-            # ✅ Put the system name into Column S (ADAS System Column)
+            # ✅ Put the system name into Column S
             ws.cell(row=row, column=19).value = system_name
     
-            # ✅ Column K gets the combined doc name and error text
+            # ✅ Column K gets the ONLY red placeholder text
             ws.cell(row=row, column=11).value = f"{doc_name} - Hyperlink Error, Check SharePoint"
             ws.cell(row=row, column=11).font = Font(color="FF0000")
     
             print(f"❌ No hyperlink → logged to bottom for {doc_name}")
-            return  # ✅ Stop here – don’t try to “match” anything
+            return  # ✅ Stop here — don’t write to any “error columns” or extra cells
     
         # If we get here, there IS a hyperlink → normal matching behavior
         if doc_name in self.SPECIFIC_HYPERLINKS:
@@ -1608,19 +1608,7 @@ class SharepointExtractor:
                     adas_last_row[key] = row
                 cell = ws.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
     
-            # ✅ Place RED NAME text in the correct column depending on mode
-            if self.repair_mode:
-                error_column = 7    # Column G for Repair mode
-            elif self.excel_mode == "new":
-                error_column = 10   # Column J for New mode
-            else:
-                error_column = 11   # Column K for OG mode
-    
-            error_cell = ws.cell(row=cell.row, column=error_column)
-            error_cell.value = doc_name.splitlines()[0]
-            error_cell.font = Font(color="FF0000")
-    
-        # ✅ Place the hyperlink itself
+        # ✅ Only place the hyperlink itself if there IS one
         cell.hyperlink = document_url
         cell.value = doc_name
         cell.font = Font(color="0000FF", underline='single')
@@ -1629,6 +1617,7 @@ class SharepointExtractor:
         adas_last_row[key] = cell.row
     
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
+
 
       
     def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
