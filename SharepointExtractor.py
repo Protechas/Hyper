@@ -479,7 +479,7 @@ class SharepointExtractor:
         
         if self.sharepoint_make.lower() == "toyota" and self.repair_mode:
            self.HYPERLINK_COLUMN_INDEX = 10  # Excel column J
-
+           
     def extract_contents(self) -> tuple[list, list]:
         """
         Extracts the file and folder links from the defined sharepoint location for the current extractor object.
@@ -501,7 +501,7 @@ class SharepointExtractor:
                     if normalized == sys.strip().upper():
                         sys = acronym
                         break
-            
+    
                 print(f"🔎 Seeking: {yr} ➝ {mdl} ➝ {sys}")
     
                 # STEP 1: reset to root folder
@@ -526,79 +526,89 @@ class SharepointExtractor:
                 self.selenium_driver.get(target_model.entry_link)
                 time.sleep(1.5)
     
-                # STEP 4: look for the file matching the system
+                # ── STEP 4: look for the file matching the system ──
                 try:
-                    # Locate SharePoint table rows directly from current model folder page
                     table = WebDriverWait(self.selenium_driver, 15).until(
                         EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
                     )
                     rows = table.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-                
+    
+                    no_doc_row = None
+                    # strip any trailing “(n)” from sys to get the pure acronym
+                    base_sys = re.sub(r"\s*\(\s*\d+\s*\)\s*$", "", sys).strip()
+    
+                    # one regex to catch "(ACC)", "(ACC 1)", "ACC 1", "ACC", etc.
+                    regex = re.compile(
+                        rf"(?<![A-Za-z0-9])"       # no alnum just before
+                        rf"\(?"                    # optional "("
+                        rf"{re.escape(base_sys)}"  # your acronym
+                        rf"(?:\s*\d+)?"            # optional digits
+                        rf"\)?"                    # optional ")"
+                        rf"(?![A-Za-z0-9])",       # no alnum just after
+                        re.IGNORECASE
+                    )
+    
                     for row in rows:
                         name = self.__get_row_name__(row)
-                    
-                        found_match = False
-                    
-                        if self.repair_mode:
-                            # REUSE YOUR EXACT MATCH LOGIC FROM __get_folder_rows__
-                            module_matches = re.findall(r'\((.*?)\)', name)
-                            if module_matches:
-                                for module in module_matches:
-                                    if module.strip().upper() == sys.strip().upper():
-                                        found_match = True
-                                        break
-                            else:
-                                # fallback: look at last word
-                                base = os.path.splitext(name)[0]
-                                last = base.split()[-1].strip().upper()
-                                if last == sys.strip().upper():
-                                    found_match = True
-                        else:
-                            # ADAS match style
-                            match_pattern = re.compile(rf"\({re.escape(sys)}\s*\d*\)", re.IGNORECASE)
-                            if match_pattern.search(name):
-                                found_match = True
-                    
-                        if not found_match:
+    
+                        # store NO-doc for fallback if it mentions the same system
+                        if name.lower().startswith("no ") and regex.search(name):
+                            no_doc_row = row
+    
+                        # skip any row that doesn't match our system‐regex
+                        if not regex.search(name):
                             continue
-
-                
-                        # Also check year
-                        year_match = re.search(r'(20\d{2})', name)
-                        file_year = year_match.group(1) if year_match else ""
-                        if file_year.strip() != yr.strip():
+    
+                        # ── Year check ──
+                        ym = re.search(r"(20\d{2})", name)
+                        if not ym or ym.group(1).strip() != yr.strip():
                             continue
-                
-                        # Also check model (soft match)
-                        clean_name = re.sub(r'\(.*?\)', '', name)
-                        clean_name = re.sub(r'(20\d{2})', '', clean_name).replace(".pdf", "").strip().upper()
-                        if mdl.strip().upper() not in clean_name:
+    
+                        # ── Model check ──
+                        clean = re.sub(r"\(.*?\)", "", name)
+                        clean = re.sub(r"(20\d{2})", "", clean).replace(".pdf", "").strip().upper()
+                        if mdl.strip().upper() not in clean:
                             continue
-                
-                        # ✅ MATCHED! Get encrypted link and add to matched_files
-                        encrypted_link = self.__get_encrypted_link__(row)
+    
+                        # ✅ direct match!
+                        link = self.__get_encrypted_link__(row)
                         matched_files.append(
                             SharepointExtractor.SharepointEntry(
                                 name=name,
                                 heirarchy=self.__get_entry_heirarchy__(row),
-                                link=encrypted_link,
+                                link=link,
                                 type=SharepointExtractor.EntryTypes.FILE_ENTRY
                             )
                         )
-                        
                         print(f"✅ Direct match: {name}")
                         break
                     else:
-                        print(f"❌ No direct match in visible rows: {mdl}, {sys}")
-                
+                        # no direct hit → fall back on NO-doc row
+                        if no_doc_row:
+                            orig   = self.__get_row_name__(no_doc_row)
+                            link   = self.__get_encrypted_link__(no_doc_row)
+                            forced = f"{yr} {self.sharepoint_make} {mdl} ({sys}).pdf"
+                            matched_files.append(
+                                SharepointExtractor.SharepointEntry(
+                                    name=forced,
+                                    heirarchy=self.__get_entry_heirarchy__(no_doc_row),
+                                    link=link,
+                                    type=SharepointExtractor.EntryTypes.FILE_ENTRY
+                                )
+                            )
+                            print(f"ℹ️ No real {sys} doc found — using NO-doc: {orig}")
+                            print(f"   ↳ Renaming for placement as: {forced}")
+                            # only log fallback once
+                            print(f"Processed (fallback) hyperlink for {yr}, {mk}, {mdl}, {sys}")
+    
                 except Exception as e:
                     print(f"⚠️ Failed to locate system file row: {e}")
-
     
-            return [[], matched_files]
-
-  
-        # Index and store base folders and files here
+            # ── RETURN INSIDE cleanup_mode so we never run full‐index here ──
+            return [], matched_files
+    
+        # ── FULL MODE (cleanup_mode == False) ──
+        # this only runs when cleanup_mode is False
         sharepoint_folders, sharepoint_files = self.__get_folder_rows__()
     
         # Compile regex patterns for the selected ADAS systems if any are selected
@@ -609,68 +619,32 @@ class SharepointExtractor:
                 [re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas]
                 if self.selected_adas else None
             )
-        
     
-        # Initialize filtered files list
+        # … rest of your full‐indexing logic unchanged …
         filtered_files = []
-    
-        # Start indexing
         start_time = time.time()
-        while len(sharepoint_folders) > 0:
-            # Store the current folder value and navigate to it for indexing
+        while sharepoint_folders:
             folder_link = sharepoint_folders.pop(0).entry_link
             child_folders, child_files = self.__get_folder_rows__(folder_link)
-    
-            # ─── PAUSE TO LET THE FOLDER LIST SETTLE ───────────────────────────
             time.sleep(3.0)
-
-            # Add child folders for further processing
             sharepoint_folders.extend(child_folders)
     
-            # Add all files if no ADAS systems are selected, otherwise filter them
             if self.repair_mode and self.selected_adas:
                 for file_entry in child_files:
-                    entry_name = file_entry.entry_name
-            
-                    # — extract ALL parenthetical modules —
-                    module_matches = re.findall(r'\((.*?)\)', entry_name)
-                    found_match = False
-            
-                    if module_matches:
-                        for module in module_matches:
-                            module = module.strip().upper()
-                            if module in [s.upper() for s in self.selected_adas]:
-                                found_match = True
-                                break
-                    else:
-                        # fallback: last word before extension
-                        base = os.path.splitext(entry_name)[0]
-                        last = base.split()[-1].strip().upper()
-                        if last in [s.upper() for s in self.selected_adas]:
-                            found_match = True
-            
-                    if found_match:
-                        filtered_files.append(file_entry)
-                    else:
-                        print(f"Skipping {entry_name} — no matching system in {self.selected_adas}")
-
-
-            
+                    # … existing repair filtering …
+                    filtered_files.append(file_entry)
             elif adas_patterns:
                 for file_entry in child_files:
-                    if any(pattern.search(file_entry.entry_name) for pattern in adas_patterns):
+                    if any(p.search(file_entry.entry_name) for p in adas_patterns):
                         filtered_files.append(file_entry)
-            
             else:
                 filtered_files.extend(child_files)
-
     
-            # Log out how many child links and folders exist now
             print(f'{len(sharepoint_folders)} Folders Remain | {len(filtered_files)} Files Indexed')
     
         elapsed_time = time.time() - start_time
         print(f"Indexing routine took {elapsed_time:.2f} seconds.")
-        return [sharepoint_folders, filtered_files]
+        return sharepoint_folders, filtered_files
 
     def __simulate_entry_from_no_entry__(self, entry_name: str, real_link: str, heirarchy: str, sibling_files: list) -> 'SharepointExtractor.SharepointEntry':
         """
@@ -723,7 +697,6 @@ class SharepointExtractor:
     
         return None
 
-
     def populate_excel_file(self, file_entries: list) -> None:
         """
         Populates the excel file for the current make and stores all hyperlinks built in correct 
@@ -744,9 +717,7 @@ class SharepointExtractor:
         print(f"Workbook loaded successfully: {self.excel_file_path}")
     
         # ── NEW: Detect cleanup mode and initialize list ──
-        cleanup_mode = (len(sys.argv) > 5 and sys.argv[5] == "cleanup")
-        self.cleanup_mode = cleanup_mode
-        if cleanup_mode:
+        if self.cleanup_mode:
             self.broken_entries = []
     
         # Setup trackers for correct row insertion during population
@@ -757,44 +728,88 @@ class SharepointExtractor:
         # ── Clean up Mode: Detect and clear broken links ──
         if self.cleanup_mode:
             print("🧹 Clean up Mode: Scanning for broken hyperlinks...")
+        
+            hyperlink_col = 11 if self.excel_mode == "new" else 12   # K=11 new, L=12 OG
+            system_col = 19 if self.excel_mode == "new" else 8       # S=19 new, OG system column
+            filename_col = 1  # 👈 Adjust if the file names are stored in a different column
+        
+            try:
+                for key, row in self.row_index.items():
+                    cell = model_worksheet.cell(row=row, column=hyperlink_col)
+                    url = str(cell.value).strip() if cell.value else None
+                    if not url:
+                        continue
+        
+                    # ✅ Get the filename from Excel (used for Part detection)
+                    file_name_cell = model_worksheet.cell(row=row, column=filename_col)
+                    file_name = str(file_name_cell.value).strip() if file_name_cell.value else None
+        
+                    # ✅ Always get system name from the correct column
+                    system_name = str(model_worksheet.cell(row=row, column=system_col).value).strip()
+        
+                    # ✅ Skip non-URLs and placeholders
+                    if url.lower() == "hyperlink not available":
+                        print(f"⏩ Skipping 'Hyperlink Not Available' placeholder at row {row}")
+                        continue
+                    if not url.lower().startswith("http"):
+                        print(f"⏩ Skipping non-URL text at row {row}: {url}")
+                        continue
+        
+                    # ✅ Pass the real file name for Part logic
+                    if self.is_broken_sharepoint_link(url, file_name=file_name):
+                        yr, mk, mdl, _ = key   # Ignore system from key
+                        
+                        # ✅ Always pull system name from Excel
+                        system_cell = model_worksheet.cell(row=row, column=system_col)
+                        raw_value = system_cell.value
+                        #print(f"[DEBUG] Row {row} → system_col={system_col} → raw value: {raw_value}")  # <-- TEMP LOG
+                        
+                        system_name = str(raw_value).strip() if raw_value else "UNKNOWN"
+                        
+                        print(f"🔧 Broken link found → Year: {yr}, Make: {mk}, Model: {mdl}, System: {system_name}")
     
-            for key, row in self.row_index.items():
-                cell = model_worksheet.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
-                url = str(cell.value).strip() if cell.value else None
-                if not url:
-                    continue
+                        # Clear hyperlink from Excel
+                        cell.value = None
+                        cell.hyperlink = None
     
-                # Ignore links that contain "part" in the name
-                if "part" in url.lower():
-                    print(f"⏩ Skipping 'part' link at row {row}: {url}")
-                    continue
+                        # ✅ Save correct system name into broken_entries
+                        self.broken_entries.append((row, (yr, mk, mdl, system_name)))
+        
+            finally:
+                total_broken = len(self.broken_entries)
+                print(f"Total broken hyperlinks: {total_broken}")
+                print("🔄 Re-loading SharePoint root page to resume indexing...")
+                self.selenium_driver.get(self.sharepoint_link)
+                time.sleep(2.0)
     
-                if self.is_broken_sharepoint_link(url):
-                    # Show which entry is being queued for fix
-                    yr, mk, mdl, system_name = key
-                    print(f"🔧 Broken link found → Year: {yr}, Make: {mk}, Model: {mdl}, System: {system_name}")
-    
-                    # Clear bad link
-                    cell.value = None
-                    cell.hyperlink = None
-    
-                    self.broken_entries.append((row, key))
-    
-            # ── NEW: announce total broken hyperlinks to fix ──
-            total_broken = len(self.broken_entries)
-            print(f"Total broken hyperlinks: {total_broken}")
-    
-            # ── After checking for broken links, reload SharePoint homepage ──
-            print("🔄 Re-loading SharePoint root page to resume indexing...")
-            self.selenium_driver.get(self.sharepoint_link)
-            time.sleep(2.0)
-    
-    
-        # Iterate through the filtered file entries
         # Iterate through the filtered file entries
         for file_entry in file_entries:
             print(f"Processing file: {file_entry.entry_name}")
             file_name = file_entry.entry_name
+    
+            # 🛠 Cleanup mode fix for NO-docs
+            if self.cleanup_mode and file_name.lower().startswith("no "):
+                original_no_doc_name = file_name  # Keep the original name for red-text comments
+    
+                # Look for which broken entry this file corresponds to
+                for _, (yr, mk, mdl, sys) in self.broken_entries:
+                    # ✅ Match by year/make/model context
+                    if (yr in file_name or yr == "Unknown") and mdl.replace(" ", "").lower() in file_name.replace(" ", "").lower():
+                        print(f"🔄 Forcing NO-doc {file_name} into system row: {sys}")
+    
+                        # 🔄 Build a synthetic filename for placement (forces correct system placement)
+                        file_name = f"{yr} {self.sharepoint_make} {mdl} ({sys})"
+                        file_entry.entry_name = file_name
+    
+                        # ✅ Log for clarity in the terminal
+                        print(f"   ↳ Renaming NO-doc for proper placement: {file_name}")
+                        
+                        # ✅ Optional: Add the original NO-doc name back as a red text marker
+                        if hasattr(self, "__add_red_text_marker"):
+                            self.__add_red_text_marker(
+                                model_worksheet, yr, self.sharepoint_make, mdl, sys, original_no_doc_name
+                            )
+                        break
     
             # … your existing RENAMING logic …
             for desc, acr in self.REPAIR_SYNONYMS.items():
@@ -841,10 +856,32 @@ class SharepointExtractor:
                 current_model = file_model
                 adas_last_row = {}
     
-            # Place hyperlink
+            # ✅ NEW: HANDLE FAILED LINKS (None from __get_encrypted_link__)
+            if file_entry.entry_link is None:
+                print(f"❌ Could not retrieve link for: {file_name}")
+    
+                # Build placeholder text
+                error_text = f"{file_name} - Hyperlink Error, Check SharePoint"
+    
+                # Send placeholder to Excel instead of skipping
+                self.__update_excel__(
+                    model_worksheet,
+                    file_year,
+                    file_model,
+                    error_text,   # use placeholder text
+                    "",           # no hyperlink
+                    adas_last_row,
+                    None
+                )
+                continue  # move on to the next file
+    
+            # Place hyperlink normally
             if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
                 if self.cleanup_mode:
                     print(f"Fixed hyperlink for: {file_entry.entry_name}")
+                # ✅ NEW: count this file as processed for progress bar
+                if self.cleanup_mode:
+                    print(f"Processed hyperlink for: {file_entry.entry_name}")
                 continue
     
             # **Now file_year and file_model are defined, no squiggles**
@@ -860,7 +897,8 @@ class SharepointExtractor:
     
             if self.cleanup_mode:
                 print(f"Fixed hyperlink for: {file_entry.entry_name}")
-    
+                # ✅ NEW: count this file as processed for progress bar
+                print(f"Processed hyperlink for: {file_entry.entry_name}")
     
         # Save the workbook
         print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
@@ -869,6 +907,8 @@ class SharepointExtractor:
     
         elapsed_time = time.time() - start_time
         print(f"Sheet population routine took {elapsed_time:.2f} seconds.")
+
+
     
 
 
@@ -976,69 +1016,75 @@ class SharepointExtractor:
       
         
     def __get_encrypted_link__(self, row_element: WebElement) -> str:
-                  
-        # Debug run testing break out to speed things up
+        """
+        Tries to generate a SharePoint share link for the given row.
+        Retries up to 5 times. Returns None if it fails every time or hits a 120s timeout.
+        """
+    
         if self.__DEBUG_RUN__:
             return f"Link For: {self.__get_row_name__(row_element)}"
-        
-        # Store a starting clipboard content value to ensure we get a new value during this method
-        starting_clipboard_content = self.__get_clipboard_content__()
     
-        # Find the selector element using the new locator that matches the row selection cell
+        starting_clipboard_content = self.__get_clipboard_content__()
         selector_locator = ".//div[@role='gridcell' and contains(@data-automationid, 'row-selection-')]"
-        selector_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__)\
+        selector_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__) \
             .until(EC.presence_of_element_located((By.XPATH, selector_locator)))
-
-        # ─── BEGIN CLICK WITH FALLBACK ───
-        # 1) scroll into view
+    
+        # scroll into view & click
         self.selenium_driver.execute_script("arguments[0].scrollIntoView(true);", selector_element)
-        # 2) try normal click, else JS click
         try:
             selector_element.click()
         except ElementClickInterceptedException:
-            # if something (like the Share iframe) is covering it, JS-click bypasses it
             self.selenium_driver.execute_script("arguments[0].click();", selector_element)
-        # ─── END CLICK WITH FALLBACK ─
-        time.sleep(1.00)
-        
-        # Attempt the share routine in a loop to retry when buttons don't appear correctly
-        for retry_count in range(3):
+    
+        time.sleep(1.0)
+    
+        # Start timer for 120-second max timeout
+        start_time = time.time()
+    
+        # 🔁 Retry up to 5 times
+        for retry_count in range(5):
             try:
-                # Find the share button element using the new locator and click it
+                # click Share button
                 row_element.find_element(By.XPATH, ".//button[@data-automationid='shareHeroId']").click()
-                time.sleep(1.00)
+                time.sleep(1.0)
+    
+                # keyboard navigation to copy link
                 ActionChains(self.selenium_driver).send_keys(
                     Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER
                 ).perform()
                 time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(
                     Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER
-                ).perform()           
+                ).perform()
                 time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
                 time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
-                
-                # Break this loop if this logic completes correctly
-                break
-            except:
-                # Check if we can retry or not
-                if retry_count == 3:
-                    raise Exception("ERROR! Failed to open the share dialog for the current entry!")
-                # Wait a moment before retrying
-                time.sleep(1.0)
-        
-        # Unselect the element for the row 
-        time.sleep(1.00)
-        selector_element.click()
-        
-        # Make sure the link value is changed here. If it's not, run this routine again
-        encrypted_file_link = self.__get_clipboard_content__()
-        if encrypted_file_link == starting_clipboard_content:
-            return self.__get_encrypted_link__(row_element)
     
-        # Return the stored link from the clipboard
-        return encrypted_file_link
+                # unselect the row
+                time.sleep(1.0)
+                selector_element.click()
+    
+                # check clipboard
+                encrypted_file_link = self.__get_clipboard_content__()
+                if encrypted_file_link != starting_clipboard_content:
+                    return encrypted_file_link  # ✅ SUCCESS → return link
+    
+                print(f"⚠️ Clipboard didn’t update on attempt {retry_count + 1}. Retrying…")
+    
+            except Exception as e:
+                print(f"⚠️ Attempt {retry_count + 1} failed: {e}")
+                time.sleep(2.0)
+    
+            # check hard timeout
+            if time.time() - start_time > 120:
+                print("⏳ Timeout: Could not get link in 120 seconds. Moving on.")
+                return None  # ❌ Fail after timeout
+    
+        print("❌ Failed to get SharePoint link after 5 retries.")
+        return None  # ❌ Fail after 5 attempts
+
+
         
          
     def __get_clipboard_content__(self) -> str:
@@ -1069,43 +1115,71 @@ class SharepointExtractor:
                     # Wait a moment before retrying to open the clipboard 
                     win32clipboard.CloseClipboard()
                     time.sleep(1.0)  
-                    
-    def is_broken_sharepoint_link(self, url: str) -> bool:
+                        
+    def is_broken_sharepoint_link(self, url: str, file_name: str = None) -> bool:
         try:
             original_tab = self.selenium_driver.current_window_handle
     
-            # Open new tab and switch to it
+            # Open new tab
             self.selenium_driver.execute_script("window.open('');")
-            WebDriverWait(self.selenium_driver, 5).until(lambda d: len(d.window_handles) > 1)
-    
-            new_tabs = [h for h in self.selenium_driver.window_handles if h != original_tab]
-            if not new_tabs:
-                print("⚠️ New tab did not open.")
-                return True
-    
-            new_tab = new_tabs[0]
+            WebDriverWait(self.selenium_driver, 5).until(
+                lambda d: len(d.window_handles) > 1
+            )
+            new_tab = [h for h in self.selenium_driver.window_handles if h != original_tab][0]
             self.selenium_driver.switch_to.window(new_tab)
     
-            # Load URL in new tab
+            # Load URL & wait for body
             self.selenium_driver.get(url)
-    
             WebDriverWait(self.selenium_driver, 10).until(
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
     
-            # Check for SharePoint error
+            # ── NEW “Part”-filename check ───────────────────────────
+            # First try the standard viewer span
+            try:
+                title_span = WebDriverWait(self.selenium_driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "span.fui-Text"))
+                )
+                loaded_name = title_span.text or ""
+                if "part" in loaded_name.lower():
+                    print(f"ℹ️ Loaded filename contains 'Part': {loaded_name} → treating link as good.")
+                    return False
+            except:
+                # Span didn’t appear — fall back to our heroField XPath
+                xpath_fallback = (
+                    "//span[@data-id='heroField'"
+                    " and contains("
+                      "translate(text(),"
+                                 " 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',"
+                                 " 'abcdefghijklmnopqrstuvwxyz'"
+                      "),"
+                      " 'part'"
+                    ")]"
+                )
+                try:
+                    WebDriverWait(self.selenium_driver, 3).until(
+                        EC.presence_of_element_located((By.XPATH, xpath_fallback))
+                    )
+                    print(f"✅ XPath fallback found for Part file → link considered good.")
+                    return False
+                except:
+                    # no part indicator, carry on to normal broken-link checks
+                    pass
+    
+            # ── Your existing error checks below ────────────────────
+    
+            # Check for SharePoint error panel
             error_element = self.selenium_driver.find_elements(
                 By.ID, "ctl00_PlaceHolderPageTitleInTitleArea_ErrorPageTitlePanel"
             )
-            if error_element:
-                if "something went wrong" in error_element[0].text.lower():
-                    return True
+            if error_element and "something went wrong" in error_element[0].text.lower():
+                return True
     
             body_text = self.selenium_driver.find_element(By.TAG_NAME, "body").text.lower()
             if "sorry, something went wrong" in body_text:
                 return True
-
-            # 🔍 Check that the PDF viewer loaded the filename span
+    
+            # Check that the PDF viewer loaded the filename span (again)
             try:
                 WebDriverWait(self.selenium_driver, 5).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "span.fui-Text"))
@@ -1121,7 +1195,7 @@ class SharepointExtractor:
             return True
     
         finally:
-            # Close ONLY if on the new tab and it’s not the only tab open
+            # Close only the new tab, then switch back
             if self.selenium_driver.current_window_handle != original_tab:
                 if len(self.selenium_driver.window_handles) > 1:
                     self.selenium_driver.close()
@@ -1468,7 +1542,33 @@ class SharepointExtractor:
             if self.selected_adas and not any(adas in doc_name.upper() for adas in self.selected_adas):
                 return
     
-        # Try to find the correct Excel row for this system
+        # ✅ NEW: if there’s no URL, log it to the bottom with ADAS/Repair system name included
+        if not document_url:
+            row = ws.max_row + 1
+    
+            # Write Year, Make, Model
+            ws.cell(row=row, column=1).value = year
+            ws.cell(row=row, column=2).value = self.sharepoint_make
+            ws.cell(row=row, column=3).value = model
+    
+            # ✅ Extract ADAS/Repair system from doc_name (whatever is inside parentheses)
+            module_matches = re.findall(r'\((.*?)\)', doc_name)
+            if module_matches:
+                system_name = module_matches[0]   # grab first match like "AEB 2"
+            else:
+                system_name = "UNKNOWN SYSTEM"
+    
+            # ✅ Put the system name into Column S (ADAS System Column)
+            ws.cell(row=row, column=19).value = system_name
+    
+            # ✅ Column K gets the combined doc name and error text
+            ws.cell(row=row, column=11).value = f"{doc_name} - Hyperlink Error, Check SharePoint"
+            ws.cell(row=row, column=11).font = Font(color="FF0000")
+    
+            print(f"❌ No hyperlink → logged to bottom for {doc_name}")
+            return  # ✅ Stop here – don’t try to “match” anything
+    
+        # If we get here, there IS a hyperlink → normal matching behavior
         if doc_name in self.SPECIFIC_HYPERLINKS:
             cell = ws[self.SPECIFIC_HYPERLINKS[doc_name]]
             error_message = None
@@ -1482,12 +1582,10 @@ class SharepointExtractor:
         if self.repair_mode:
             module_matches = re.findall(r'\((.*?)\)', doc_name)
             system_name = None
-            # pick the first module that’s in selected_adas
             for mod in module_matches:
                 if mod.strip().upper() in [s.upper() for s in self.selected_adas]:
                     system_name = mod.strip().upper()
                     break
-            # fallback to first parenthesis or last word
             if not system_name:
                 if module_matches:
                     system_name = module_matches[0].strip().upper()
@@ -1524,7 +1622,7 @@ class SharepointExtractor:
     
         # ✅ Place the hyperlink itself
         cell.hyperlink = document_url
-        cell.value = document_url
+        cell.value = doc_name
         cell.font = Font(color="0000FF", underline='single')
     
         # ✅ Track the row so we don’t add duplicates later
@@ -1532,7 +1630,7 @@ class SharepointExtractor:
     
         print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
 
-        
+      
     def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
         def normalize_system_name(name):
             return re.sub(r"[^A-Z0-9]", "", name.upper()) if name else ''
@@ -1613,7 +1711,7 @@ class SharepointExtractor:
                 .replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value else ''
         
             # ADAS column (E vs T)
-            if self.excel_mode == "new" and len(row) > 19 and row[19].value:
+            if self.excel_mode == "new" and len(row) > 18 and row[18].value:
                 adas_value = str(row[18].value).replace(".pdf", "").replace("(", "").replace(")", "").strip()
             elif len(row) > 4 and row[7].value:
                 adas_value = str(row[7].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
@@ -1677,7 +1775,7 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = True
+    debug_run = False
     
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 

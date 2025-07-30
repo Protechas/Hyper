@@ -419,7 +419,7 @@ class SeleniumAutomationApp(QWidget):
         adas_label.setStyleSheet("font-size: 14px; padding: 5px;")
         adas_selection_layout.addWidget(adas_label)
     
-        adas_acronyms = ["ACC", "AEB", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC"]
+        adas_acronyms = ["ACC", "AEB", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC", "WAMC"]
         self.adas_checkboxes = []
         repair_systems = [
             "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD", "SRS", "SRA", 
@@ -903,12 +903,15 @@ class SeleniumAutomationApp(QWidget):
                 return
     
             # detect each fix (either our explicit print *or* any "✅ Direct match:")
-            if line.startswith("Fixed hyperlink for") or line.startswith("✅"):
+            if (line.startswith("Fixed hyperlink for") 
+                or line.startswith("✅") 
+                or line.startswith("❌")):
                 self._fixed_count += 1
-                if self._initial_broken > 0:
+                if self._initial_broken and self._initial_broken > 0:
                     pct = int(self._fixed_count / self._initial_broken * 100)
                     self.current_manufacturer_progress.setValue(pct)
                 return
+
     
         # ── existing ADAS/Repair‐mode logic ──
         m = re.search(r'(\d+)\s+Folders Remain', line)
