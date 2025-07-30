@@ -486,14 +486,14 @@ class SharepointExtractor:
         Returns a tuple of lists. The first list holds all of our SharepointEntry objects for the folders in the sharepoint,
         and the second list holds all of our SharepointEntry objects for the files in the sharepoint.
         """
-    
+
         time.sleep(2.0)
-    
+
         if self.cleanup_mode:
             print("🔍 Clean up Mode: Navigating per broken link...")
-    
+
             matched_files = []
-    
+
             for _, (yr, mk, mdl, sys) in self.broken_entries:
                 # Reverse map if Excel gave us a normalized string like "GFORCE"
                 for desc, acronym in self.REPAIR_SYNONYMS.items():
@@ -501,13 +501,13 @@ class SharepointExtractor:
                     if normalized == sys.strip().upper():
                         sys = acronym
                         break
-    
+
                 print(f"🔎 Seeking: {yr} ➝ {mdl} ➝ {sys}")
-    
+
                 # STEP 1: reset to root folder
                 self.selenium_driver.get(self.sharepoint_link)
                 time.sleep(2.0)
-    
+
                 # STEP 2: find year folder
                 year_folders, _ = self.__get_folder_rows__()
                 target_year = next((f for f in year_folders if yr.strip() == f.entry_name.strip()), None)
@@ -516,7 +516,7 @@ class SharepointExtractor:
                     continue
                 self.selenium_driver.get(target_year.entry_link)
                 time.sleep(1.5)
-    
+
                 # STEP 3: find model folder
                 model_folders, _ = self.__get_folder_rows__()
                 target_model = next((f for f in model_folders if mdl.strip().upper() == f.entry_name.strip().upper()), None)
@@ -525,18 +525,18 @@ class SharepointExtractor:
                     continue
                 self.selenium_driver.get(target_model.entry_link)
                 time.sleep(1.5)
-    
+
                 # ── STEP 4: look for the file matching the system ──
                 try:
                     table = WebDriverWait(self.selenium_driver, 15).until(
                         EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
                     )
                     rows = table.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-    
+
                     no_doc_row = None
                     # strip any trailing “(n)” from sys to get the pure acronym
                     base_sys = re.sub(r"\s*\(\s*\d+\s*\)\s*$", "", sys).strip()
-    
+
                     # one regex to catch "(ACC)", "(ACC 1)", "ACC 1", "ACC", etc.
                     regex = re.compile(
                         rf"(?<![A-Za-z0-9])"       # no alnum just before
@@ -547,29 +547,29 @@ class SharepointExtractor:
                         rf"(?![A-Za-z0-9])",       # no alnum just after
                         re.IGNORECASE
                     )
-    
+
                     for row in rows:
                         name = self.__get_row_name__(row)
-    
+
                         # store NO-doc for fallback if it mentions the same system
                         if name.lower().startswith("no ") and regex.search(name):
                             no_doc_row = row
-    
+
                         # skip any row that doesn't match our system‐regex
                         if not regex.search(name):
                             continue
-    
+
                         # ── Year check ──
                         ym = re.search(r"(20\d{2})", name)
                         if not ym or ym.group(1).strip() != yr.strip():
                             continue
-    
+
                         # ── Model check ──
                         clean = re.sub(r"\(.*?\)", "", name)
                         clean = re.sub(r"(20\d{2})", "", clean).replace(".pdf", "").strip().upper()
                         if mdl.strip().upper() not in clean:
                             continue
-    
+
                         # ✅ direct match!
                         link = self.__get_encrypted_link__(row)
                         matched_files.append(
@@ -600,17 +600,22 @@ class SharepointExtractor:
                             print(f"   ↳ Renaming for placement as: {forced}")
                             # only log fallback once
                             print(f"Processed (fallback) hyperlink for {yr}, {mk}, {mdl}, {sys}")
-    
+
                 except Exception as e:
                     print(f"⚠️ Failed to locate system file row: {e}")
-    
-            # ── RETURN INSIDE cleanup_mode so we never run full‐index here ──
-            return [], matched_files
-    
+
+            # ── DEDUPE matched_files by entry_name ──
+            seen = set()
+            unique_matches = []
+            for entry in matched_files:
+                if entry.entry_name not in seen:
+                    seen.add(entry.entry_name)
+                    unique_matches.append(entry)
+            return [], unique_matches
+
         # ── FULL MODE (cleanup_mode == False) ──
-        # this only runs when cleanup_mode is False
         sharepoint_folders, sharepoint_files = self.__get_folder_rows__()
-    
+
         # Compile regex patterns for the selected ADAS systems if any are selected
         if self.repair_mode:
             adas_patterns = [re.compile(re.escape(rs), re.IGNORECASE) for rs in self.selected_adas] if self.selected_adas else None
@@ -619,7 +624,7 @@ class SharepointExtractor:
                 [re.compile(rf"\({re.escape(adas)}\s*\d*\)", re.IGNORECASE) for adas in self.selected_adas]
                 if self.selected_adas else None
             )
-    
+
         # … rest of your full‐indexing logic unchanged …
         filtered_files = []
         start_time = time.time()
@@ -628,7 +633,7 @@ class SharepointExtractor:
             child_folders, child_files = self.__get_folder_rows__(folder_link)
             time.sleep(3.0)
             sharepoint_folders.extend(child_folders)
-    
+
             if self.repair_mode and self.selected_adas:
                 for file_entry in child_files:
                     # … existing repair filtering …
@@ -639,26 +644,21 @@ class SharepointExtractor:
                         filtered_files.append(file_entry)
             else:
                 filtered_files.extend(child_files)
-    
+
             print(f'{len(sharepoint_folders)} Folders Remain | {len(filtered_files)} Files Indexed')
-    
-        # ── DEDUPE indexed_files by name (drops later duplicates, keeps first) ──
+
+        # ── DEDUPE filtered_files by entry_name ──
         seen = set()
-        unique = []
-        for entry in self.indexed_files:
-            if entry.name not in seen:
-                seen.add(entry.name)
-                unique.append(entry)
-        self.indexed_files = unique
-    
-        # ── OPTIONAL: dedupe your mismatched_files list too ──
-        if hasattr(self, 'mismatched_files'):
-            # preserves original order, drops later dups
-            self.mismatched_files = list(dict.fromkeys(self.mismatched_files))
-    
+        unique_files = []
+        for entry in filtered_files:
+            if entry.entry_name not in seen:
+                seen.add(entry.entry_name)
+                unique_files.append(entry)
+
         elapsed_time = time.time() - start_time
         print(f"Indexing routine took {elapsed_time:.2f} seconds.")
-        return sharepoint_folders, filtered_files
+        return sharepoint_folders, unique_files
+
 
 
     def __simulate_entry_from_no_entry__(self, entry_name: str, real_link: str, heirarchy: str, sibling_files: list) -> 'SharepointExtractor.SharepointEntry':
