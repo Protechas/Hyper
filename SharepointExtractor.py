@@ -1042,7 +1042,7 @@ class SharepointExtractor:
         start_time = time.time()
     
         # 🔁 Retry up to 5 times
-        for retry_count in range(5):
+        for retry_count in range(3):
             try:
                 # click Share button
                 row_element.find_element(By.XPATH, ".//button[@data-automationid='shareHeroId']").click()
@@ -1081,7 +1081,7 @@ class SharepointExtractor:
                 print("⏳ Timeout: Could not get link in 120 seconds. Moving on.")
                 return None  # ❌ Fail after timeout
     
-        print("❌ Failed to get SharePoint link after 5 retries.")
+        print("❌ Failed to get SharePoint link after 3 retries.")
         return None  # ❌ Fail after 5 attempts
 
 
