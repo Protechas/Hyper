@@ -861,14 +861,14 @@ class SharepointExtractor:
                 print(f"❌ Could not retrieve link for: {file_name}")
     
                 # Build placeholder text
-                #error_text = f"{file_name} - Hyperlink Error, Check SharePoint"
+                error_text = f"{file_name} - Hyperlink Error, Check SharePoint"
     
                 # Send placeholder to Excel instead of skipping
                 self.__update_excel__(
                     model_worksheet,
                     file_year,
                     file_model,
-                    #error_text,   # use placeholder text
+                    error_text,   # use placeholder text
                     "",           # no hyperlink
                     adas_last_row,
                     None
@@ -1603,7 +1603,7 @@ class SharepointExtractor:
         else:
             # 🔴 NO LINK → write doc_name in red & track it in mismatched list
             cell.hyperlink = None
-            cell.value = f"{doc_name} - Hyperlink Error, Check SharePoint"
+            cell.value = f"{doc_name} "
             cell.font = Font(color="FF0000")
     
             # ✅ Make sure we have a mismatched list on this instance
