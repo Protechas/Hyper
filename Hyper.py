@@ -235,45 +235,188 @@ class SeleniumAutomationApp(QWidget):
         self.terminal = None           
         self.excel_paths = []
         self.manufacturer_links = {
-            # Add ADAS SI Sharepoint Links here
-            "Acura": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Egwph7U2M7tMgy4U82m8HVEBbeB3CxoibZz9zFww6iBZqw?e=l6ekEO",
-            "Alfa Romeo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EvO_UqobQBJOrwQAGefJrNgB4YDcOAAtQy_Y578hKRJE9A?e=73mDgy",
-            "Audi": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Ek0hoMxpf-RKgEkcFE7q4cgBz-OHaRSh6B5OSRnMVOPLKw?e=AEmzrm",
-            "BMW": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EiXISHFadJVPh0GzAp9RvXgBJ9u-Y1QcpDAfgttL87t9cQ?e=mLUNPd",
-            "Brightdrop": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Esr1s_-xkRlMr9SDAGPK6qoBM92UVxBXnHgYyXSYUSLzcQ?e=MOh0KB",
-            "Buick": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Ertv57aXnodKl9TFNSovFvEBvq-7X1ctOg0K5yH1Xj8VPA?e=hBQFy1",
-            "Cadillac": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ElXaigJrO7VGjrIxQDgZtX4BlSydGdiUGPabxGNiEw8SsA?e=JTiTNf",
-            "Chevrolet": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EseY-o8uBStGuO6Vz1DBlsMBaPVd97tw-CmkcANhFQju2A?e=ABN4Qu",
-            "Chrysler": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EnFQfBk769lBnt4QoykmWiIB_3qmkBAy0dIkWoEELbpfrA?e=BDvm7K",
-            "Dodge": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EuWilX-Oxj9OhJXI1rkXR6kBT7JEIwh12CaDN1rxcGQOLA?e=JSsxpq",
-            "Fiat": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EnS87Jrn5gdJtbuiEY4LkBkBkD-aFjNiR54RhIL8ApivPQ?e=7Iag4Z",
-            "Ford": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ErpPrcU6itZOuXT1D1m9nNYB-5FC0XhUZsGOsVoV_Js4Pw?e=taa6Bp",
-            "Genesis": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EsTgaheoczdOgE4iJKaMNlAB7tC_R8edA35MadVBZc7kbg?e=fUIbym",
-            "GMC": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EvjRi9A-4udLumIKpBpoJFwBkRbglOwe3W6C5obtbl40qw?e=tkmjxy",
-            "Honda": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Et92iX3A2mhOojkKNdjrWF8BsJPFFBO_gWP5Q84KO3nfiA?e=oiV1Xe",
-            "Hyundai": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EqZPS-XofL1Gsov7b0cEZtEBXKRtqoa3H1GNbA2cqVoTOw?e=TNHJ4N",
-            "Infiniti": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EsM2wf_e2chBjdBwkVDsi4EBCTlNibezvEvXx1PdCW4PWw?e=nFXG0Q",
-            "Jaguar": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eu1NKfOfm1FCub0XFzLRaysBAD8H7eJs0Htf9tHoE3uA1A?e=g4Yceg",
-            "Jeep": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EnRqXg8biOdFgl0uvZ9-BzwBdg3s6QD9AVqeHkLcFoYy6g?e=B3quWV",
-            "Kia": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EiSaF12paSFDukUZHI98LtcBpyvMEf6qzkf_B9pyYYKrrA?e=w6OrxP",
-            "Land Rover": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EgcVzgpah55IiMG2F0a_-OsBS4sfkaqdiHgNeczziH8wvA?e=XbmPyP",
-            "Lexus": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EofqjO0OAy9BooaRObpgCUkB1VN8bewjLtB1NIOPKwmwhA?e=eg9buz",
-            "Lincoln": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EuI2AalhjZ9NjykawVp1RuIB7S3INdHJSsrTbRYUN9QUaQ?e=OyZHt3",
-            "Mazda": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Evw3r94DVIRHkOZD10Jro5wB9PGNleSRg1SDjQ3zG5x-ig?e=iNZAYe",
-            "Mercedes": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EuuT3bDUP1lEvbjM0hkk-FQBpfQIj4fl5rwcI9FYF1MnYA?e=NCEj6K",
-            "Mini": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ErE803EUR89EuNPaCYdPKmYBp-MqQCwRdH7aoPZ0cmdh2Q?e=cZRPvS",
-            "Mitsubishi": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EnWx8oYtnadMsJ2KsflP2uoBfDyj1XXdDVu5JPu9xMt13g?e=1Y08r2",
-            "Nissan": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/El80Z4DzjwhAjZ7FMNFFtsABmrPLL_MjOaKMPnj0NF25UQ?e=HeQ9Ob",
-            "Porsche": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EvqAAY7ZWuxOgiNIOG_5RKYBfiW9eyAGSedUi9ZnDMCK8g?e=z4fZmB",
-            "Ram": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Er4y2ZHuq7RMrM8KMy5aSy0B53UPrZtUexV2apOYE-VdFw?e=RbjqgX",
-            "Rolls Royce": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EuUx8qWb8a5Lg69dZiqgPrkBElO3gQAuaLTZOvKdlOIkJg?e=3bPP4d",
-            "Subaru": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Etn9UVVyAthIiHPcwKnvQzgB8wrkm3qwyQOWaIOd-CJZYA?e=zSG8Mw",
-            "Tesla": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EnLNge4G5CZDoa4Ec9t5ESwB-1MP-MOXranHT_DBuv6ZHg?e=GtwTDf",
-            "Toyota": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EonbuVPsLixOrWBA-LEmXpoBzVe-CeCreW_66jiroMFMHA?e=x6bV7i",
-            "Volkswagen": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EkZbGXTqw5RJo-QY3CtTtukBdVpwKTz-QeDFpus_pHRNDg?e=2cQSHi",
-            "Volvo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EneJUPUGviJEjn0OHfyqQNYBG9fqQ5g23OS15-2KALJIbA?e=8weOwd",                        
-            # Add ADAS SI Sharepoint Links here
+            "Acura": [
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Er9Jvy1gtUBAtz59yCRcSmMBI6Z0VaIZGz8bAxHh10_NqQ?e=KSGOjN",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ek5WPRnM0plLqbOnqeK9DHMBzoVfYiOKx-KNylrDyPgyUQ?e=FnPH5f",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EujN23LD82NDhrXbb3SOGtkBwPWCdLn95yAaJpoHBrivMA?e=kBUPjx" # Documents (2022 - 2026)
+            ],
+            "Alfa Romeo": [
+                "https://sharepoint.com/.../Alfa Romeo (2012 - 2016)",
+                "https://sharepoint.com/.../Alfa Romeo (2017 - 2021)",
+                "https://sharepoint.com/.../Alfa Romeo (2022 - 2026)"
+            ],
+            "Audi": [
+                "https://sharepoint.com/.../Audi (2012 - 2016)",
+                "https://sharepoint.com/.../Audi (2017 - 2021)",
+                "https://sharepoint.com/.../Audi (2022 - 2026)"
+            ],
+            "BMW": [
+                "https://sharepoint.com/.../BMW (2012 - 2016)",
+                "https://sharepoint.com/.../BMW (2017 - 2021)",
+                "https://sharepoint.com/.../BMW (2022 - 2026)"
+            ],
+            "Brightdrop": [
+                "https://sharepoint.com/.../Brightdrop (2012 - 2016)",
+                "https://sharepoint.com/.../Brightdrop (2017 - 2021)",
+                "https://sharepoint.com/.../Brightdrop (2022 - 2026)"
+            ],
+            "Buick": [
+                "https://sharepoint.com/.../Buick (2012 - 2016)",
+                "https://sharepoint.com/.../Buick (2017 - 2021)",
+                "https://sharepoint.com/.../Buick (2022 - 2026)"
+            ],
+            "Cadillac": [
+                "https://sharepoint.com/.../Cadillac (2012 - 2016)",
+                "https://sharepoint.com/.../Cadillac (2017 - 2021)",
+                "https://sharepoint.com/.../Cadillac (2022 - 2026)"
+            ],
+            "Chevrolet": [
+                "https://sharepoint.com/.../Chevrolet (2012 - 2016)",
+                "https://sharepoint.com/.../Chevrolet (2017 - 2021)",
+                "https://sharepoint.com/.../Chevrolet (2022 - 2026)"
+            ],
+            "Chrysler": [
+                "https://sharepoint.com/.../Chrysler (2012 - 2016)",
+                "https://sharepoint.com/.../Chrysler (2017 - 2021)",
+                "https://sharepoint.com/.../Chrysler (2022 - 2026)"
+            ],
+            "Dodge": [
+                "https://sharepoint.com/.../Dodge (2012 - 2016)",
+                "https://sharepoint.com/.../Dodge (2017 - 2021)",
+                "https://sharepoint.com/.../Dodge (2022 - 2026)"
+            ],
+            "Fiat": [
+                "https://sharepoint.com/.../Fiat (2012 - 2016)",
+                "https://sharepoint.com/.../Fiat (2017 - 2021)",
+                "https://sharepoint.com/.../Fiat (2022 - 2026)"
+            ],
+            "Ford": [
+                "https://sharepoint.com/.../Ford (2012 - 2016)",
+                "https://sharepoint.com/.../Ford (2017 - 2021)",
+                "https://sharepoint.com/.../Ford (2022 - 2026)"
+            ],
+            "Genesis": [
+                "https://sharepoint.com/.../Genesis (2012 - 2016)",
+                "https://sharepoint.com/.../Genesis (2017 - 2021)",
+                "https://sharepoint.com/.../Genesis (2022 - 2026)"
+            ],
+            "GMC": [
+                "https://sharepoint.com/.../GMC (2012 - 2016)",
+                "https://sharepoint.com/.../GMC (2017 - 2021)",
+                "https://sharepoint.com/.../GMC (2022 - 2026)"
+            ],
+            "Honda": [
+                "https://sharepoint.com/.../Honda (2012 - 2016)",
+                "https://sharepoint.com/.../Honda (2017 - 2021)",
+                "https://sharepoint.com/.../Honda (2022 - 2026)"
+            ],
+            "Hyundai": [
+                "https://sharepoint.com/.../Hyundai (2012 - 2016)",
+                "https://sharepoint.com/.../Hyundai (2017 - 2021)",
+                "https://sharepoint.com/.../Hyundai (2022 - 2026)"
+            ],
+            "Infiniti": [
+                "https://sharepoint.com/.../Infiniti (2012 - 2016)",
+                "https://sharepoint.com/.../Infiniti (2017 - 2021)",
+                "https://sharepoint.com/.../Infiniti (2022 - 2026)"
+            ],
+            "Jaguar": [
+                "https://sharepoint.com/.../Jaguar (2012 - 2016)",
+                "https://sharepoint.com/.../Jaguar (2017 - 2021)",
+                "https://sharepoint.com/.../Jaguar (2022 - 2026)"
+            ],
+            "Jeep": [
+                "https://sharepoint.com/.../Jeep (2012 - 2016)",
+                "https://sharepoint.com/.../Jeep (2017 - 2021)",
+                "https://sharepoint.com/.../Jeep (2022 - 2026)"
+            ],
+            "Kia": [
+                "https://sharepoint.com/.../Kia (2012 - 2016)",
+                "https://sharepoint.com/.../Kia (2017 - 2021)",
+                "https://sharepoint.com/.../Kia (2022 - 2026)"
+            ],
+            "Land Rover": [
+                "https://sharepoint.com/.../Land Rover (2012 - 2016)",
+                "https://sharepoint.com/.../Land Rover (2017 - 2021)",
+                "https://sharepoint.com/.../Land Rover (2022 - 2026)"
+            ],
+            "Lexus": [
+                "https://sharepoint.com/.../Lexus (2012 - 2016)",
+                "https://sharepoint.com/.../Lexus (2017 - 2021)",
+                "https://sharepoint.com/.../Lexus (2022 - 2026)"
+            ],
+            "Lincoln": [
+                "https://sharepoint.com/.../Lincoln (2012 - 2016)",
+                "https://sharepoint.com/.../Lincoln (2017 - 2021)",
+                "https://sharepoint.com/.../Lincoln (2022 - 2026)"
+            ],
+            "Mazda": [
+                "https://sharepoint.com/.../Mazda (2012 - 2016)",
+                "https://sharepoint.com/.../Mazda (2017 - 2021)",
+                "https://sharepoint.com/.../Mazda (2022 - 2026)"
+            ],
+            "Mercedes": [
+                "https://sharepoint.com/.../Mercedes (2012 - 2016)",
+                "https://sharepoint.com/.../Mercedes (2017 - 2021)",
+                "https://sharepoint.com/.../Mercedes (2022 - 2026)"
+            ],
+            "Mini": [
+                "https://sharepoint.com/.../Mini (2012 - 2016)",
+                "https://sharepoint.com/.../Mini (2017 - 2021)",
+                "https://sharepoint.com/.../Mini (2022 - 2026)"
+            ],
+            "Mitsubishi": [
+                "https://sharepoint.com/.../Mitsubishi (2012 - 2016)",
+                "https://sharepoint.com/.../Mitsubishi (2017 - 2021)",
+                "https://sharepoint.com/.../Mitsubishi (2022 - 2026)"
+            ],
+            "Nissan": [
+                "https://sharepoint.com/.../Nissan (2012 - 2016)",
+                "https://sharepoint.com/.../Nissan (2017 - 2021)",
+                "https://sharepoint.com/.../Nissan (2022 - 2026)"
+            ],
+            "Porsche": [
+                "https://sharepoint.com/.../Porsche (2012 - 2016)",
+                "https://sharepoint.com/.../Porsche (2017 - 2021)",
+                "https://sharepoint.com/.../Porsche (2022 - 2026)"
+            ],
+            "Ram": [
+                "https://sharepoint.com/.../Ram (2012 - 2016)",
+                "https://sharepoint.com/.../Ram (2017 - 2021)",
+                "https://sharepoint.com/.../Ram (2022 - 2026)"
+            ],
+            "Rolls Royce": [
+                "https://sharepoint.com/.../Rolls Royce (2012 - 2016)",
+                "https://sharepoint.com/.../Rolls Royce (2017 - 2021)",
+                "https://sharepoint.com/.../Rolls Royce (2022 - 2026)"
+            ],
+            "Subaru": [
+                "https://sharepoint.com/.../Subaru (2012 - 2016)",
+                "https://sharepoint.com/.../Subaru (2017 - 2021)",
+                "https://sharepoint.com/.../Subaru (2022 - 2026)"
+            ],
+            "Tesla": [
+                "https://sharepoint.com/.../Tesla (2012 - 2016)",
+                "https://sharepoint.com/.../Tesla (2017 - 2021)",
+                "https://sharepoint.com/.../Tesla (2022 - 2026)"
+            ],
+            "Toyota": [
+                "https://sharepoint.com/.../Toyota (2012 - 2016)",
+                "https://sharepoint.com/.../Toyota (2017 - 2021)",
+                "https://sharepoint.com/.../Toyota (2022 - 2026)"
+            ],
+            "Volkswagen": [
+                "https://sharepoint.com/.../Volkswagen (2012 - 2016)",
+                "https://sharepoint.com/.../Volkswagen (2017 - 2021)",
+                "https://sharepoint.com/.../Volkswagen (2022 - 2026)"
+            ],
+            "Volvo": [
+                "https://sharepoint.com/.../Volvo (2012 - 2016)",
+                "https://sharepoint.com/.../Volvo (2017 - 2021)",
+                "https://sharepoint.com/.../Volvo (2022 - 2026)"
+            ]
         }
+
         self.repair_links = {
             # Add Repair SI SharePoint links Here
             "Acura": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EmmQxHGQ2wxNpIO04pNu_iIBqou8brkQWpKnjHPgSFT-CQ?e=qzTX1G",
@@ -599,7 +742,23 @@ class SeleniumAutomationApp(QWidget):
                 text-align: center;     /* center the % */
             }
         """)
-    
+        
+        # 🆕 Manufacturer Hyperlink Status
+        self.manufacturer_hyperlink_label = QLabel("Manufacturer Hyperlinks Indexed: 0 / 0")
+        self.manufacturer_hyperlink_label.setStyleSheet("font-size: 13px; padding: 5px;")
+        self.manufacturer_hyperlink_bar = QProgressBar()
+        self.manufacturer_hyperlink_bar.setMaximum(100)
+        self.manufacturer_hyperlink_bar.setValue(0)
+        self.manufacturer_hyperlink_bar.setFormat("%p%")
+        self.manufacturer_hyperlink_bar.setStyleSheet("""
+            QProgressBar {
+                font-size: 12px;
+                padding: 4px;
+                color: black;
+                text-align: center;
+            }
+        """)
+        
         self.overall_progress_label = QLabel("Overall Progress: 0%")
         self.overall_progress_label.setStyleSheet("font-size: 13px; padding: 5px;")
         self.overall_progress_bar = QProgressBar()
@@ -614,11 +773,17 @@ class SeleniumAutomationApp(QWidget):
                 text-align: center;     /* center the % */
             }
         """)
-    
+        
         layout.addWidget(self.current_manufacturer_label)
         layout.addWidget(self.current_manufacturer_progress)
+        
+        # 🆕 Insert new hyperlink bar + label here
+        layout.addWidget(self.manufacturer_hyperlink_label)
+        layout.addWidget(self.manufacturer_hyperlink_bar)
+        
         layout.addWidget(self.overall_progress_label)
         layout.addWidget(self.overall_progress_bar)
+        
     
     # … then finish with setLayout, resize, etc.
 
@@ -638,6 +803,11 @@ class SeleniumAutomationApp(QWidget):
         # always append to terminal
         self.terminal.append_output(line)
     
+        # 🆕 track hyperlink matches per manufacturer
+        if "✅ Direct match:" in line or "Hyperlink for" in line:
+            pass
+            
+    
         # ── broken‐link mode? ──
         if getattr(self, '_cleanup_mode', False):
             # detect total broken‐link count
@@ -653,7 +823,7 @@ class SeleniumAutomationApp(QWidget):
                     int(self._fixed_count / self._initial_broken * 100)
                 )
                 return
-
+    
         # ── normal (ADAS/Repair) progress by folder‐count ──
         m = re.search(r'(\d+)\s+Folders Remain', line)
         if m:
@@ -665,7 +835,7 @@ class SeleniumAutomationApp(QWidget):
             initial = self._initial_folder_count
             pct = max(0, min(100, int((initial - remaining) / initial * 100)))
             self.current_manufacturer_progress.setValue(pct)
-
+    
 
     
     def on_si_mode_toggled(self, state):
@@ -923,9 +1093,10 @@ class SeleniumAutomationApp(QWidget):
     
         excel_path = self.excel_paths[self.current_index]
         link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
-        sharepoint_link = link_dict.get(manufacturer)
     
-        if not sharepoint_link:
+        # Get all SharePoint links for this manufacturer (could be 1 or many)
+        sharepoint_links = link_dict.get(manufacturer)
+        if not sharepoint_links:
             QMessageBox.warning(
                 self,
                 'Error',
@@ -934,40 +1105,176 @@ class SeleniumAutomationApp(QWidget):
             )
             return
     
-        script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
-        excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
-        
-        args = [
-            sys.executable,
-            script_path,
-            sharepoint_link,
-            excel_path,
-            ",".join(self.selected_systems),
-            self.mode_flag,
-            "cleanup" if self.cleanup_checkbox.isChecked() else "full",
-            excel_mode  # 🆕 Append "og" or "new"
-        ]
-           
-        # ── NEW: remember cleanup mode & reset its counters ──
+        # Normalize to list if it's a single string
+        if isinstance(sharepoint_links, str):
+            sharepoint_links = [sharepoint_links]
+    
+        # 🆕 Cleanup Mode: Filter only the links matching the years from broken hyperlinks
+        if self.cleanup_checkbox.isChecked():
+            years_needed = self.get_broken_hyperlink_years_for_manufacturer(manufacturer)
+            filtered_links = []
+            for link in sharepoint_links:
+                m = re.search(r'\((\d{4})\s*-\s*(\d{4})\)', link)
+                if m:
+                    start_year, end_year = int(m.group(1)), int(m.group(2))
+                    if any(start_year <= y <= end_year for y in years_needed):
+                        filtered_links.append(link)
+            if filtered_links:
+                sharepoint_links = filtered_links
+    
+        # Store state for multi-link handling
+        self._multi_links        = sharepoint_links
+        self._multi_link_index   = 0
+        self._multi_excel_path   = excel_path
+        self._multi_manufacturer = manufacturer
+    
+        # 🆕 Manufacturer hyperlink counter based on # of SharePoint links
+        self._hyperlinks_total_links = len(self._multi_links)
+        self._hyperlinks_done_links = 0
+        self.update_manufacturer_progress_bar()
+    
+        # NEW: remember cleanup mode & reset its counters
         self._cleanup_mode = self.cleanup_checkbox.isChecked()
         if self._cleanup_mode:
             self._initial_broken = None
             self._fixed_count    = 0
     
-        thread = WorkerThread(args, manufacturer, parent=self)
+        # Start the first sub-link run
+        self.run_next_sub_link()
+    
+    def run_next_sub_link(self):
+        if self._multi_link_index >= len(self._multi_links):
+            # All links processed for this manufacturer
+            self.on_manufacturer_finished(self._multi_manufacturer, True)
+            return
+    
+        # Reset Current Manufacturer progress bar for this sub-link
+        self.current_manufacturer_progress.setValue(0)
+        self._initial_folder_count = None  # 🆕 Reset baseline for "Folders Remain"
+    
+        script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+        excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
+    
+        current_link = self._multi_links[self._multi_link_index]
+        args = [
+            sys.executable,
+            script_path,
+            current_link,
+            self._multi_excel_path,
+            ",".join(self.selected_systems),
+            self.mode_flag,
+            "cleanup" if self.cleanup_checkbox.isChecked() else "full",
+            excel_mode
+        ]
+    
+        self._cleanup_mode = self.cleanup_checkbox.isChecked()
+        if self._cleanup_mode:
+            self._initial_broken = None
+            self._fixed_count = 0
+    
+        self.update_manufacturer_progress_bar()
+    
+        thread = WorkerThread(args, self._multi_manufacturer, parent=self)
         self.thread = thread
-    
-        # ── Connect to our custom handler for both terminal + progress parsing ──
         thread.output_signal.connect(self.handle_extractor_output)
-    
-        # ── Overall‐style progress remains wired to the bar directly ──
-        # thread.progress_signal.connect(self.current_manufacturer_progress.setValue)
-    
-        thread.finished_signal.connect(self.on_manufacturer_finished)
+        thread.finished_signal.connect(self.on_sub_link_finished)
         thread.start()
         self.threads.append(thread)
 
-
+        
+    def count_expected_hyperlinks_for_link(self, manufacturer, sharepoint_link):
+        from openpyxl import load_workbook
+        import re
+    
+        # Extract year range from link (assuming in format "(2012 - 2016)")
+        m = re.search(r'\((\d{4})\s*-\s*(\d{4})\)', sharepoint_link)
+        year_range = None
+        if m:
+            year_range = (int(m.group(1)), int(m.group(2)))
+    
+        wb = load_workbook(self._multi_excel_path)
+        ws = wb.active
+        count = 0
+    
+        for row in ws.iter_rows(min_row=2):
+            year_val = row[0].value
+            make_val = str(row[1].value).strip().lower() if row[1].value else ""
+            link_val = row[11].hyperlink if len(row) > 11 else None  # Column L
+    
+            if make_val == manufacturer.lower():
+                if year_range and isinstance(year_val, int) and not (year_range[0] <= year_val <= year_range[1]):
+                    continue
+                if not link_val:
+                    count += 1
+    
+        return count
+        
+    def on_sub_link_finished(self, manufacturer, success):
+        if not self.is_running:
+            return
+    
+        if success:
+            msg = f"✅ Finished SharePoint link {self._multi_link_index+1}/{len(self._multi_links)} for {manufacturer}"
+            self.terminal.append_output(msg)
+            logging.info(msg)
+    
+            # Increment completed links count & update bar
+            self._hyperlinks_done_links += 1
+            self.update_manufacturer_progress_bar()
+    
+            self._multi_link_index += 1
+    
+            if self._multi_link_index >= len(self._multi_links):
+                # All links for this manufacturer complete
+                self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks Indexed: Completed")
+                self.manufacturer_hyperlink_bar.setValue(self.manufacturer_hyperlink_bar.maximum())
+                self.on_manufacturer_finished(manufacturer, True)
+            else:
+                # Move to next sub-link
+                self.run_next_sub_link()
+    
+        else:
+            msg = f"❌ SharePoint link {self._multi_link_index+1}/{len(self._multi_links)} for {manufacturer} failed"
+            self.terminal.append_output(msg)
+            logging.warning(msg)
+            self.on_manufacturer_finished(manufacturer, False)
+    
+    def update_manufacturer_progress_bar(self):
+        total_links = getattr(self, "_hyperlinks_total_links", 1)
+        done_links = getattr(self, "_hyperlinks_done_links", 0)
+    
+        # Keep bar in sync
+        self.manufacturer_hyperlink_bar.setMaximum(total_links)
+        self.manufacturer_hyperlink_bar.setValue(done_links)
+    
+        # Always show x/y format
+        self.manufacturer_hyperlink_label.setText(
+            f"Manufacturer Hyperlinks Indexed: {done_links}/{total_links}"
+        )
+      
+        
+    def get_broken_hyperlink_years_for_manufacturer(self, manufacturer):
+        years = set()
+        from openpyxl import load_workbook
+    
+        wb = load_workbook(self._multi_excel_path)
+        ws = wb.active
+    
+        for row in ws.iter_rows(min_row=2):
+            year_val = row[0].value  # Assuming column A = Year
+            make_val = str(row[1].value).strip().lower() if row[1].value else ""
+            link_val = row[11].hyperlink if len(row) > 11 else None  # Assuming column L for hyperlink
+    
+            if make_val == manufacturer.lower():
+                # No hyperlink OR broken link
+                if not link_val or self.is_broken_sharepoint_link(link_val.target):
+                    try:
+                        years.add(int(year_val))
+                    except (TypeError, ValueError):
+                        pass
+    
+        return sorted(years)
+    
     def on_manufacturer_finished(self, manufacturer, success):
         # ── HARD BAIL-OUT: if we're not running, stop immediately ──
         if not self.is_running:

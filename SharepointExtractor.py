@@ -106,7 +106,7 @@ class SharepointExtractor:
     #"2023 Kia Niro EV (LKA 1).pdf": "L1016",
     #"2023 Kia Niro HEV (ACC 2)": "L1019",
     #"2023 Kia Niro HEV (AEB 2)": "L1020",
-    # #"2023 Kia Niro HEV (ACC 2).pdf": "L155", Dupliacate entry
+    #"2023 Kia Niro HEV (ACC 2).pdf": "L155", Dupliacate entry
     #"2023 Kia Niro HEV (APA 1).pdf": "L1022",
     #"2023 Kia Niro HEV (BSW 1).pdf": "L1023",
     #"2023 Kia Niro HEV (BUC).pdf": "L1024",
