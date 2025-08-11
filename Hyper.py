@@ -241,9 +241,9 @@ class SeleniumAutomationApp(QWidget):
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EujN23LD82NDhrXbb3SOGtkBwPWCdLn95yAaJpoHBrivMA?e=kBUPjx" # Documents (2022 - 2026)
             ],
             "Alfa Romeo": [
-                "https://sharepoint.com/.../Alfa Romeo (2012 - 2016)",
-                "https://sharepoint.com/.../Alfa Romeo (2017 - 2021)",
-                "https://sharepoint.com/.../Alfa Romeo (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErOke5xzYSdJuxzA1RXrlTwBCJxKIitAemYutpEimASATg?e=hWdGVy",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Er2MZy2hndVHowEc489Cwr0ByJuhjHVrSWBmHhBHsimnZA?e=H3sAVX",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ElNqSJ2a31xIlhHiSPGSNdIB9eoNPDqNMuCgSqShFv_mQA?e=XXGhmm" # Documents (2022 - 2026)
             ],
             "Audi": [
                 "https://sharepoint.com/.../Audi (2012 - 2016)",
