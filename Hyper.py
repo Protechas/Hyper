@@ -243,7 +243,7 @@ class SeleniumAutomationApp(QWidget):
             "Alfa Romeo": [
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErOke5xzYSdJuxzA1RXrlTwBCJxKIitAemYutpEimASATg?e=hWdGVy",# Documents (2012 - 2016)
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Er2MZy2hndVHowEc489Cwr0ByJuhjHVrSWBmHhBHsimnZA?e=H3sAVX",# Documents (2017 - 2021)
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ElNqSJ2a31xIlhHiSPGSNdIB9eoNPDqNMuCgSqShFv_mQA?e=XXGhmm" # Documents (2022 - 2026)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Et84MN80bJ9On_e2O19o4SkBh7gcFCWl0r9z__aOrDX1Og?e=0VYApY" # Documents (2022 - 2026)
             ],
             "Audi": [
                 "https://sharepoint.com/.../Audi (2012 - 2016)",
@@ -1192,7 +1192,7 @@ class SeleniumAutomationApp(QWidget):
         if m:
             year_range = (int(m.group(1)), int(m.group(2)))
     
-        wb = load_workbook(self._multi_excel_path)
+        wb = load_workbook(self.excel_paths[0])
         ws = wb.active
         count = 0
     
@@ -1257,7 +1257,7 @@ class SeleniumAutomationApp(QWidget):
         years = set()
         from openpyxl import load_workbook
     
-        wb = load_workbook(self._multi_excel_path)
+        wb = load_workbook(self.excel_paths[0])
         ws = wb.active
     
         for row in ws.iter_rows(min_row=2):

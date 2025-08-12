@@ -406,14 +406,17 @@ class SharepointExtractor:
         self.excel_mode = sys.argv[6] if len(sys.argv) > 6 else "og"
         self.broken_entries = []  # ← Store broken hyperlinks here for cleanup mode
         
-        # Set correct column index
-        # New mode: Column K (11), OG mode: Column L (12), or Repair: K (11)
-        if self.repair_mode:
-            self.HYPERLINK_COLUMN_INDEX = 8  # Column H (standard for repair mode)
-        elif self.excel_mode == "new":
-            self.HYPERLINK_COLUMN_INDEX = 11  # Column K
+        # Always set system_col and hyperlink index based on mode
+        if self.repair_mode and self.excel_mode == "og":
+            self.system_col, self.HYPERLINK_COLUMN_INDEX = 4, 8
+        elif not self.repair_mode and self.excel_mode == "og":
+            self.system_col, self.HYPERLINK_COLUMN_INDEX = 5, 12
+        elif not self.repair_mode and self.excel_mode == "new":
+            self.system_col, self.HYPERLINK_COLUMN_INDEX = 19, 11
         else:
-            self.HYPERLINK_COLUMN_INDEX = 12  # Column L (OG)
+            print("⚠️ Unsupported mode/Excel combination in cleanup mode")
+            self.system_col, self.HYPERLINK_COLUMN_INDEX = None, None
+        
         
         
         
@@ -739,66 +742,69 @@ class SharepointExtractor:
         current_model = ""
         adas_last_row = {}
         self.row_index = self.__build_row_index__(model_worksheet, self.repair_mode)
-    
-        # ── Clean up Mode: Detect and clear broken links ──
         if self.cleanup_mode:
-            print("🧹 Clean up Mode: Scanning for broken hyperlinks...")
+            print("🧹 Clean up Mode: Scanning for broken hyperlinks (Phase 1)...")
+            self.broken_entries.clear()
         
-            hyperlink_col = 11 if self.excel_mode == "new" else 12   # K=11 new, L=12 OG
-            system_col = 19 if self.excel_mode == "new" else 8       # S=19 new, OG system column
-            filename_col = 1  # 👈 Adjust if the file names are stored in a different column
+            # Dynamically set column indexes from mode
+            if self.repair_mode and self.excel_mode == "og":
+                system_col, hyperlink_col = 4, 8
+            elif not self.repair_mode and self.excel_mode == "og":
+                system_col, hyperlink_col = 5, 12
+            elif not self.repair_mode and self.excel_mode == "new":
+                system_col, hyperlink_col = 19, 11
+            else:
+                print("⚠️ Unsupported mode/Excel combination in cleanup mode")
+                return
         
-            try:
-                for key, row in self.row_index.items():
-                    
-                    # ── throttle to 1s between each link check ──
-                    time.sleep(1.0)
-                    cell = model_worksheet.cell(row=row, column=hyperlink_col)
-                    url = str(cell.value).strip() if cell.value else None
-                    if not url:
-                        continue
+            filename_col = 1  # Adjust if your file names are stored elsewhere
         
-                    # ✅ Get the filename from Excel (used for Part detection)
-                    file_name_cell = model_worksheet.cell(row=row, column=filename_col)
-                    file_name = str(file_name_cell.value).strip() if file_name_cell.value else None
+            for key, row in self.row_index.items():
+                # ── throttle to 1s between each link check ──
+
+                cell = model_worksheet.cell(row=row, column=hyperlink_col)
+                url = str(cell.value).strip() if cell.value else None
+                if not url:
+                    continue
         
-                    # ✅ Always get system name from the correct column
-                    system_name = str(model_worksheet.cell(row=row, column=system_col).value).strip()
+                # ✅ Get the filename from Excel (used for Part detection)
+                file_name_cell = model_worksheet.cell(row=row, column=filename_col)
+                file_name = str(file_name_cell.value).strip() if file_name_cell.value else None
         
-                    # ✅ Skip non-URLs and placeholders
-                    if url.lower() == "hyperlink not available":
-                        print(f"⏩ Skipping 'Hyperlink Not Available' placeholder at row {row}")
-                        continue
-                    if not url.lower().startswith("http"):
-                        print(f"⏩ Skipping non-URL text at row {row}: {url}")
-                        continue
+                # ✅ Always get system name from the correct column
+                system_name = str(model_worksheet.cell(row=row, column=system_col).value).strip()
         
-                    # ✅ Pass the real file name for Part logic
-                    if self.is_broken_sharepoint_link(url, file_name=file_name):
-                        yr, mk, mdl, _ = key   # Ignore system from key
-                        
-                        # ✅ Always pull system name from Excel
-                        system_cell = model_worksheet.cell(row=row, column=system_col)
-                        raw_value = system_cell.value
-                        #print(f"[DEBUG] Row {row} → system_col={system_col} → raw value: {raw_value}")  # <-- TEMP LOG
-                        
-                        system_name = str(raw_value).strip() if raw_value else "UNKNOWN"
-                        
-                        print(f"🔧 Broken link found → Year: {yr}, Make: {mk}, Model: {mdl}, System: {system_name}")
-    
-                        # Clear hyperlink from Excel
-                        cell.value = None
-                        cell.hyperlink = None
-    
-                        # ✅ Save correct system name into broken_entries
-                        self.broken_entries.append((row, (yr, mk, mdl, system_name)))
+                # ✅ Skip non-URLs and placeholders
+                if url.lower() == "hyperlink not available":
+                    print(f"⏩ Skipping 'Hyperlink Not Available' placeholder at row {row}")
+                    continue
+                if not url.lower().startswith("http"):
+                    print(f"⏩ Skipping non-URL text at row {row}: {url}")
+                    continue
         
-            finally:
-                total_broken = len(self.broken_entries)
-                print(f"Total broken hyperlinks: {total_broken}")
-                print("🔄 Re-loading SharePoint root page to resume indexing...")
-                self.selenium_driver.get(self.sharepoint_link)
-                time.sleep(2.0)
+                # ✅ Pass the real file name for Part logic
+                if self.is_broken_sharepoint_link(url, file_name=file_name):
+                    yr, mk, mdl, _ = key  # Ignore system from key
+        
+                    # ✅ Always pull system name from Excel
+                    system_cell = model_worksheet.cell(row=row, column=system_col)
+                    raw_value = system_cell.value
+                    # print(f"[DEBUG] Row {row} → system_col={system_col} → raw value: {raw_value}")  # <-- TEMP LOG
+        
+                    system_name = str(raw_value).strip() if raw_value else "UNKNOWN"
+        
+                    print(f"🔧 Broken link found → Year: {yr}, Make: {mk}, Model: {mdl}, System: {system_name}")
+        
+                    # Clear hyperlink from Excel
+                    cell.value = None
+                    cell.hyperlink = None
+        
+                    # ✅ Save correct system name into broken_entries
+                    self.broken_entries.append((row, (yr, mk, mdl, system_name)))
+        
+            print(f"🔍 Found {len(self.broken_entries)} broken links. Handing off to Phase 2...")
+            return  # <─ Let Hyper.py handle the repair phase
+
     
         # Iterate through the filtered file entries
         for file_entry in file_entries:
