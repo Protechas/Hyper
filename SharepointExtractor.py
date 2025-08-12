@@ -796,14 +796,14 @@ class SharepointExtractor:
                     print(f"🔧 Broken link found → Year: {yr}, Make: {mk}, Model: {mdl}, System: {system_name}")
         
                     # Clear hyperlink from Excel
-                    cell.value = None
-                    cell.hyperlink = None
-        
+                    #  cell.value = None
+                    #  cell.hyperlink = None
+                            
                     # ✅ Save correct system name into broken_entries
                     self.broken_entries.append((row, (yr, mk, mdl, system_name)))
         
             print(f"🔍 Found {len(self.broken_entries)} broken links. Handing off to Phase 2...")
-            return  # <─ Let Hyper.py handle the repair phase
+           # return  # <─ Let Hyper.py handle the repair phase
 
     
         # Iterate through the filtered file entries
