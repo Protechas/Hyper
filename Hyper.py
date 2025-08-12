@@ -238,7 +238,7 @@ class SeleniumAutomationApp(QWidget):
             "Acura": [
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Er9Jvy1gtUBAtz59yCRcSmMBI6Z0VaIZGz8bAxHh10_NqQ?e=KSGOjN",# Documents (2012 - 2016)
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ek5WPRnM0plLqbOnqeK9DHMBzoVfYiOKx-KNylrDyPgyUQ?e=FnPH5f",# Documents (2017 - 2021)
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EujN23LD82NDhrXbb3SOGtkBwPWCdLn95yAaJpoHBrivMA?e=kBUPjx" # Documents (2022 - 2026)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgH-RFx6tAJOl9NufaV1y4ABx75-yRACbaYYqXFg2IzK-g?e=wNjzRH" # Documents (2022 - 2026)
             ],
             "Alfa Romeo": [
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErOke5xzYSdJuxzA1RXrlTwBCJxKIitAemYutpEimASATg?e=hWdGVy",# Documents (2012 - 2016)
@@ -1074,6 +1074,42 @@ class SeleniumAutomationApp(QWidget):
             return
     
         if self.current_index >= len(self.selected_manufacturers):
+            # 🆕 If cleanup mode, run final unresolved broken link removal
+            if self.cleanup_checkbox.isChecked():
+                try:
+                    if hasattr(self, "extractor") and hasattr(self.extractor, "broken_entries"):
+                        # Determine hyperlink column based on mode
+                        if self.extractor.repair_mode and self.extractor.excel_mode == "og":
+                            hyperlink_col = 8
+                        elif not self.extractor.repair_mode and self.extractor.excel_mode == "og":
+                            hyperlink_col = 12
+                        elif not self.extractor.repair_mode and self.extractor.excel_mode == "new":
+                            hyperlink_col = 11
+                        else:
+                            hyperlink_col = None
+        
+                        if hyperlink_col:
+                            print("🧹 Finalizing cleanup — removing unresolved broken links...")
+                            import openpyxl
+                            wb = openpyxl.load_workbook(self.excel_paths[0])
+                            ws = wb['Model Version']
+                            removed_count = 0
+                            for row, (yr, mk, mdl, sys) in self.extractor.broken_entries:
+                                cell = ws.cell(row=row, column=hyperlink_col)
+                                link_to_test = cell.hyperlink.target if cell.hyperlink else str(cell.value).strip() if cell.value else ""
+                                if not link_to_test or link_to_test.lower() == "hyperlink not available":
+                                    continue
+                                if self.extractor.is_broken_sharepoint_link(link_to_test, file_name=sys):
+                                    print(f"🗑 Removing unresolved broken link at row {row}: {link_to_test}")
+                                    cell.value = None
+                                    cell.hyperlink = None
+                                    removed_count += 1
+                            wb.save(self.excel_paths[0])
+                            wb.close()
+                            print(f"✅ Cleanup complete — removed {removed_count} unresolved links")
+                except Exception as e:
+                    print(f"⚠️ Final cleanup pass failed: {e}")
+        
             # done!
             completed = "\n".join(sorted(self.selected_manufacturers, key=str.lower))
             QMessageBox.information(
@@ -1083,7 +1119,8 @@ class SeleniumAutomationApp(QWidget):
                 QMessageBox.Ok
             )
             return
-    
+        
+            
         # Reset per‐manufacturer progress tracking
         self._initial_folder_count = None
     
@@ -1141,6 +1178,7 @@ class SeleniumAutomationApp(QWidget):
     
         # Start the first sub-link run
         self.run_next_sub_link()
+
     
     def run_next_sub_link(self):
         if self._multi_link_index >= len(self._multi_links):
@@ -1181,7 +1219,35 @@ class SeleniumAutomationApp(QWidget):
         thread.start()
         self.threads.append(thread)
 
-        
+    def finalize_cleanup_for_file(self, excel_path, broken_entries, hyperlink_col):
+        import openpyxl
+        wb = openpyxl.load_workbook(excel_path)
+        ws = wb['Model Version']
+    
+        removed_count = 0
+        for row, (yr, mk, mdl, sys) in broken_entries:
+            cell = ws.cell(row=row, column=hyperlink_col)
+    
+            # Prefer the actual hyperlink target if it exists
+            link_to_test = cell.hyperlink.target if cell.hyperlink else str(cell.value).strip() if cell.value else ""
+    
+            # Skip placeholders or empty links
+            if not link_to_test or link_to_test.lower() == "hyperlink not available":
+                continue
+    
+            # Check link validity
+            if self.extractor.is_broken_sharepoint_link(link_to_test, file_name=sys):
+                print(f"🗑 Removing unresolved broken link at row {row}: {link_to_test}")
+                cell.value = None
+                cell.hyperlink = None
+                removed_count += 1
+    
+        wb.save(excel_path)
+        wb.close()
+        print(f"✅ Cleanup complete — removed {removed_count} unresolved links")
+
+    
+            
     def count_expected_hyperlinks_for_link(self, manufacturer, sharepoint_link):
         from openpyxl import load_workbook
         import re

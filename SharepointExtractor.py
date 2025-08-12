@@ -763,7 +763,7 @@ class SharepointExtractor:
                 # ── throttle to 1s between each link check ──
 
                 cell = model_worksheet.cell(row=row, column=hyperlink_col)
-                url = str(cell.value).strip() if cell.value else None
+                url = cell.hyperlink.target if cell.hyperlink else str(cell.value).strip() if cell.value else None
                 if not url:
                     continue
         
@@ -778,10 +778,10 @@ class SharepointExtractor:
                 if url.lower() == "hyperlink not available":
                     print(f"⏩ Skipping 'Hyperlink Not Available' placeholder at row {row}")
                     continue
-                if not url.lower().startswith("http"):
+                if not (url and url.lower().startswith("http")):
                     print(f"⏩ Skipping non-URL text at row {row}: {url}")
                     continue
-        
+
                 # ✅ Pass the real file name for Part logic
                 if self.is_broken_sharepoint_link(url, file_name=file_name):
                     yr, mk, mdl, _ = key  # Ignore system from key
@@ -1750,11 +1750,53 @@ class SharepointExtractor:
    
     def __build_row_index__(self, ws, repair_mode=False):
         index = {}
+    
+        # 🆕 Cleanup Mode Override: index all rows with hyperlinks
+        if getattr(self, "cleanup_mode", False):
+            # Determine hyperlink column for this mode
+            if repair_mode and self.excel_mode == "og":
+                hyperlink_col = 8
+            elif not repair_mode and self.excel_mode == "og":
+                hyperlink_col = 12
+            elif not repair_mode and self.excel_mode == "new":
+                hyperlink_col = 11
+            else:
+                hyperlink_col = None
+    
+            if hyperlink_col:
+                for r in range(2, ws.max_row + 1):
+                    cell = ws.cell(row=r, column=hyperlink_col)
+                    # If cell has a hyperlink object or its value looks like a URL, index it
+                    if cell.hyperlink or (cell.value and str(cell.value).strip().lower().startswith("http")):
+                        year = str(ws.cell(row=r, column=1).value).strip().upper() if ws.cell(row=r, column=1).value else ''
+                        make = str(ws.cell(row=r, column=2).value).strip().upper() if ws.cell(row=r, column=2).value else ''
+                        model = str(ws.cell(row=r, column=3).value).strip().upper() if ws.cell(row=r, column=3).value else ''
+                        # Always pull the system name from the correct system column
+                        if repair_mode:
+                            if self.excel_mode == "new":
+                                sys_cell = ws.cell(row=r, column=20)  # Column T
+                            elif self.sharepoint_make.lower() == "toyota":
+                                sys_cell = ws.cell(row=r, column=5)   # Column E
+                            else:
+                                sys_cell = ws.cell(row=r, column=4)   # Column D
+                        else:
+                            if self.excel_mode == "new":
+                                sys_cell = ws.cell(row=r, column=20)  # Column T
+                            else:
+                                sys_cell = ws.cell(row=r, column=5)   # Column E
+    
+                        system = str(sys_cell.value).strip().upper() if sys_cell.value else ''
+                        normalized_system = re.sub(r"[^A-Z0-9]", "", system)
+                        key = (year, make, model, normalized_system)
+                        index[key] = r
+                return index  # Skip normal filtering entirely in cleanup mode
+    
+        # 🔹 Normal full-mode indexing logic
         for row in ws.iter_rows(min_row=2, max_col=8):
             year = str(row[0].value).strip().upper() if row[0].value else ''
             make = str(row[1].value).strip().upper() if row[1].value else ''
             model = str(row[2].value).strip().upper() if row[2].value else ''
-            
+    
             if repair_mode:
                 if self.excel_mode == "new":
                     sys_cell = row[19]  # Column T
@@ -1762,20 +1804,19 @@ class SharepointExtractor:
                     sys_cell = row[4]   # Column E
                 else:
                     sys_cell = row[3]   # Column D
-            
                 system = str(sys_cell.value).strip().upper() if sys_cell.value else ''
             else:
                 if self.excel_mode == "new" and len(row) > 19:
                     system = str(row[19].value).strip().upper() if row[19].value else ''
                 else:
                     system = str(row[4].value).strip().upper() if len(row) > 4 and row[4].value else ''
-            
-
+    
             normalized_system = re.sub(r"[^A-Z0-9]", "", system)
             key = (year, make, model, normalized_system)
             index[key] = row[0].row
+    
         return index
-      
+
 
 #####################################################################################################################################################
 
