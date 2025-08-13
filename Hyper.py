@@ -231,6 +231,10 @@ class ToggleSwitch(QCheckBox):
 class SeleniumAutomationApp(QWidget):
     def __init__(self):
         super().__init__()
+        
+        # 🆕 hide CM progress lines in terminal output
+        self.hide_cm_progress_in_terminal = True
+        
         self.initUI()
         self.terminal = None           
         self.excel_paths = []
@@ -915,6 +919,23 @@ class SeleniumAutomationApp(QWidget):
                 text-align: center;     /* center the % */
             }
         """)
+        # Style used when manually stopped (red background + red chunk)
+        self._bar_style_stopped = """
+            QProgressBar {
+                font-size: 12px;
+                padding: 4px;
+                color: white;                         /* % text */
+                text-align: center;
+                background-color: #4a0f0f;            /* bar background stays red even at 0% */
+                border: 1px solid #aa4444;
+                border-radius: 4px;
+            }
+            QProgressBar::chunk {
+                background-color: #d32f2f;            /* the filled part */
+                margin: 0px;
+                border-radius: 2px;
+            }
+        """
         
         layout.addWidget(self.current_manufacturer_label)
         layout.addWidget(self.current_manufacturer_progress)
@@ -927,10 +948,37 @@ class SeleniumAutomationApp(QWidget):
         layout.addWidget(self.overall_progress_bar)
         
     
-    # … then finish with setLayout, resize, etc.
+        # --- after you create self.current_manufacturer_progress, self.manufacturer_hyperlink_bar, self.overall_progress_bar ---
+        
+        # --- Style for normal and stopped states ---
+        progress_css = """
+        QProgressBar {
+            font-size: 12px;
+            padding: 4px;
+            text-align: center;
+            color: black;
+            border: 1px solid #555555;
+            border-radius: 4px;
+            background: #e0e0e0;              /* normal background */
+        }
+        QProgressBar::chunk {
+            background-color: #19A602;         /* normal fill */
+        }
+        
+        /* when manually stopped, make the whole bar red */
+        QProgressBar[stopped="true"] {
+            background: #B30000;               /* deep red background at 0% */
+            color: white;                      /* white text for contrast */
+        }
+        QProgressBar[stopped="true"]::chunk {
+            background-color: #e53935;         /* red fill if >0% */
+        }
+        """
+        
+        self.current_manufacturer_progress.setStyleSheet(progress_css)
+        self.manufacturer_hyperlink_bar.setStyleSheet(progress_css)
+        self.overall_progress_bar.setStyleSheet(progress_css)
 
-        
-        
 
         # after adding all widgets and layouts…
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
@@ -942,42 +990,115 @@ class SeleniumAutomationApp(QWidget):
         self.resize(600, 400)
 
     def handle_extractor_output(self, line: str):
-        # always append to terminal
-        self.terminal.append_output(line)
+        """
+        Consume stdout from SharepointExtractor. Update UI progress bars,
+        but optionally suppress CM progress lines from the Terminal view.
+        """
+        # ── 1) Current Manufacturer progress coming as explicit "CM_PROGRESS a/b (p%)" ──
+        m_cm = re.match(r"\s*CM_PROGRESS\s+(\d+)\s*/\s*(\d+)\s*\((\d+)%\)", line, re.IGNORECASE)
+        if m_cm:
+            done = int(m_cm.group(1))
+            total = max(1, int(m_cm.group(2)))
+            pct_from_text = int(m_cm.group(3))
+            # trust the numbers coming from the extractor, but clamp
+            pct = max(0, min(100, pct_from_text if 0 <= pct_from_text <= 100 else int(done/total*100)))
+            self.current_manufacturer_progress.setValue(pct)
     
-        # 🆕 track hyperlink matches per manufacturer
-        if "✅ Direct match:" in line or "Hyperlink for" in line:
-            pass
-            
+            # optionally suppress showing this in the terminal
+            if self.hide_cm_progress_in_terminal:
+                return
     
-        # ── broken‐link mode? ──
+        # ── 2) Cleanup-mode progress (broken link repair) ──
         if getattr(self, '_cleanup_mode', False):
-            # detect total broken‐link count
+            # total to fix
             m_total = re.search(r'Total broken hyperlinks:\s*(\d+)', line)
             if m_total:
                 self._initial_broken = int(m_total.group(1))
-                self._fixed_count    = 0
-                return
-            # detect each fix
-            if line.startswith(("Fixed hyperlink for","✅","❌")) and self._initial_broken:
+                self._fixed_count = 0
+                if self.hide_cm_progress_in_terminal:
+                    return
+            # each item processed (we treat ✅/❌/“Fixed hyperlink for …” as a tick)
+            if line.startswith(("Fixed hyperlink for", "✅", "❌")) and getattr(self, "_initial_broken", None):
                 self._fixed_count += 1
-                self.current_manufacturer_progress.setValue(
-                    int(self._fixed_count / self._initial_broken * 100)
-                )
-                return
+                pct = int(self._fixed_count / max(1, self._initial_broken) * 100)
+                self.current_manufacturer_progress.setValue(pct)
+                if self.hide_cm_progress_in_terminal:
+                    return
     
-        # ── normal (ADAS/Repair) progress by folder‐count ──
-        m = re.search(r'(\d+)\s+Folders Remain', line)
-        if m:
-            remaining = int(m.group(1))
+        # ── 3) Normal mode progress using "N Folders Remain" ──
+        m_fr = re.search(r'(\d+)\s+Folders Remain', line)
+        if m_fr:
+            remaining = int(m_fr.group(1))
             if not hasattr(self, '_initial_folder_count') or self._initial_folder_count is None:
                 self._initial_folder_count = remaining
             else:
                 self._initial_folder_count = max(self._initial_folder_count, remaining)
-            initial = self._initial_folder_count
+            initial = max(1, self._initial_folder_count)
             pct = max(0, min(100, int((initial - remaining) / initial * 100)))
             self.current_manufacturer_progress.setValue(pct)
+            # we **do** still show these lines normally (they're not CM_PROGRESS),
+            # so no early return here.
     
+        # finally, append anything not suppressed
+        self.terminal.append_output(line)
+
+    def mark_manual_stop(self):
+        """
+        Reflect a manual stop in labels and progress bars (works for Cleanup + Regular).
+        Does NOT touch buttons; your on_start_stop() already handles swapping Start/Stop.
+        """
+        # Labels
+        if hasattr(self, "current_manufacturer_label"):
+            self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
+        if hasattr(self, "manufacturer_hyperlink_label"):
+            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks Indexed: Manually Stopped")
+        if hasattr(self, "overall_progress_label"):
+            self.overall_progress_label.setText("Overall Progress: Manually Stopped")
+    
+        # Progress bars → reset to 0
+        for bar_name in ("current_manufacturer_progress", "manufacturer_hyperlink_bar", "overall_progress_bar"):
+            bar = getattr(self, bar_name, None)
+            if bar:
+                try:
+                    bar.setMaximum(100)  # in case it was set to a link-count
+                    bar.setValue(0)
+                except Exception:
+                    pass
+    
+        # Clear any counters so next run starts fresh
+        for attr in ("_initial_broken", "_fixed_count", "_initial_folder_count",
+                     "_hyperlinks_total_links", "_hyperlinks_done_links"):
+            if hasattr(self, attr):
+                setattr(self, attr, None)
+    
+    
+    def _style_single_bar(self, bar: QProgressBar, stopped: bool) -> None:
+        if not bar:
+            return
+        bar.setStyleSheet(self._bar_style_stopped if stopped else self._bar_style_normal)
+    
+    def _apply_stopped_style_to_all_bars(self, stopped: bool):
+        """Turn the bars red when stopped; restore normal when restarting."""
+        bars = (
+            getattr(self, "current_manufacturer_progress", None),
+            getattr(self, "manufacturer_hyperlink_bar", None),
+            getattr(self, "overall_progress_bar", None),
+        )
+        for bar in bars:
+            if not bar:
+                continue
+            # flip dynamic property and re-polish so the stylesheet takes effect immediately
+            bar.setProperty("stopped", stopped)
+            bar.style().unpolish(bar)
+            bar.style().polish(bar)
+            bar.update()
+    
+            # if at 0%, briefly pulse to force a visible repaint in some styles
+            if stopped and bar.value() == 0:
+                bar.setValue(1)
+                bar.setValue(0)
+
+            
 
     
     def on_si_mode_toggled(self, state):
@@ -1625,7 +1746,65 @@ class SeleniumAutomationApp(QWidget):
     def closeEvent(self, event):
         # when the GUI closes, dump the terminal contents (if any) to Documents/Logs
         super().closeEvent(event)
-        
+     
+    def _set_bar_stopped(self, bar, stopped: bool, name_hint: str):
+        """
+        Make a single QProgressBar turn red when stopped, while preserving its exact original look.
+        Uses a per-widget stylesheet with higher specificity and !important so global styles can't override it.
+        """
+        if not bar:
+            return
+    
+        # Cache original style once
+        if not hasattr(bar, "_orig_stylesheet"):
+            bar._orig_stylesheet = bar.styleSheet() or ""
+    
+        # Ensure we can target this bar specifically
+        if not bar.objectName():
+            bar.setObjectName(name_hint)
+    
+        if stopped:
+            base = bar._orig_stylesheet
+            obj  = bar.objectName()
+            # Per‑widget rules (highest precedence) + !important
+            red_css = (
+                f'QProgressBar#{obj} {{ '
+                f'  background-color: #470000 !important; '   # deep red even at 0%
+                f'  color: white !important; '
+                f'  border: 1px solid #aa4444; '
+                f'  border-radius: 4px; '
+                f'}} '
+                f'QProgressBar#{obj}::chunk {{ '
+                f'  background-color: #e53935 !important; '   # red fill when >0%
+                f'}}'
+            )
+            bar.setStyleSheet(base + "\n" + red_css)
+        else:
+            # Restore exactly what the bar had before
+            bar.setStyleSheet(bar._orig_stylesheet)
+    
+        # Force immediate repaint
+        bar.style().unpolish(bar)
+        bar.style().polish(bar)
+        bar.update()
+    
+    def _apply_stopped_style_to_all_bars(self, stopped: bool):
+        self._set_bar_stopped(getattr(self, "current_manufacturer_progress", None), stopped, "cmBar")
+        self._set_bar_stopped(getattr(self, "manufacturer_hyperlink_bar", None), stopped, "mhBar")
+        self._set_bar_stopped(getattr(self, "overall_progress_bar", None), stopped, "ovBar")
+    
+        # Optional: if value==0, flash a sliver so the red is visible immediately
+        if stopped:
+            for bar in (
+                getattr(self, "current_manufacturer_progress", None),
+                getattr(self, "manufacturer_hyperlink_bar", None),
+                getattr(self, "overall_progress_bar", None),
+            ):
+                if bar and bar.value() == 0:
+                    bar.setValue(1)
+                    bar.setValue(0)
+
+    
     def on_start_stop(self):
         # — START path —
         if not self.is_running:
@@ -1635,6 +1814,9 @@ class SeleniumAutomationApp(QWidget):
             self.pause_requested = False
             self.pause_button.setText('Pause Automation')
             self.pause_button.setEnabled(True)
+    
+            # Back to normal look for a fresh run
+            self._apply_stopped_style_to_all_bars(False)
     
             return
     
@@ -1658,20 +1840,16 @@ class SeleniumAutomationApp(QWidget):
             except Exception as e:
                 self.terminal.append_output(f"⚠️ Couldn’t resume before stopping: {e}")
     
-        # clear pause flag
+        # clear pause flag and tell loops not to launch any more work
         self.pause_requested = False
-    
-        # tell loops not to launch any more work
-        self.stop_requested = True
+        self.stop_requested  = True
     
         # 1) Ask the Python extractor to shut down nicely
         if self.thread is not None and hasattr(self.thread, "process"):
             try:
-                # On Windows this sends CTRL+BREAK to the whole group
                 if os.name == "nt":
                     self.thread.process.send_signal(signal.CTRL_BREAK_EVENT)
                 else:
-                    # On Unix, send SIGTERM to the entire session
                     os.killpg(os.getpgid(self.thread.process.pid), signal.SIGTERM)
             except Exception:
                 pass
@@ -1682,22 +1860,16 @@ class SeleniumAutomationApp(QWidget):
                     parent = psutil.Process(pid)
                 except psutil.NoSuchProcess:
                     return
-    
                 for child in parent.children(recursive=True):
                     try:
                         pname = child.name().lower()
                     except psutil.NoSuchProcess:
                         continue
                     if "chrome" in pname or "chromedriver" in pname:
-                        try:
-                            child.kill()
-                        except psutil.NoSuchProcess:
-                            pass
-    
-                try:
-                    parent.kill()
-                except psutil.NoSuchProcess:
-                    pass
+                        try: child.kill()
+                        except psutil.NoSuchProcess: pass
+                try: parent.kill()
+                except psutil.NoSuchProcess: pass
     
             kill_children(self.thread.process.pid)
     
@@ -1708,7 +1880,25 @@ class SeleniumAutomationApp(QWidget):
         # 3) Give it a moment, then report & swap button back
         sleep(1)
         self.terminal.append_output("❌ Hyperlink Automation has stopped.")
-        # Example in on_start_stop STOP path:
+    
+        # Show 'Manually Stopped' + reset and paint bars red
+        if hasattr(self, "current_manufacturer_label"):
+            self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
+        if hasattr(self, "manufacturer_hyperlink_label"):
+            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks Indexed: Manually Stopped")
+        if hasattr(self, "overall_progress_label"):
+            self.overall_progress_label.setText("Overall Progress: Manually Stopped")
+    
+        if hasattr(self, "current_manufacturer_progress"):
+            self.current_manufacturer_progress.setValue(0)
+        if hasattr(self, "manufacturer_hyperlink_bar"):
+            self.manufacturer_hyperlink_bar.setValue(0)
+        if hasattr(self, "overall_progress_bar"):
+            self.overall_progress_bar.setValue(0)
+    
+        # turn bars red (and force a repaint at 0%)
+        self._apply_stopped_style_to_all_bars(True)
+    
         # ── swap back to a fresh “Start Automation” button ──
         layout = self.button_layout
         layout.removeWidget(self.start_button)
@@ -1722,11 +1912,12 @@ class SeleniumAutomationApp(QWidget):
         # ── NEW: clear running state so clicks now start again ──
         self.is_running     = False
         self.stop_requested = False
-
-        
+    
         # Ensure it goes above the progress bars
-        insert_index = layout.indexOf(self.current_manufacturer_label)  # before labels and bars
+        insert_index = layout.indexOf(self.current_manufacturer_label)
         layout.insertWidget(insert_index, self.start_button)
+    
+
 
 
       

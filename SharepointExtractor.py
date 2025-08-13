@@ -742,10 +742,11 @@ class SharepointExtractor:
         current_model = ""
         adas_last_row = {}
         self.row_index = self.__build_row_index__(model_worksheet, self.repair_mode)
+    
         if self.cleanup_mode:
             print("🧹 Clean up Mode: Scanning for broken hyperlinks (Phase 1)...")
             self.broken_entries.clear()
-        
+    
             # Dynamically set column indexes from mode
             if self.repair_mode and self.excel_mode == "og":
                 system_col, hyperlink_col = 4, 8
@@ -756,58 +757,62 @@ class SharepointExtractor:
             else:
                 print("⚠️ Unsupported mode/Excel combination in cleanup mode")
                 return
-        
+    
             filename_col = 1  # Adjust if your file names are stored elsewhere
-        
+    
+            # ── NEW: calculate total rows for progress bar ──
+            self.total_rows_to_check = sum(
+                1 for key in self.row_index.values()
+                if model_worksheet.cell(row=key, column=system_col).value
+            )
+            self.rows_checked = 0
+            self.update_current_manufacturer_progress()
+    
             for key, row in self.row_index.items():
                 year, make, model, system_from_index = key
                 print(f"🔎 Checking row {row}: Year={year}, Make={make}, Model={model}, System={system_from_index}")
-                
-                # ── throttle to 1s between each link check ──
-
+    
                 cell = model_worksheet.cell(row=row, column=hyperlink_col)
                 url = cell.hyperlink.target if cell.hyperlink else str(cell.value).strip() if cell.value else None
                 if not url:
+                    self.rows_checked += 1
+                    self.update_current_manufacturer_progress()
                     continue
-        
+    
                 # ✅ Get the filename from Excel (used for Part detection)
                 file_name_cell = model_worksheet.cell(row=row, column=filename_col)
                 file_name = str(file_name_cell.value).strip() if file_name_cell.value else None
-        
+    
                 # ✅ Always get system name from the correct column
                 system_name = str(model_worksheet.cell(row=row, column=system_col).value).strip()
-        
+    
                 # ✅ Skip non-URLs and placeholders
                 if url.lower() == "hyperlink not available":
                     print(f"⏩ Skipping 'Hyperlink Not Available' placeholder at row {row}")
+                    self.rows_checked += 1
+                    self.update_current_manufacturer_progress()
                     continue
                 if not (url and url.lower().startswith("http")):
                     print(f"⏩ Skipping non-URL text at row {row}: {url}")
+                    self.rows_checked += 1
+                    self.update_current_manufacturer_progress()
                     continue
-
+    
                 # ✅ Pass the real file name for Part logic
                 if self.is_broken_sharepoint_link(url, file_name=file_name):
-                    yr, mk, mdl, _ = key  # Ignore system from key
-        
-                    # ✅ Always pull system name from Excel
+                    yr, mk, mdl, _ = key
                     system_cell = model_worksheet.cell(row=row, column=system_col)
                     raw_value = system_cell.value
-                    # print(f"[DEBUG] Row {row} → system_col={system_col} → raw value: {raw_value}")  # <-- TEMP LOG
-        
                     system_name = str(raw_value).strip() if raw_value else "UNKNOWN"
-        
+    
                     print(f"🔧 Broken link found → Year: {yr}, Make: {mk}, Model: {mdl}, System: {system_name}")
-        
-                    # Clear hyperlink from Excel
-                    #  cell.value = None
-                    #  cell.hyperlink = None
-                            
-                    # ✅ Save correct system name into broken_entries
+    
                     self.broken_entries.append((row, (yr, mk, mdl, system_name)))
-        
+    
+                self.rows_checked += 1
+                self.update_current_manufacturer_progress()
+    
             print(f"🔍 Found {len(self.broken_entries)} broken links. Handing off to Phase 2...")
-           # return  # <─ Let Hyper.py handle the repair phase
-
     
         # Iterate through the filtered file entries
         for file_entry in file_entries:
@@ -816,29 +821,20 @@ class SharepointExtractor:
     
             # 🛠 Cleanup mode fix for NO-docs
             if self.cleanup_mode and file_name.lower().startswith("no "):
-                original_no_doc_name = file_name  # Keep the original name for red-text comments
-    
-                # Look for which broken entry this file corresponds to
+                original_no_doc_name = file_name
                 for _, (yr, mk, mdl, sys) in self.broken_entries:
-                    # ✅ Match by year/make/model context
                     if (yr in file_name or yr == "Unknown") and mdl.replace(" ", "").lower() in file_name.replace(" ", "").lower():
                         print(f"🔄 Forcing NO-doc {file_name} into system row: {sys}")
-    
-                        # 🔄 Build a synthetic filename for placement (forces correct system placement)
                         file_name = f"{yr} {self.sharepoint_make} {mdl} ({sys})"
                         file_entry.entry_name = file_name
-    
-                        # ✅ Log for clarity in the terminal
                         print(f"   ↳ Renaming NO-doc for proper placement: {file_name}")
-                        
-                        # ✅ Optional: Add the original NO-doc name back as a red text marker
                         if hasattr(self, "__add_red_text_marker"):
                             self.__add_red_text_marker(
                                 model_worksheet, yr, self.sharepoint_make, mdl, sys, original_no_doc_name
                             )
                         break
     
-            # … your existing RENAMING logic …
+            # … existing RENAMING logic …
             for desc, acr in self.REPAIR_SYNONYMS.items():
                 pattern = f"({desc})"
                 if pattern in file_name:
@@ -872,46 +868,34 @@ class SharepointExtractor:
     
             file_model = " ".join(model_tokens).strip() if model_tokens else "Unknown"
     
-            # ✅ Fallback for Model from Hierarchy
             if file_model == "Unknown":
                 segments = file_entry.entry_heirarchy.split("\\")
                 if len(segments) > 1:
                     file_model = segments[-2]
     
-            # Reset model‐row tracker
             if file_model != current_model:
                 current_model = file_model
                 adas_last_row = {}
     
-            # ✅ NEW: HANDLE FAILED LINKS (None from __get_encrypted_link__)
             if file_entry.entry_link is None:
                 print(f"❌ Could not retrieve link for: {file_name}")
-    
-                # Build placeholder text
                 error_text = f"{file_name} - Hyperlink Error, Check SharePoint"
-    
-                # Send placeholder to Excel instead of skipping
                 self.__update_excel__(
                     model_worksheet,
                     file_year,
                     file_model,
-                    error_text,   # use placeholder text
-                    "",           # no hyperlink
+                    error_text,
+                    "",
                     adas_last_row,
                     None
                 )
-                continue  # move on to the next file
+                continue
     
-            # Place hyperlink normally
             if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
                 if self.cleanup_mode:
                     print(f"Fixed hyperlink for: {file_entry.entry_name}")
-                # ✅ NEW: count this file as processed for progress bar
-                if self.cleanup_mode:
-                    print(f"Processed hyperlink for: {file_entry.entry_name}")
                 continue
     
-            # **Now file_year and file_model are defined, no squiggles**
             self.__update_excel__(
                 model_worksheet,
                 file_year,
@@ -924,10 +908,7 @@ class SharepointExtractor:
     
             if self.cleanup_mode:
                 print(f"Fixed hyperlink for: {file_entry.entry_name}")
-                # ✅ NEW: count this file as processed for progress bar
-                print(f"Processed hyperlink for: {file_entry.entry_name}")
     
-        # Save the workbook
         print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
         model_workbook.save(self.excel_file_path)
         model_workbook.close()
@@ -935,7 +916,31 @@ class SharepointExtractor:
         elapsed_time = time.time() - start_time
         print(f"Sheet population routine took {elapsed_time:.2f} seconds.")
 
-
+    def update_current_manufacturer_progress(self, *, checked=None, total=None):
+        """
+        Emit machine-readable progress for the Current Manufacturer bar.
+        The GUI (Hyper.py) should listen for lines starting with 'CM_PROGRESS'.
+        """
+        try:
+            if checked is not None:
+                self.rows_checked = checked
+            if total is not None:
+                self.total_rows_to_check = total
+    
+            total = getattr(self, 'total_rows_to_check', 0) or 0
+            done  = getattr(self, 'rows_checked', 0) or 0
+            if total <= 0:
+                return
+    
+            percent = min(100, int((done / total) * 100))
+            print(f"CM_PROGRESS {done}/{total} ({percent}%)")
+            sys.stdout.flush()
+        except Exception as e:
+            print(f"CM_PROGRESS_ERROR {e}")
+            sys.stdout.flush()
+    
+    
+    
     
 
 
