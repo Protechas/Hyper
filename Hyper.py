@@ -950,7 +950,12 @@ class SeleniumAutomationApp(QWidget):
     
         # --- after you create self.current_manufacturer_progress, self.manufacturer_hyperlink_bar, self.overall_progress_bar ---
         
-        # --- Style for normal and stopped states ---
+        # after creating the bars
+        self.current_manufacturer_progress.setObjectName("cmBar")
+        self.manufacturer_hyperlink_bar.setObjectName("mhBar")
+        self.overall_progress_bar.setObjectName("ovBar")
+        
+        # one stylesheet that preserves the grey groove; only the CHUNK turns red when stopped
         progress_css = """
         QProgressBar {
             font-size: 12px;
@@ -959,25 +964,32 @@ class SeleniumAutomationApp(QWidget):
             color: black;
             border: 1px solid #555555;
             border-radius: 4px;
-            background: #e0e0e0;              /* normal background */
+            background: #e0e0e0;              /* normal groove */
         }
         QProgressBar::chunk {
-            background-color: #19A602;         /* normal fill */
+            background-color: #19A602;         /* normal (green) fill */
         }
         
-        /* when manually stopped, make the whole bar red */
-        QProgressBar[stopped="true"] {
-            background: #B30000;               /* deep red background at 0% */
-            color: white;                      /* white text for contrast */
+        /* when manually stopped, KEEP the same groove; only recolor the chunk.
+           Use object-id selectors + !important to override any global red background. */
+        QProgressBar#cmBar[stopped="true"],
+        QProgressBar#mhBar[stopped="true"],
+        QProgressBar#ovBar[stopped="true"] {
+            background: #e0e0e0 !important;    /* cancel any red background rules */
         }
-        QProgressBar[stopped="true"]::chunk {
-            background-color: #e53935;         /* red fill if >0% */
+        
+        QProgressBar#cmBar[stopped="true"]::chunk,
+        QProgressBar#mhBar[stopped="true"]::chunk,
+        QProgressBar#ovBar[stopped="true"]::chunk {
+            background-color: #B30000 !important;  /* red fill only */
         }
         """
         
+        # apply to each bar
         self.current_manufacturer_progress.setStyleSheet(progress_css)
         self.manufacturer_hyperlink_bar.setStyleSheet(progress_css)
         self.overall_progress_bar.setStyleSheet(progress_css)
+        
 
 
         # after adding all widgets and layouts…
@@ -1078,7 +1090,10 @@ class SeleniumAutomationApp(QWidget):
         bar.setStyleSheet(self._bar_style_stopped if stopped else self._bar_style_normal)
     
     def _apply_stopped_style_to_all_bars(self, stopped: bool):
-        """Turn the bars red when stopped; restore normal when restarting."""
+        """
+        Ensure bars use the baseline CSS (no lingering red background),
+        then flip only the CHUNK to red via the 'stopped' dynamic property.
+        """
         bars = (
             getattr(self, "current_manufacturer_progress", None),
             getattr(self, "manufacturer_hyperlink_bar", None),
@@ -1087,16 +1102,22 @@ class SeleniumAutomationApp(QWidget):
         for bar in bars:
             if not bar:
                 continue
-            # flip dynamic property and re-polish so the stylesheet takes effect immediately
-            bar.setProperty("stopped", stopped)
+    
+            # 1) HARD RESET any previous per-widget overrides that might have set a red background
+            bar.setStyleSheet("")
+            bar.setStyleSheet(getattr(self, "_progress_css", ""))
+    
+            # 2) Flip the property to switch the chunk color (groove stays grey)
+            bar.setProperty("stopped", bool(stopped))
             bar.style().unpolish(bar)
             bar.style().polish(bar)
             bar.update()
     
-            # if at 0%, briefly pulse to force a visible repaint in some styles
+            # 3) If value==0, flash 1→0 so you can immediately see the red chunk rule working
             if stopped and bar.value() == 0:
                 bar.setValue(1)
                 bar.setValue(0)
+
 
             
 
@@ -1264,15 +1285,26 @@ class SeleniumAutomationApp(QWidget):
                 "find the matching links and repair them."
             )
         
+        # detect Excel Format (ADAS SI / Repair SI)
+        excel_format = "Repair SI" if self.mode_switch.isChecked() else "ADAS SI"
+        
+        # detect Version Format (OG / NEW)
+        version_format = "NEW" if self.excel_mode_switch.isChecked() else "OG"
+        
         confirm_message = (
             "Excel files selected:\n"
             f"{excel_list}\n\n"
             "Manufacturers selected:\n"
             f"{manu_list}\n\n"
             "Systems selected:\n"
-            + ", ".join(selected_systems)
+            + ", ".join(selected_systems) + "\n\n"
+            "Excel Format:\n"
+            f"{excel_format}\n\n"
+            "Version Format:\n"
+            f"{version_format}"
             + cleanup_note + "\n\nContinue?"
         )
+                
         
 
         if QMessageBox.question(self, 'Confirmation', confirm_message,
@@ -1788,39 +1820,104 @@ class SeleniumAutomationApp(QWidget):
         bar.style().polish(bar)
         bar.update()
     
-    def _apply_stopped_style_to_all_bars(self, stopped: bool):
-        self._set_bar_stopped(getattr(self, "current_manufacturer_progress", None), stopped, "cmBar")
-        self._set_bar_stopped(getattr(self, "manufacturer_hyperlink_bar", None), stopped, "mhBar")
-        self._set_bar_stopped(getattr(self, "overall_progress_bar", None), stopped, "ovBar")
+    def _style_bar(self, bar, *, stopped: bool, name_hint: str):
+        """Per-widget stylesheet: groove stays grey; only the chunk color changes."""
+        if not bar:
+            return
+        if not bar.objectName():
+            bar.setObjectName(name_hint)
+        obj = bar.objectName()
     
-        # Optional: if value==0, flash a sliver so the red is visible immediately
-        if stopped:
-            for bar in (
-                getattr(self, "current_manufacturer_progress", None),
-                getattr(self, "manufacturer_hyperlink_bar", None),
-                getattr(self, "overall_progress_bar", None),
-            ):
-                if bar and bar.value() == 0:
-                    bar.setValue(1)
-                    bar.setValue(0)
+        normal_css = f"""
+        QProgressBar#{obj} {{
+            font-size: 12px; padding: 4px; text-align: center;
+            color: black; border: 1px solid #555; border-radius: 4px;
+            background: #e0e0e0;                /* grey groove */
+        }}
+        QProgressBar#{obj}::chunk {{
+            background-color: #19A602;           /* GREEN fill in normal runs */
+            margin: 0px; border-radius: 3px;
+        }}
+        """
+    
+        stopped_css = f"""
+        QProgressBar#{obj} {{
+            font-size: 12px; padding: 4px; text-align: center;
+            color: black; border: 1px solid #555; border-radius: 4px;
+            background: #e0e0e0 !important;      /* keep grey groove when stopped */
+        }}
+        QProgressBar#{obj}::chunk {{
+            background-color: #B30000 !important;/* RED fill when stopped */
+            margin: 0px; border-radius: 3px;
+        }}
+        """
+    
+        bar.setStyleSheet(stopped_css if stopped else normal_css)
+        bar.style().unpolish(bar); bar.style().polish(bar); bar.update()
+    
+    def _force_zero_red(self, bar, enable: bool, full: bool = True):
+        """
+        When enable=True:
+          - keep the text at "0%" (format override)
+          - but set the value to full width (100%) so the red CHUNK fills the bar
+        When enable=False:
+          - restore the original format and value
+        """
+        if not bar:
+            return
+    
+        if enable:
+            if not hasattr(bar, "_orig_format"):
+                bar._orig_format = bar.format()
+            if not hasattr(bar, "_orig_value"):
+                bar._orig_value = bar.value()
+    
+            bar.setFormat("0%")  # force the text to show 0%
+            target = bar.maximum() if full else max(1, bar.maximum() // 100)
+            bar.setValue(target)  # fill the bar (chunk draws full-width in red)
+            bar._forced_zero_red = True
+        else:
+            if getattr(bar, "_forced_zero_red", False):
+                bar.setFormat(getattr(bar, "_orig_format", "%p%"))
+                bar.setValue(getattr(bar, "_orig_value", 0))
+                bar._forced_zero_red = False
+    
+        
+        
+    def _apply_stopped_style_to_all_bars(self, stopped: bool):
+        bars = (
+            getattr(self, "current_manufacturer_progress", None),
+            getattr(self, "manufacturer_hyperlink_bar", None),
+            getattr(self, "overall_progress_bar", None),
+        )
+        for name_hint, bar in zip(("cmBar","mhBar","ovBar"), bars):
+            self._style_bar(bar, stopped=stopped, name_hint=name_hint)
+            # at manual stop, force a visible red sliver while showing "0%"
+            self._force_zero_red(bar, enable=stopped)
+    
 
     
     def on_start_stop(self):
         # — START path —
         if not self.is_running:
+            # Try to start; this might show a confirmation and bail out.
             self.start_automation()
     
-            # ── enable & reset Pause/Resume button when starting ──
+            # ⛔ If user clicked "No" (or start failed), do NOTHING to the bars/styles.
+            # Leave the "Manually Stopped" red state intact.
+            if not self.is_running:
+                return
+    
+            # ✅ We are actually starting now → safe to restore normal styles
             self.pause_requested = False
             self.pause_button.setText('Pause Automation')
             self.pause_button.setEnabled(True)
     
             # Back to normal look for a fresh run
             self._apply_stopped_style_to_all_bars(False)
-    
             return
     
-        # — STOP path —
+        # — STOP path —   (unchanged)
         reply = QMessageBox.question(
             self,
             "Confirm Stop",
@@ -1829,6 +1926,9 @@ class SeleniumAutomationApp(QWidget):
         )
         if reply != QMessageBox.Yes:
             return
+    
+        # ... your existing STOP code continues ...
+
     
         # If we were paused, first resume the subprocess so it can be cleanly terminated
         if self.pause_requested and self.thread is not None and hasattr(self.thread, "process"):
