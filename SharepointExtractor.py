@@ -760,6 +760,9 @@ class SharepointExtractor:
             filename_col = 1  # Adjust if your file names are stored elsewhere
         
             for key, row in self.row_index.items():
+                year, make, model, system_from_index = key
+                print(f"🔎 Checking row {row}: Year={year}, Make={make}, Model={model}, System={system_from_index}")
+                
                 # ── throttle to 1s between each link check ──
 
                 cell = model_worksheet.cell(row=row, column=hyperlink_col)
@@ -1774,16 +1777,17 @@ class SharepointExtractor:
                         # Always pull the system name from the correct system column
                         if repair_mode:
                             if self.excel_mode == "new":
-                                sys_cell = ws.cell(row=r, column=20)  # Column T
+                                sys_cell = ws.cell(row=r, column=20)  # Column T (Repair SI new mode)
                             elif self.sharepoint_make.lower() == "toyota":
                                 sys_cell = ws.cell(row=r, column=5)   # Column E
                             else:
                                 sys_cell = ws.cell(row=r, column=4)   # Column D
                         else:
                             if self.excel_mode == "new":
-                                sys_cell = ws.cell(row=r, column=20)  # Column T
+                                sys_cell = ws.cell(row=r, column=19)  # Column S (ADAS SI new mode)
                             else:
                                 sys_cell = ws.cell(row=r, column=5)   # Column E
+                        
     
                         system = str(sys_cell.value).strip().upper() if sys_cell.value else ''
                         normalized_system = re.sub(r"[^A-Z0-9]", "", system)
