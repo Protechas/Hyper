@@ -418,44 +418,186 @@ class SeleniumAutomationApp(QWidget):
         }
 
         self.repair_links = {
-            # Add Repair SI SharePoint links Here
-            "Acura": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EmmQxHGQ2wxNpIO04pNu_iIBqou8brkQWpKnjHPgSFT-CQ?e=qzTX1G",
-            "Alfa Romeo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EqZpuA6CO9JEooJ3K1Ix5_wB_T0XPqsH77cK8fYmidKF7g?e=cQ1HDy",
-            "Audi": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EgRYXyielJhMrOCaEhv-snQBaKmKxSPpH03Xa-mensN5VA?e=qngPQ7",
-            "BMW": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ElQAa9HT-RNBit32x6C_iBoBYg8QoMuSTcPIVxzNzddyFw?e=9Cbokm",
-            "Brightdrop": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EjP4u3WI9hlCi3k2sVx68RkBOVPGQHrQ5s-w_bDvLk7xjg?e=XMl4Pi",
-            "Buick": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EpTQ19HJYTJClKfBL8sWZPcB_1siI7_HBUbGDxljMAPffQ?e=5DzybE",
-            "Cadillac": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eq_HecuhDyRLpq1CA1HQwUEBKAJBbApj_kq7Ysp46tCyaQ?e=PVL9Wd",
-            "Chevrolet": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Es1Ts3bWdeBBiFIkV6u5rDcBzgzHitt0LluqN2MMKibXJQ?e=p3Xrbk",
-            "Chrysler": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Etc0KL9giEBMmfR3eUMN12cBBZm7i80tvroBK-KJvl6NHw?e=Tfaclo",
-            "Dodge": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Er-Fxe4uQ1FFnTse7VRcVncBvEBaFIEVjp4gkmdDLpzTPQ?e=wv5HnX",
-            "Fiat": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eiu-7WxDdZ9JmRRmFQJmPcgBoxQVHGFJP1MHWYuf1uAwBA?e=irsMGM",
-            "Ford": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eh1eSmaBWJVKnp8qcBURjpIBOmTqFYV3Kanzk7iOSFG_iw?e=sJc4aP",
-            "Genesis": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EjGjMPYyzY9Pvq3_WO8XImMB-cpFCpWDREhOzlCPSNk4tQ?e=c3vTcT",
-            "GMC": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EkLkAwwtpLNEmoxyhwREImcBruvb6Os-DdudL9B0KDvnuA?e=T2adym",
-            "Honda": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EkZKi51f0mVDpoRqr2SMAn8BPHq8zQWo_9xxa2Cs9tCidQ?e=yk4eo6",
-            "Hyundai": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EjE-7ITJcD9NproTitinWTQBdOZwCjRKZMwoIreBahxqFA?e=cUvMSs",
-            "Infiniti": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EouRS__qu0xJhiOESGAyrVsBImSJPRzO2GSeODMn0jDSNQ?e=mPrxEp",
-            "Jaguar": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eu5B7lvGjhtElkEPsSV4gXgBrmmlR_CN3cBtKCYZEy195Q?e=M88RhW",
-            "Jeep": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EnHsDhbHq8FApbsfGAv4EjwB8pQwoF2F9EhkefRXvLbvYg?e=Nk6Ufa",
-            "Kia": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EtWreIYyuapKppkYtgsxkRAB2GA91hQKHzuWrm7a_QTWKw?e=WQm9aT",
-            "Land Rover": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EoULD7SYsmxBm7cV9A2QzF4BUQ3KxM8Jd3w3jSWBlNB4LQ?e=2pxQuz",
-            "Lexus": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Ej0l_oKrgVxDlQsymIC5x4QBum-9f1hVWyk1Y0XAnuyNWA?e=7k0KKm",
-            "Lincoln": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Epdie7oZKvVNvM286yyr-fUBAYncAvMRRgLDtTfOEs4Deg?e=YlsN0S",
-            "Mazda": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Ekm67apegXNKqvUV_-1M20sBBJ7jrtmOd5lH6eIW9XZD2w?e=q9XcYh",
-            "Mercedes": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EgF2pHCD-GlNowOZ-HFbQ0UBedkihUPwg8ivNqM2fnOBfQ?e=nosRRS",
-            "Mini": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ElDvB_z5c81AoWUrkfuIfBoB6HPFb4VH_IW-PTrD9nbSvQ?e=hekEFp",
-            "Mitsubishi": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EqABJkN9KGVNnOsXi-LBjYsBepqjm0i4LzXjgYfcq5LCKA?e=wdwrQy",
-            "Nissan": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EueIzuzK4c9Hifs0p10X3LkB8dBY6pCQpN4BX8OdzIhlSQ?e=kCWehA",
-            "Porsche": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/Eh9mN-bex5FBsqGG3nCdmhAByV08wO9wj8pgh6CRhbY70Q?e=KOvjZZ",
-            "Ram": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EsVy318lU5RGqqhxeREcz64BzfWsDJc_D_SjAQMjHofFTQ?e=9BAdFz",
-            # "Rolls Royce": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EuUx8qWb8a5Lg69dZiqgPrkBElO3gQAuaLTZOvKdlOIkJg?e=3bPP4d", #Not available in Sharepoint
-            "Subaru": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EtmpOsrJmJ1EvKPd8YfjtCsBYtFit7XQ2Y375ccoEijoEA?e=N5gN9f",
-            "Tesla": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EjtvRkoo9NZCuRjBLWFK42EBu9DpqnQH8X3_2A-fOcprAw?e=Yh0QVO",
-            "Toyota": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/ElWISB73T5FEt9UM9VetQEgBVfNhbRbbvRSN3Csn7Sn_hQ?e=RDwlIA",
-            "Volkswagen": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/En6g2PWkUWBKnTLlDiQKlVcB7-rqXOeNk2nEo6-c97IXWw?e=4msFBk",
-            "Volvo": "https://calibercollision.sharepoint.com/:f:/s/O365-Protech-InformationSolutions/EvnDnyzP0KdNrCzRruhMgVMB_LSqa_12qpp4bxFVZHZTWQ?e=8MJnHp", 
-            # Add Repair SI Sharepoint Links here
+            "Acura": [
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EihKJ1TNSRdNpsQv8r32FFsB3jkwS6DfqW4Mcff4NrOr6A?e=qVTz2q",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ek3lsuYY8cZEsJwsES_Q1KwBhX3TTKcKhB5C5mdXUNReDQ?e=GEE8Mv",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei1SfDwSRlpKpSWMZ__bhdsB4VoeqkmzqFUDdb0anGPnbw?e=VJC52s" # Documents (2022 - 2026)
+            ],
+            "Alfa Romeo": [
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErOke5xzYSdJuxzA1RXrlTwBCJxKIitAemYutpEimASATg?e=hWdGVy",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Er2MZy2hndVHowEc489Cwr0ByJuhjHVrSWBmHhBHsimnZA?e=H3sAVX",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Et84MN80bJ9On_e2O19o4SkBh7gcFCWl0r9z__aOrDX1Og?e=0VYApY" # Documents (2022 - 2026)
+            ],
+            "Audi": [
+                "https://sharepoint.com/.../Audi (2012 - 2016)",
+                "https://sharepoint.com/.../Audi (2017 - 2021)",
+                "https://sharepoint.com/.../Audi (2022 - 2026)"
+            ],
+            "BMW": [
+                "https://sharepoint.com/.../BMW (2012 - 2016)",
+                "https://sharepoint.com/.../BMW (2017 - 2021)",
+                "https://sharepoint.com/.../BMW (2022 - 2026)"
+            ],
+            "Brightdrop": [
+                "https://sharepoint.com/.../Brightdrop (2012 - 2016)",
+                "https://sharepoint.com/.../Brightdrop (2017 - 2021)",
+                "https://sharepoint.com/.../Brightdrop (2022 - 2026)"
+            ],
+            "Buick": [
+                "https://sharepoint.com/.../Buick (2012 - 2016)",
+                "https://sharepoint.com/.../Buick (2017 - 2021)",
+                "https://sharepoint.com/.../Buick (2022 - 2026)"
+            ],
+            "Cadillac": [
+                "https://sharepoint.com/.../Cadillac (2012 - 2016)",
+                "https://sharepoint.com/.../Cadillac (2017 - 2021)",
+                "https://sharepoint.com/.../Cadillac (2022 - 2026)"
+            ],
+            "Chevrolet": [
+                "https://sharepoint.com/.../Chevrolet (2012 - 2016)",
+                "https://sharepoint.com/.../Chevrolet (2017 - 2021)",
+                "https://sharepoint.com/.../Chevrolet (2022 - 2026)"
+            ],
+            "Chrysler": [
+                "https://sharepoint.com/.../Chrysler (2012 - 2016)",
+                "https://sharepoint.com/.../Chrysler (2017 - 2021)",
+                "https://sharepoint.com/.../Chrysler (2022 - 2026)"
+            ],
+            "Dodge": [
+                "https://sharepoint.com/.../Dodge (2012 - 2016)",
+                "https://sharepoint.com/.../Dodge (2017 - 2021)",
+                "https://sharepoint.com/.../Dodge (2022 - 2026)"
+            ],
+            "Fiat": [
+                "https://sharepoint.com/.../Fiat (2012 - 2016)",
+                "https://sharepoint.com/.../Fiat (2017 - 2021)",
+                "https://sharepoint.com/.../Fiat (2022 - 2026)"
+            ],
+            "Ford": [
+                "https://sharepoint.com/.../Ford (2012 - 2016)",
+                "https://sharepoint.com/.../Ford (2017 - 2021)",
+                "https://sharepoint.com/.../Ford (2022 - 2026)"
+            ],
+            "Genesis": [
+                "https://sharepoint.com/.../Genesis (2012 - 2016)",
+                "https://sharepoint.com/.../Genesis (2017 - 2021)",
+                "https://sharepoint.com/.../Genesis (2022 - 2026)"
+            ],
+            "GMC": [
+                "https://sharepoint.com/.../GMC (2012 - 2016)",
+                "https://sharepoint.com/.../GMC (2017 - 2021)",
+                "https://sharepoint.com/.../GMC (2022 - 2026)"
+            ],
+            "Honda": [
+                "https://sharepoint.com/.../Honda (2012 - 2016)",
+                "https://sharepoint.com/.../Honda (2017 - 2021)",
+                "https://sharepoint.com/.../Honda (2022 - 2026)"
+            ],
+            "Hyundai": [
+                "https://sharepoint.com/.../Hyundai (2012 - 2016)",
+                "https://sharepoint.com/.../Hyundai (2017 - 2021)",
+                "https://sharepoint.com/.../Hyundai (2022 - 2026)"
+            ],
+            "Infiniti": [
+                "https://sharepoint.com/.../Infiniti (2012 - 2016)",
+                "https://sharepoint.com/.../Infiniti (2017 - 2021)",
+                "https://sharepoint.com/.../Infiniti (2022 - 2026)"
+            ],
+            "Jaguar": [
+                "https://sharepoint.com/.../Jaguar (2012 - 2016)",
+                "https://sharepoint.com/.../Jaguar (2017 - 2021)",
+                "https://sharepoint.com/.../Jaguar (2022 - 2026)"
+            ],
+            "Jeep": [
+                "https://sharepoint.com/.../Jeep (2012 - 2016)",
+                "https://sharepoint.com/.../Jeep (2017 - 2021)",
+                "https://sharepoint.com/.../Jeep (2022 - 2026)"
+            ],
+            "Kia": [
+                "https://sharepoint.com/.../Kia (2012 - 2016)",
+                "https://sharepoint.com/.../Kia (2017 - 2021)",
+                "https://sharepoint.com/.../Kia (2022 - 2026)"
+            ],
+            "Land Rover": [
+                "https://sharepoint.com/.../Land Rover (2012 - 2016)",
+                "https://sharepoint.com/.../Land Rover (2017 - 2021)",
+                "https://sharepoint.com/.../Land Rover (2022 - 2026)"
+            ],
+            "Lexus": [
+                "https://sharepoint.com/.../Lexus (2012 - 2016)",
+                "https://sharepoint.com/.../Lexus (2017 - 2021)",
+                "https://sharepoint.com/.../Lexus (2022 - 2026)"
+            ],
+            "Lincoln": [
+                "https://sharepoint.com/.../Lincoln (2012 - 2016)",
+                "https://sharepoint.com/.../Lincoln (2017 - 2021)",
+                "https://sharepoint.com/.../Lincoln (2022 - 2026)"
+            ],
+            "Mazda": [
+                "https://sharepoint.com/.../Mazda (2012 - 2016)",
+                "https://sharepoint.com/.../Mazda (2017 - 2021)",
+                "https://sharepoint.com/.../Mazda (2022 - 2026)"
+            ],
+            "Mercedes": [
+                "https://sharepoint.com/.../Mercedes (2012 - 2016)",
+                "https://sharepoint.com/.../Mercedes (2017 - 2021)",
+                "https://sharepoint.com/.../Mercedes (2022 - 2026)"
+            ],
+            "Mini": [
+                "https://sharepoint.com/.../Mini (2012 - 2016)",
+                "https://sharepoint.com/.../Mini (2017 - 2021)",
+                "https://sharepoint.com/.../Mini (2022 - 2026)"
+            ],
+            "Mitsubishi": [
+                "https://sharepoint.com/.../Mitsubishi (2012 - 2016)",
+                "https://sharepoint.com/.../Mitsubishi (2017 - 2021)",
+                "https://sharepoint.com/.../Mitsubishi (2022 - 2026)"
+            ],
+            "Nissan": [
+                "https://sharepoint.com/.../Nissan (2012 - 2016)",
+                "https://sharepoint.com/.../Nissan (2017 - 2021)",
+                "https://sharepoint.com/.../Nissan (2022 - 2026)"
+            ],
+            "Porsche": [
+                "https://sharepoint.com/.../Porsche (2012 - 2016)",
+                "https://sharepoint.com/.../Porsche (2017 - 2021)",
+                "https://sharepoint.com/.../Porsche (2022 - 2026)"
+            ],
+            "Ram": [
+                "https://sharepoint.com/.../Ram (2012 - 2016)",
+                "https://sharepoint.com/.../Ram (2017 - 2021)",
+                "https://sharepoint.com/.../Ram (2022 - 2026)"
+            ],
+            "Rolls Royce": [
+                "https://sharepoint.com/.../Rolls Royce (2012 - 2016)",
+                "https://sharepoint.com/.../Rolls Royce (2017 - 2021)",
+                "https://sharepoint.com/.../Rolls Royce (2022 - 2026)"
+            ],
+            "Subaru": [
+                "https://sharepoint.com/.../Subaru (2012 - 2016)",
+                "https://sharepoint.com/.../Subaru (2017 - 2021)",
+                "https://sharepoint.com/.../Subaru (2022 - 2026)"
+            ],
+            "Tesla": [
+                "https://sharepoint.com/.../Tesla (2012 - 2016)",
+                "https://sharepoint.com/.../Tesla (2017 - 2021)",
+                "https://sharepoint.com/.../Tesla (2022 - 2026)"
+            ],
+            "Toyota": [
+                "https://sharepoint.com/.../Toyota (2012 - 2016)",
+                "https://sharepoint.com/.../Toyota (2017 - 2021)",
+                "https://sharepoint.com/.../Toyota (2022 - 2026)"
+            ],
+            "Volkswagen": [
+                "https://sharepoint.com/.../Volkswagen (2012 - 2016)",
+                "https://sharepoint.com/.../Volkswagen (2017 - 2021)",
+                "https://sharepoint.com/.../Volkswagen (2022 - 2026)"
+            ],
+            "Volvo": [
+                "https://sharepoint.com/.../Volvo (2012 - 2016)",
+                "https://sharepoint.com/.../Volvo (2017 - 2021)",
+                "https://sharepoint.com/.../Volvo (2022 - 2026)"
+            ]
         }
 
         # how many times to try each manufacturer before giving up
