@@ -13,6 +13,7 @@ import os
 import logging
 import re
 
+######################################################################################     Terminal & Certain GUI (Buttons and Switches) Code    ######################################################################################
 
 # ── configure a “Logs” folder in Documents ──
 LOG_DIR = os.path.join(os.path.expanduser("~"), "Documents", "Hyper Logs")
@@ -103,7 +104,6 @@ class WorkerThread(QThread):
         self.progress_signal.emit(100)
 
         self.finished_signal.emit(self.manufacturer, success)
-
 
 class TerminalDialog(QDialog):
     def __init__(self, parent=None):
@@ -227,6 +227,8 @@ class ToggleSwitch(QCheckBox):
                 }
             """)
         self.parent().toggle_theme()
+        
+######################################################################################     Main Application Code    ######################################################################################
 
 class SeleniumAutomationApp(QWidget):
     def __init__(self):
@@ -238,6 +240,7 @@ class SeleniumAutomationApp(QWidget):
         self.initUI()
         self.terminal = None           
         self.excel_paths = []
+                                   ########################################################     ADAS SI Links     ########################################################
         self.manufacturer_links = {
             "Acura": [
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Er9Jvy1gtUBAtz59yCRcSmMBI6Z0VaIZGz8bAxHh10_NqQ?e=KSGOjN",# Documents (2012 - 2016)
@@ -420,7 +423,7 @@ class SeleniumAutomationApp(QWidget):
                 "https://sharepoint.com/.../Volvo (2022 - 2026)"
             ]
         }
-
+                             ########################################################     Repair SI Links     ########################################################
         self.repair_links = {
             "Acura": [
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EihKJ1TNSRdNpsQv8r32FFsB3jkwS6DfqW4Mcff4NrOr6A?e=qVTz2q",# Documents (2012 - 2016)
@@ -605,7 +608,7 @@ class SeleniumAutomationApp(QWidget):
         }
 
         # how many times to try each manufacturer before giving up
-        self.max_attempts = 5
+        self.max_attempts = 10
 
         # track how many times we've tried each one
         self.attempts = {}
@@ -621,10 +624,9 @@ class SeleniumAutomationApp(QWidget):
         self.is_running     = False
         self.stop_requested = False
         self.pause_requested= False
-
-        
+      
     def initUI(self):
-        self.setWindowTitle('Hyperlink Automation')
+        self.setWindowTitle('Hyper')
         self.setStyleSheet("background-color: #2e2e2e; color: white;")
         layout = QVBoxLayout()
     
@@ -670,7 +672,6 @@ class SeleniumAutomationApp(QWidget):
         self.select_all_repair_button.clicked.connect(self.select_all_repair)
         select_all_buttons_layout.addWidget(self.select_all_repair_button)
 
-    
         layout.addLayout(select_all_buttons_layout)
     
         # Manufacturer and ADAS selection layout
@@ -690,7 +691,7 @@ class SeleniumAutomationApp(QWidget):
                 margin-left: 10px;  /* 👈 Fine-tune left shift */
             }
         """)
-
+        # Manufacturer Check Boxes
         manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet", "Chrysler", "Dodge",
                          "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Land Rover", 
                          "Lexus", "Lincoln", "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", 
@@ -717,7 +718,7 @@ class SeleniumAutomationApp(QWidget):
             "PCM", "TRANS", "AIR", "ABS", "BCM","ODS","OCS","OCS2","OCS3","OCS4",
             "KEY", "FOB", "HVAC (1)", "HVAC (2)", "COOL", "HEAD (1)", "HEAD (2)",
         
-            # human-readable names
+            # Full Names
             "Steering Angle Sensor",
             "Yaw Rate Sensor",
             "G Force Sensor",
@@ -844,8 +845,6 @@ class SeleniumAutomationApp(QWidget):
         
         layout.addLayout(excel_mode_layout)
 
-
-
         # Dark mode toggle
         theme_switch_section.addStretch()
         self.theme_toggle = ToggleSwitch(self)
@@ -855,9 +854,7 @@ class SeleniumAutomationApp(QWidget):
         # ── Clean up Mode checkbox ──
         self.cleanup_checkbox = QCheckBox("Broken Hyperlink Mode", self)
         self.cleanup_checkbox.setStyleSheet("font-size: 14px; padding: 5px;")
-        layout.addWidget(self.cleanup_checkbox)
-        
-        # … after all your other widgets but *before* the progress bars …
+        layout.addWidget(self.cleanup_checkbox)    
     
         # ── Pause/Resume & Start/Stop Buttons ──
         self.pause_button = CustomButton('Pause Automation', '#e3a008', self)
@@ -945,10 +942,7 @@ class SeleniumAutomationApp(QWidget):
         layout.addWidget(self.manufacturer_hyperlink_bar)
         
         layout.addWidget(self.overall_progress_label)
-        layout.addWidget(self.overall_progress_bar)
-        
-    
-        # --- after you create self.current_manufacturer_progress, self.manufacturer_hyperlink_bar, self.overall_progress_bar ---
+        layout.addWidget(self.overall_progress_bar)      
         
         # after creating the bars
         self.current_manufacturer_progress.setObjectName("cmBar")
@@ -990,8 +984,6 @@ class SeleniumAutomationApp(QWidget):
         self.manufacturer_hyperlink_bar.setStyleSheet(progress_css)
         self.overall_progress_bar.setStyleSheet(progress_css)
         
-
-
         # after adding all widgets and layouts…
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
@@ -1082,8 +1074,7 @@ class SeleniumAutomationApp(QWidget):
                      "_hyperlinks_total_links", "_hyperlinks_done_links"):
             if hasattr(self, attr):
                 setattr(self, attr, None)
-    
-    
+       
     def _style_single_bar(self, bar: QProgressBar, stopped: bool) -> None:
         if not bar:
             return
@@ -1117,11 +1108,7 @@ class SeleniumAutomationApp(QWidget):
             if stopped and bar.value() == 0:
                 bar.setValue(1)
                 bar.setValue(0)
-
-
-            
-
-    
+          
     def on_si_mode_toggled(self, state):
         """Enable one list & button, disable—and clear—the other."""
         is_repair = (state == Qt.Checked)
@@ -1153,7 +1140,6 @@ class SeleniumAutomationApp(QWidget):
                 self.excel_mode_switch.setEnabled(False)   # ← Gray out
             else:
                 self.excel_mode_switch.setEnabled(True)
-
 
     # Function to select/unselect all manufacturers
     def select_all_manufacturers(self):
@@ -1346,8 +1332,6 @@ class SeleniumAutomationApp(QWidget):
         self.overall_progress_label.setText(f"Overall Progress: 0 / {self.total_manufacturers}")
         self.current_manufacturer_label.setText("Current Manufacturer: None")
 
-
-
         # 6) show or reuse terminal & start
         if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
             self.terminal = TerminalDialog(self)
@@ -1473,7 +1457,6 @@ class SeleniumAutomationApp(QWidget):
     
         # Start the first sub-link run
         self.run_next_sub_link()
-
     
     def run_next_sub_link(self):
         if self._multi_link_index >= len(self._multi_links):
@@ -1540,9 +1523,7 @@ class SeleniumAutomationApp(QWidget):
         wb.save(excel_path)
         wb.close()
         print(f"✅ Cleanup complete — removed {removed_count} unresolved links")
-
-    
-            
+           
     def count_expected_hyperlinks_for_link(self, manufacturer, sharepoint_link):
         from openpyxl import load_workbook
         import re
@@ -1761,8 +1742,6 @@ class SeleniumAutomationApp(QWidget):
         self.pause_button.setEnabled(False)
         self.is_running = False
 
-
-
     def select_all(self):
         select_all_checked = True
         for i in range(self.manufacturer_tree.topLevelItemCount()):
@@ -1881,9 +1860,7 @@ class SeleniumAutomationApp(QWidget):
                 bar.setFormat(getattr(bar, "_orig_format", "%p%"))
                 bar.setValue(getattr(bar, "_orig_value", 0))
                 bar._forced_zero_red = False
-    
-        
-        
+           
     def _apply_stopped_style_to_all_bars(self, stopped: bool):
         bars = (
             getattr(self, "current_manufacturer_progress", None),
@@ -1894,9 +1871,7 @@ class SeleniumAutomationApp(QWidget):
             self._style_bar(bar, stopped=stopped, name_hint=name_hint)
             # at manual stop, force a visible red sliver while showing "0%"
             self._force_zero_red(bar, enable=stopped)
-    
-
-    
+       
     def on_start_stop(self):
         # — START path —
         if not self.is_running:
@@ -1926,9 +1901,6 @@ class SeleniumAutomationApp(QWidget):
         )
         if reply != QMessageBox.Yes:
             return
-    
-        # ... your existing STOP code continues ...
-
     
         # If we were paused, first resume the subprocess so it can be cleanly terminated
         if self.pause_requested and self.thread is not None and hasattr(self.thread, "process"):
@@ -2016,11 +1988,7 @@ class SeleniumAutomationApp(QWidget):
         # Ensure it goes above the progress bars
         insert_index = layout.indexOf(self.current_manufacturer_label)
         layout.insertWidget(insert_index, self.start_button)
-    
-
-
-
-      
+     
     def on_pause_resume(self):
         # only when running and we have a live subprocess
         if not self.is_running or self.thread is None or not hasattr(self.thread, "process"):
