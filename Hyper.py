@@ -679,9 +679,16 @@ class SeleniumAutomationApp(QWidget):
     
         # Manufacturer tree widget with checkboxes
         manufacturer_list_layout = QVBoxLayout()
+        
+        # ▶ Label above the manufacturers list
+        manufacturer_label = QLabel("Manufacturers")
+        manufacturer_label.setAlignment(Qt.AlignHCenter)   # ⬅️ center text
+        manufacturer_label.setStyleSheet("font-size: 14px; padding: 5px 6px;")
+        manufacturer_list_layout.addWidget(manufacturer_label)
+        
         self.manufacturer_tree = QTreeWidget(self)
         self.manufacturer_tree.setHeaderHidden(True)
-        self.manufacturer_tree.setFixedWidth(260)  # 👈 Shift closer by narrowing it
+        self.manufacturer_tree.setFixedWidth(200)  # 👈 Shift closer by narrowing it
         self.manufacturer_tree.setStyleSheet("""
             QTreeWidget {
                 background-color: #3e3e3e;
@@ -691,6 +698,7 @@ class SeleniumAutomationApp(QWidget):
                 margin-left: 10px;  /* 👈 Fine-tune left shift */
             }
         """)
+        
         # Manufacturer Check Boxes
         manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet", "Chrysler", "Dodge",
                          "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Land Rover", 
@@ -700,12 +708,15 @@ class SeleniumAutomationApp(QWidget):
             item = QTreeWidgetItem(self.manufacturer_tree)
             item.setText(0, manufacturer)
             item.setCheckState(0, Qt.Unchecked)
+        
         manufacturer_list_layout.addWidget(self.manufacturer_tree)
+        
         manufacturer_selection_layout.addLayout(manufacturer_list_layout)
     
         # ADAS Acronyms section
         adas_selection_layout = QVBoxLayout()
         adas_label = QLabel("ADAS Systems")
+        adas_label.setAlignment(Qt.AlignHCenter)    
         adas_label.setStyleSheet("font-size: 14px; padding: 5px;")
         adas_selection_layout.addWidget(adas_label)
     
@@ -772,6 +783,8 @@ class SeleniumAutomationApp(QWidget):
         
         # Label (not scrollable)
         repair_label = QLabel("Repair Systems")
+        repair_label.setAlignment(Qt.AlignHCenter)  
+        repair_label.setFixedWidth(200)    
         repair_label.setStyleSheet("font-size: 14px; padding: 5px;")
         repair_box_layout.addWidget(repair_label)
         
@@ -836,7 +849,7 @@ class SeleniumAutomationApp(QWidget):
             lbl.setStyleSheet("font-size:14px; padding:5px;")
         
         self.excel_mode_switch = ModeSwitch(self)
-        self.excel_mode_switch.setChecked(False)  # Start in OG mode
+        self.excel_mode_switch.setChecked(True)  # Start in New mode
         
         excel_mode_layout.addWidget(label_og)
         excel_mode_layout.addWidget(self.excel_mode_switch)
