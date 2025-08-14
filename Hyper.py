@@ -1,5 +1,5 @@
 ﻿import sys
-from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
+from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLabel, QLineEdit, QPushButton,
                              QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, QScrollArea, QListWidget, QProgressBar)
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt,pyqtSignal,QThread
@@ -12,6 +12,74 @@ import datetime
 import os
 import logging
 import re
+
+class LoginDialog(QDialog):
+    def __init__(self, *, max_attempts=5, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Sign in to Hyper")
+        self.max_attempts = max_attempts
+        self.attempts = 0
+
+        # UI
+        v = QVBoxLayout(self)
+
+        row_user = QHBoxLayout()
+        row_user.addWidget(QLabel("Username:"))
+        self.user_edit = QLineEdit()
+        self.user_edit.setPlaceholderText("Enter username")
+        row_user.addWidget(self.user_edit)
+        v.addLayout(row_user)
+
+        row_pass = QHBoxLayout()
+        row_pass.addWidget(QLabel("Password:"))
+        self.pass_edit = QLineEdit()
+        self.pass_edit.setEchoMode(QLineEdit.Password)
+        self.pass_edit.setPlaceholderText("Enter password")
+        row_pass.addWidget(self.pass_edit)
+        v.addLayout(row_pass)
+
+        btns = QHBoxLayout()
+        self.ok_btn = QPushButton("Sign In")
+        self.cancel_btn = QPushButton("Cancel")
+        btns.addWidget(self.ok_btn)
+        btns.addWidget(self.cancel_btn)
+        v.addLayout(btns)
+
+        self.ok_btn.clicked.connect(self.try_login)
+        self.cancel_btn.clicked.connect(self.reject)
+
+        # optional: match your dark/light styling (simple, non-invasive)
+        self.setStyleSheet("""
+            QDialog { background: #2b2b2b; color: white; }
+            QLabel  { color: white; }
+            QLineEdit { background: #3a3a3a; color: white; border: 1px solid #555; border-radius: 4px; padding: 4px; }
+            QPushButton { padding: 6px 12px; }
+        """)
+
+    # Replace this with your real auth check if needed
+    def _validate(self, username: str, password: str) -> bool:
+        # EXAMPLE ONLY — change to env vars, config, or your own logic.
+        # import os; return (username == os.getenv("HYPER_USER") and password == os.getenv("HYPER_PASS"))
+        return (username == "Dromero221" and password == "Hyperactive221")
+
+    def try_login(self):
+        u = self.user_edit.text().strip()
+        p = self.pass_edit.text()
+        if self._validate(u, p):
+            self.accept()
+            return
+
+        self.attempts += 1
+        remaining = self.max_attempts - self.attempts
+        if remaining <= 0:
+            QMessageBox.critical(self, "Access denied", "Too many failed attempts. Closing.")
+            self.reject()  # caller will exit the app
+            return
+
+        QMessageBox.warning(self, "Invalid credentials",
+                            f"Username or password is incorrect.\nAttempts left: {remaining}")
+        self.pass_edit.clear()
+        self.pass_edit.setFocus()
 
 ######################################################################################     Terminal & Certain GUI (Buttons and Switches) Code    ######################################################################################
 
@@ -2043,6 +2111,12 @@ class SeleniumAutomationApp(QWidget):
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
+
+        # Require login before launching the main window
+        login = LoginDialog(max_attempts=5)
+        if login.exec_() != QDialog.Accepted:
+            sys.exit(1)  # Exit if login failed or canceled
+
         window = SeleniumAutomationApp()
         window.show()
         sys.exit(app.exec_())
