@@ -13,6 +13,8 @@ import os
 import logging
 import re
 
+######################################################################################     Username and Password    ######################################################################################
+
 class LoginDialog(QDialog):
     def __init__(self, *, max_attempts=5, parent=None):
         super().__init__(parent)
@@ -21,6 +23,8 @@ class LoginDialog(QDialog):
         self.attempts = 0
 
         # UI
+         # ⬅ Increase window size
+        self.setFixedSize(250, 150)  # was ~half this before
         v = QVBoxLayout(self)
 
         row_user = QHBoxLayout()
