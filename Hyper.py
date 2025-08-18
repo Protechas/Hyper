@@ -325,174 +325,174 @@ class SeleniumAutomationApp(QWidget):
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Et84MN80bJ9On_e2O19o4SkBh7gcFCWl0r9z__aOrDX1Og?e=0VYApY" # Documents (2022 - 2026)
             ],
             "Audi": [
-                "https://sharepoint.com/.../Audi (2012 - 2016)",
-                "https://sharepoint.com/.../Audi (2017 - 2021)",
-                "https://sharepoint.com/.../Audi (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ek5RVcQ0zD5LoWFrPBRhOUkBZouT8z-fK6YtEkpKXH3-sA?e=6GpZGf",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgNWmDWfL0dDoLAu_NWnk9wBcGs4mfMQWt0kJOKdAcE7qw?e=iF2xuJ",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eu6-w7GC0DxJoTcOcQTGz_cBbXhcnclbg8S-W-DCTIBC2g?e=RRi0I9" # Documents (2022 - 2026)
             ],
             "BMW": [
-                "https://sharepoint.com/.../BMW (2012 - 2016)",
-                "https://sharepoint.com/.../BMW (2017 - 2021)",
-                "https://sharepoint.com/.../BMW (2022 - 2026)"
+                "https://sharepoint.com/.../BMW (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../BMW (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../BMW (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Brightdrop": [
-                "https://sharepoint.com/.../Brightdrop (2012 - 2016)",
-                "https://sharepoint.com/.../Brightdrop (2017 - 2021)",
-                "https://sharepoint.com/.../Brightdrop (2022 - 2026)"
+               #"https://sharepoint.com/.../Brightdrop (2012 - 2016)",# Documents (2012 - 2016)
+               #"https://sharepoint.com/.../Brightdrop (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhzJbjUtu9BAoBARLLpdrzEBghLf1bGKDG7waifksd58WA?e=dnVdiR" # Documents (2022 - 2026)
             ],
             "Buick": [
-                "https://sharepoint.com/.../Buick (2012 - 2016)",
-                "https://sharepoint.com/.../Buick (2017 - 2021)",
-                "https://sharepoint.com/.../Buick (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuFma4RnQ_tCnARzEkIkC3sBEvp_W6X9M4TkAxiedxDm4Q?e=PQt0ld",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei9Lp73Z_whJmMLuYeXwaNYBeXm_NdgPjxbI-mtiU5gtfA?e=v85lVs",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiPXxzJExAFIi3Dnz6XwC7wBJShT3Vj_OoS8aGlqhA6nmA?e=NoMnSD" # Documents (2022 - 2026)
             ],
             "Cadillac": [
-                "https://sharepoint.com/.../Cadillac (2012 - 2016)",
-                "https://sharepoint.com/.../Cadillac (2017 - 2021)",
-                "https://sharepoint.com/.../Cadillac (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eiswo_VDoEVCsNrAkHyu89kBjUI2GIgmSthMCKUddezgUQ?e=AJiTsJ",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ejjiraaso0dEq6Kl_1x9ZtcBUjuQZuDLblplhCPpP81WCQ?e=YUNco7",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgFTpoonjmZEiAWzgdFhMzMB3UlSg8HiIfWOowDnRgld5Q?e=HteRs0" # Documents (2022 - 2026)
             ],
             "Chevrolet": [
-                "https://sharepoint.com/.../Chevrolet (2012 - 2016)",
-                "https://sharepoint.com/.../Chevrolet (2017 - 2021)",
-                "https://sharepoint.com/.../Chevrolet (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EqZxvuTHRnNDrRsfrNLiXTwBJIgrIVgsOmMTx3jyaNqYtQ?e=5HpnLM",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpZSj_daGc9MsytO-2nezZIBxbA3vyx3h_cj7Rc8iMlAhg?e=bEDFp0",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErZoNO8W8NZGtj0PAoZI91kBRsonYmvfEG-lxVOXZvBUGQ?e=UiTiuD" # Documents (2022 - 2026)
             ],
             "Chrysler": [
-                "https://sharepoint.com/.../Chrysler (2012 - 2016)",
-                "https://sharepoint.com/.../Chrysler (2017 - 2021)",
-                "https://sharepoint.com/.../Chrysler (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Estg0g6h0T1Aqz8ExIYKnZYBY23x7UJevt60wF-qRQRBaw?e=OTEmxY",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ej-XJAOEJV5NhAl-YsBcdr8B2jSsMvw1vnJPLDk2OAKjkw?e=LkduNU",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgtwZrkWbx5OlUEmWbT_7HwBvUDS464cN6VoC2BdAt3Grg?e=WI8JKR" # Documents (2022 - 2026)
             ],
             "Dodge": [
-                "https://sharepoint.com/.../Dodge (2012 - 2016)",
-                "https://sharepoint.com/.../Dodge (2017 - 2021)",
-                "https://sharepoint.com/.../Dodge (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpHj2TxFuiNHpRZ048wOrucBTrF47tU5ZlalugFkZsTVLA?e=OUDbB2",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvKVMfQtyZ1Eqp1-HhCqcL4BYFASbcFUb9wU9oiJfNsaDQ?e=gBHzgD",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EnQtha-Z4FtOsIXd2_Pkr3oBcKptnMIHVCZd59iwS7DHrQ?e=LDvLX8" # Documents (2022 - 2026)
             ],
             "Fiat": [
-                "https://sharepoint.com/.../Fiat (2012 - 2016)",
-                "https://sharepoint.com/.../Fiat (2017 - 2021)",
-                "https://sharepoint.com/.../Fiat (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EnZC4RS9LHpLkG8GZyzqdh0B9sT7f4H7ae98hQxFv0AuKg?e=Y803ub",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eu4G438Sgo5GhOMrjPAy4iIBfCoTTJ-MTlTsMxGZY1t3lw?e=L0NZca",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvEY2gjnsEVFjmdNvMdJ7nABwUQlVqrFI2eNM2gArdioUA?e=8u9VoA" # Documents (2022 - 2026)
             ],
             "Ford": [
-                "https://sharepoint.com/.../Ford (2012 - 2016)",
-                "https://sharepoint.com/.../Ford (2017 - 2021)",
-                "https://sharepoint.com/.../Ford (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eu-GjUjOiEtFqXK0oKNpht4BwWXfTtGKoufo__oXpIZnQA?e=zL5VVw",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EppG3H0bOU9Nj_hjepFPCD0BnEEpzAkXa_CTSE5oBmyQfQ?e=kop1th",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpbPnuVzVBpPluj4U4rl7CQBu_hFpTNr0LyjvIVl_tqiaQ?e=NqxV6j" # Documents (2022 - 2026)
             ],
             "Genesis": [
-                "https://sharepoint.com/.../Genesis (2012 - 2016)",
-                "https://sharepoint.com/.../Genesis (2017 - 2021)",
-                "https://sharepoint.com/.../Genesis (2022 - 2026)"
+               #"https://sharepoint.com/.../Genesis (2012 - 2016)",# Documents (2012 - 2016) # N/A
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EqnhCUslPA1IkEPsxrHp5jUBh0i3Plc7KZzZo7tikoPthQ?e=WDjFKd",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhthKhhzvNVFkphD2h0pXSsB7j39X319IXRFzam34JQAQg?e=YSrwEe" # Documents (2022 - 2026)
             ],
             "GMC": [
-                "https://sharepoint.com/.../GMC (2012 - 2016)",
-                "https://sharepoint.com/.../GMC (2017 - 2021)",
-                "https://sharepoint.com/.../GMC (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EldqrKEi0aBIj7qVPzEfG4UBcVUhDAU7GBMcVLmK3XP3Vg?e=Ter8tE",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EmUHhjcubFBBkCgZ2DAe3fMBQD1esbaGy51B18xYvTGe-w?e=p7AKiG",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EqD3b3AfmohHq1EOVqeuIMkBwv3m-G9ZU_ZQxHJHMP3WDg?e=0w0krW" # Documents (2022 - 2026)
             ],
             "Honda": [
-                "https://sharepoint.com/.../Honda (2012 - 2016)",
-                "https://sharepoint.com/.../Honda (2017 - 2021)",
-                "https://sharepoint.com/.../Honda (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eobh4dnZAGlCkireQUL9uhAB5Qbtch6cdG0TBBznQiaNXw?e=bfcbg2",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EqlTeWX65t9FhOZC4iWXgRwB_uMd2wsONcBTZCtfgIYNGQ?e=M0h6vr",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/En8NfDIM1ZtCklrws-2pU_cB-dZPkoKRNK_CgU02nXTn5Q?e=oFuS9Y" # Documents (2022 - 2026)
             ],
             "Hyundai": [
-                "https://sharepoint.com/.../Hyundai (2012 - 2016)",
-                "https://sharepoint.com/.../Hyundai (2017 - 2021)",
-                "https://sharepoint.com/.../Hyundai (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EmzxZHKX4-BAoJ5ePF8EFm8BtWKwqTu0FAgE0KINesz-6A?e=xfW5du",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhN_1bN3HAlJg04tGUvdze8BbP1NaYk4W-gdpZguLdJ7AA?e=dd8tfd",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/En6aK42nDOxMjxRexQQ5rAEBJu5UcxKAnpy5md2M3_WC1A?e=WdYhJA" # Documents (2022 - 2026)
             ],
             "Infiniti": [
-                "https://sharepoint.com/.../Infiniti (2012 - 2016)",
-                "https://sharepoint.com/.../Infiniti (2017 - 2021)",
-                "https://sharepoint.com/.../Infiniti (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhvxyD-bOqxBvz3ovA8CQTkB2Dm2oYu3QjUUJf4CC6kVOQ?e=SdlwrF",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ekam-P7AzxxHl_H5JtO1hd4BNp6QrowwjoVS_apkFbdJBg?e=06duzr",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EutIlTYjqYRHqxPt2jFBKGkBEqojgRVk3zvk0mxHgcYDuw?e=DBmEqT" # Documents (2022 - 2026)
             ],
             "Jaguar": [
-                "https://sharepoint.com/.../Jaguar (2012 - 2016)",
-                "https://sharepoint.com/.../Jaguar (2017 - 2021)",
-                "https://sharepoint.com/.../Jaguar (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtxycS4tyh5AgHGQ6tf0dwIBRc2Iyh11OQKUNYfH3qafWw?e=Sa4cPW",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EmEZ48gVKPdDg6nGlzJtjxUBfT5equZGhcwup9R2Krwzxw?e=Hzzy5L",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuTloPQ635lJgatfBTUtNT4Byofd7OozyMbNYDe4XfUjsQ?e=T3uA1X" # Documents (2022 - 2026)
             ],
             "Jeep": [
-                "https://sharepoint.com/.../Jeep (2012 - 2016)",
-                "https://sharepoint.com/.../Jeep (2017 - 2021)",
-                "https://sharepoint.com/.../Jeep (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtB9Otyh8TpLubyqe8A7opQBQgWEJ2C_lPuoytWR-WudbQ?e=yTqRut",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Egq_6W7oxhhBquYNSaxoqMQB8HjQp-WMg9_VlDZ_57-hng?e=mrdIqe",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsfALR3wW-dAoWpEeDilQjsBXgfShbmff-umR7NWsItlzA?e=6u0sor" # Documents (2022 - 2026)
             ],
             "Kia": [
-                "https://sharepoint.com/.../Kia (2012 - 2016)",
-                "https://sharepoint.com/.../Kia (2017 - 2021)",
-                "https://sharepoint.com/.../Kia (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErQTMKSFELRNrsT8pBlhec8BErXRryftCAYeTVfP6Fsleg?e=Pjze1p",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eg-Bm64GOfRJj0T4bSg2oVQBhbudmVm4dpcvLJhmM7XjDg?e=YS3KFX",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvYaiw45P7pGobm3wNlWp_MBiwTyGzCevbK4ZPqPUIgydg?e=pL2IDX" # Documents (2022 - 2026)
             ],
             "Land Rover": [
-                "https://sharepoint.com/.../Land Rover (2012 - 2016)",
-                "https://sharepoint.com/.../Land Rover (2017 - 2021)",
-                "https://sharepoint.com/.../Land Rover (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EnJmNR98ER1Ci2fV9wjdoPkBj4O30RzasQdA0Uc4qhVjTg?e=MLvu7G",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjpD29BGNptKhG9FlRJ8fFABhXAT0nleHvTPhhNHIQXxuw?e=wOR634",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsjSr5NA9h9PvfDL8o7L8zIBRSCNvYFwhL1OFNKw13NNIg?e=wywa8h" # Documents (2022 - 2026)
             ],
             "Lexus": [
-                "https://sharepoint.com/.../Lexus (2012 - 2016)",
-                "https://sharepoint.com/.../Lexus (2017 - 2021)",
-                "https://sharepoint.com/.../Lexus (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErPZJqOek7BOtcnRdepryLQBroEGtmPNAOtU0Nb1b9auKQ?e=1f8qOD",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuP2GQtls-hNkZBO9EBQAMMBH1YoIn-j3a-rl-rQJmLfxg?e=ofR3VL",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvtChcvk3LhFq23tD4dpTXkBlBbRmaQsHnwRuWGGOfIzCg?e=eJdZwN" # Documents (2022 - 2026)
             ],
             "Lincoln": [
-                "https://sharepoint.com/.../Lincoln (2012 - 2016)",
-                "https://sharepoint.com/.../Lincoln (2017 - 2021)",
-                "https://sharepoint.com/.../Lincoln (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EkrqfY58BQBBhp_cHoRz2QEB9-h_fRw9Td516P49j1A4gw?e=mDeqwY",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ep8p-GkKFm5KpIG284uOvOYB4cE64Di2CNcr1tkfbF-dWg?e=eMhmWY",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EmB5_cHJ-25Is5rj6Y6CZ8gBR2jRq1wqawjPBBcnQK7ypA?e=CjNNKe" # Documents (2022 - 2026)
             ],
             "Mazda": [
-                "https://sharepoint.com/.../Mazda (2012 - 2016)",
-                "https://sharepoint.com/.../Mazda (2017 - 2021)",
-                "https://sharepoint.com/.../Mazda (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiAVim2bOMRMio5XO-FdtgcBiFOT16id9LvktfNz8ENvjg?e=2lzWOi",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eq4JLJT9EQ1KmXqT4033y-sBvvQs9iXkA_XZvh3BHUDQ8w?e=qeequ2",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eh7SdwKsG6BAjk7BoARep_wBvmL0id1_8WJCz7axiWVVbQ?e=BgV1ix" # Documents (2022 - 2026)
             ],
             "Mercedes": [
-                "https://sharepoint.com/.../Mercedes (2012 - 2016)",
-                "https://sharepoint.com/.../Mercedes (2017 - 2021)",
-                "https://sharepoint.com/.../Mercedes (2022 - 2026)"
+                "https://sharepoint.com/.../Mercedes (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../Mercedes (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../Mercedes (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Mini": [
-                "https://sharepoint.com/.../Mini (2012 - 2016)",
-                "https://sharepoint.com/.../Mini (2017 - 2021)",
-                "https://sharepoint.com/.../Mini (2022 - 2026)"
+                "https://sharepoint.com/.../Mini (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../Mini (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../Mini (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Mitsubishi": [
-                "https://sharepoint.com/.../Mitsubishi (2012 - 2016)",
-                "https://sharepoint.com/.../Mitsubishi (2017 - 2021)",
-                "https://sharepoint.com/.../Mitsubishi (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuWflfUOcmFLjQJcuZOHAw8BRPLvZ3uwJ52KNHm51cv1pQ?e=0MBwuY",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErBWiDLxNPROgjmUeuRYNTEB63SZQXD3O6GlQ3ReKaLKAA?e=OZPY87",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EkWviPLNa4lFgfapvYL2lTQBHhjDyiwCCmsuX5h4SsDgDg?e=Cdd2OV" # Documents (2022 - 2026)
             ],
             "Nissan": [
-                "https://sharepoint.com/.../Nissan (2012 - 2016)",
-                "https://sharepoint.com/.../Nissan (2017 - 2021)",
-                "https://sharepoint.com/.../Nissan (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EkdIo1NReo1Fh929O55sXXwBl6L59D8wszpAx9npidVCZw?e=LziRox",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpJrDcAsC99JoveW6wh2xe8BBOEnhTxDt87tnmdnRE-yWg?e=k670bU",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei5-q3FPqG1GrEoC5hhFiDYBGdnfXuoAoczECkRyqZqAzg?e=AncrHy" # Documents (2022 - 2026)
             ],
             "Porsche": [
-                "https://sharepoint.com/.../Porsche (2012 - 2016)",
-                "https://sharepoint.com/.../Porsche (2017 - 2021)",
-                "https://sharepoint.com/.../Porsche (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EoLBtu8bLghAlZo7BXVC3_IB074hKBwklHi7-NE5FRMruw?e=0FD3bL",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtD5ZSfb3OJCog3svs12LOgBV4NWfTuwcp0TpY43d_VHfw?e=PDGgvo",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eju7OXsTrAFCvP86kiZ9OaUB-l4TGvGdDwHrkGXoSFGTbw?e=7gZkhT" # Documents (2022 - 2026)
             ],
             "Ram": [
-                "https://sharepoint.com/.../Ram (2012 - 2016)",
-                "https://sharepoint.com/.../Ram (2017 - 2021)",
-                "https://sharepoint.com/.../Ram (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Et6BBYUIIxtElpibn8KLFyEBbeoiskRjcoydWzM8ojKfFQ?e=mdD3XG",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgkAjsAI3bVGiO6O5PTymlUBE5VM8yCFmxz7e5R5GzonXA?e=wXhFWw",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EimwbHwaQIxDjce8HMOU8jUBJoWzg1x5Yr01bS1UoLZ0wA?e=RQmlhn" # Documents (2022 - 2026)
             ],
             "Rolls Royce": [
-                "https://sharepoint.com/.../Rolls Royce (2012 - 2016)",
-                "https://sharepoint.com/.../Rolls Royce (2017 - 2021)",
-                "https://sharepoint.com/.../Rolls Royce (2022 - 2026)"
+                "https://sharepoint.com/.../Rolls Royce (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../Rolls Royce (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../Rolls Royce (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Subaru": [
-                "https://sharepoint.com/.../Subaru (2012 - 2016)",
-                "https://sharepoint.com/.../Subaru (2017 - 2021)",
-                "https://sharepoint.com/.../Subaru (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ElwrupZL3zdImYXV4wX-wUQBxpDG7wUDzLYNQ3akv4ZsZw?e=rfYYhY",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eslb13sT6btNqQN7CEQtQ6QB7dA7mOeiS6mujOToAXPGig?e=EIMsh0",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuCLwB969iZDg3uHaGxXHzwBjZh12d3G7SBTpRzMalSPRA?e=DBtX22" # Documents (2022 - 2026)
             ],
             "Tesla": [
-                "https://sharepoint.com/.../Tesla (2012 - 2016)",
-                "https://sharepoint.com/.../Tesla (2017 - 2021)",
-                "https://sharepoint.com/.../Tesla (2022 - 2026)"
+                "https://sharepoint.com/.../Tesla (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../Tesla (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../Tesla (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Toyota": [
-                "https://sharepoint.com/.../Toyota (2012 - 2016)",
-                "https://sharepoint.com/.../Toyota (2017 - 2021)",
-                "https://sharepoint.com/.../Toyota (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/El8iIRSVnXNFrEIb45PpK1UBEOdZMiA3li62Kb55O-KmMQ?e=Q4L1qy",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpZQiBMqP8NLs-Tdf0ipic8B8G21hIEj2Phj5T09OGgBTQ?e=iTTkup",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgNbtvESNKpCotAPa9FV7L4B3tBpqw4dyCda6kQwaRkUIg?e=MXEF80" # Documents (2022 - 2026)
             ],
             "Volkswagen": [
-                "https://sharepoint.com/.../Volkswagen (2012 - 2016)",
-                "https://sharepoint.com/.../Volkswagen (2017 - 2021)",
-                "https://sharepoint.com/.../Volkswagen (2022 - 2026)"
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EmdaEPMANidKrgX0cXv-9D0BMTF8yUh3GvGoaPq2rzcyMg?e=HE8Vbh",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eqt746F1UYlOiPVg_7zpdkoB0bD8fK-0Nyz7dvMby_Yehw?e=bLCd0p",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EngV-bSSJFpEjI_tF_dvdeEBvxJYG8Vfk7f3W-3LivnIuw?e=z9BKm6" # Documents (2022 - 2026)
             ],
             "Volvo": [
-                "https://sharepoint.com/.../Volvo (2012 - 2016)",
-                "https://sharepoint.com/.../Volvo (2017 - 2021)",
-                "https://sharepoint.com/.../Volvo (2022 - 2026)"
+                "https://sharepoint.com/.../Volvo (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../Volvo (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../Volvo (2022 - 2026)" # Documents (2022 - 2026)
             ]
         }
                              ########################################################     Repair SI Links     ########################################################
