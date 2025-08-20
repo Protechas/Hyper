@@ -1541,9 +1541,10 @@ class SeleniumAutomationApp(QWidget):
             self._fixed_count    = 0
     
         # Start the first sub-link run
-        self.run_next_sub_link()
+        self.run_all_links_batch() if self.cleanup_checkbox.isChecked() else self.run_next_sub_link()
     
     def run_next_sub_link(self):
+        self._batch_links_mode = False
         if self._multi_link_index >= len(self._multi_links):
             # All links processed for this manufacturer
             self.on_manufacturer_finished(self._multi_manufacturer, True)
@@ -1581,6 +1582,50 @@ class SeleniumAutomationApp(QWidget):
         thread.finished_signal.connect(self.on_sub_link_finished)
         thread.start()
         self.threads.append(thread)
+    def run_all_links_batch(self):
+        """
+        Cleanup Mode: launch ONE extractor process passing ALL SharePoint links joined by '||'.
+        This avoids per-link rescans and lets the extractor try all links in a single pass.
+        """
+        # Reset Current Manufacturer progress bar at batch start
+        self.current_manufacturer_progress.setValue(0)
+        self._initial_folder_count = None
+
+        script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+        excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
+
+        # Join all links for this manufacturer into a single argument
+        all_links_arg = "||".join(self._multi_links)
+
+        args = [
+            sys.executable,
+            script_path,
+            all_links_arg,                      # ← multiple links combined
+            self._multi_excel_path,
+            ",".join(self.selected_systems) if hasattr(self, "selected_systems") else "",
+            self.mode_flag,
+            "cleanup",
+            excel_mode
+        ]
+
+        # Batch mode marker so we can adjust hyperlink progress semantics
+        self._batch_links_mode = True
+
+        # Reset cleanup counters
+        self._cleanup_mode = True
+        self._initial_broken = None
+        self._fixed_count = 0
+
+        self.update_manufacturer_progress_bar()
+
+        thread = WorkerThread(args, self._multi_manufacturer, parent=self)
+        self.thread = thread
+        thread.output_signal.connect(self.handle_extractor_output)
+        # In batch mode we finish the whole manufacturer on single thread end
+        thread.finished_signal.connect(self.on_manufacturer_finished)
+        thread.start()
+        self.threads.append(thread)
+
 
     def finalize_cleanup_for_file(self, excel_path, broken_entries, hyperlink_col):
         import openpyxl
@@ -1658,7 +1703,7 @@ class SeleniumAutomationApp(QWidget):
                 self.on_manufacturer_finished(manufacturer, True)
             else:
                 # Move to next sub-link
-                self.run_next_sub_link()
+                self.run_all_links_batch() if self.cleanup_checkbox.isChecked() else self.run_next_sub_link()
     
         else:
             msg = f"❌ SharePoint link {self._multi_link_index+1}/{len(self._multi_links)} for {manufacturer} failed"
@@ -1679,6 +1724,47 @@ class SeleniumAutomationApp(QWidget):
             f"Manufacturer Hyperlinks Indexed: {done_links}/{total_links}"
         )
       
+    # --- Quick syntax/tenant check used by the GUI pre-scan ---
+    def is_broken_sharepoint_link(self, url: str) -> bool:
+        """
+        Cheap/fast check (no Selenium): flags obviously bad links so we can
+        pick years to re-run. The extractor will do the real validation later.
+        """
+        try:
+            if not url or not isinstance(url, str):
+                return True
+            url = url.strip()
+            if not url.lower().startswith("http"):
+                return True
+    
+            from urllib.parse import urlparse, parse_qs
+            pu = urlparse(url)
+    
+            # Must have scheme + host
+            if not pu.scheme or not pu.netloc:
+                return True
+    
+            # Restrict to your tenant hosts (adjust if you have others)
+            allowed_hosts = {
+                "calibercollision.sharepoint.com",
+                "calibercollision-my.sharepoint.com",
+            }
+            if pu.netloc.lower() not in allowed_hosts:
+                return True
+    
+            # If it's an AllItems.aspx-style link, make sure the id= param is present
+            if pu.path.lower().endswith("allitems.aspx"):
+                qs = parse_qs(pu.query or "")
+                if "id" not in qs:
+                    return True
+    
+            # Looks syntactically fine; extractor will verify live later
+            return False
+    
+        except Exception:
+            # Any parsing error -> treat as broken
+            return True
+    
         
     def get_broken_hyperlink_years_for_manufacturer(self, manufacturer):
         years = set()
@@ -1703,6 +1789,11 @@ class SeleniumAutomationApp(QWidget):
         return sorted(years)
     
     def on_manufacturer_finished(self, manufacturer, success):
+        # If we ran in batch-links mode, mark all links done for the hyperlink counter
+        if getattr(self, '_batch_links_mode', False):
+            self._hyperlinks_done_links = self._hyperlinks_total_links
+            self.update_manufacturer_progress_bar()
+            self.manufacturer_hyperlink_label.setText('Manufacturer Hyperlinks Indexed: Completed')
         # ── HARD BAIL-OUT: if we're not running, stop immediately ──
         if not self.is_running:
             # Reset UI to Stopped state
