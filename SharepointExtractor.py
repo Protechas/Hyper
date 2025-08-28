@@ -1297,7 +1297,7 @@ class SharepointExtractor:
             """
             
             # Pull the clipboard content and store it, then dump the link contents out of it
-            for retry_count in range(3):
+            for retry_count in range(10):
             
                 # Open the clipboard and pull our file link   
                 try:    
@@ -1312,7 +1312,7 @@ class SharepointExtractor:
                 except:
                 
                     # Check if we can retry or not
-                    if retry_count == 3:
+                    if retry_count == 10:
                         raise Exception("ERROR! Failed to open the clipboard!")
                 
                     # Wait a moment before retrying to open the clipboard 
