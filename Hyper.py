@@ -2,7 +2,7 @@
 from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLabel, QLineEdit, QPushButton,
                              QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, QScrollArea, QListWidget, QProgressBar)
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt,pyqtSignal,QThread
+from PyQt5.QtCore import Qt,pyqtSignal,QThread, QTimer
 from threading import Thread
 import subprocess
 import signal
@@ -436,7 +436,7 @@ class SeleniumAutomationApp(QWidget):
             ],
             "Mercedes": [
                 "https://sharepoint.com/.../Mercedes (2012 - 2016)",# Documents (2012 - 2016)
-                "https://sharepoint.com/.../Mercedes (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuTVlHUJw5RHpEoOd3Idz8UBKLtv01O4W-yCGmJok3sqHQ?e=4nrd4i",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
                 "https://sharepoint.com/.../Mercedes (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Mini": [
@@ -696,6 +696,13 @@ class SeleniumAutomationApp(QWidget):
         self.is_running     = False
         self.stop_requested = False
         self.pause_requested= False
+        # ── Run-queue & reentrancy guards ─────────────────────────────────────
+        self._finish_guard = False          # prevents double-entry of finish handler
+        self.queue_active = False           # True while a multi-manufacturer batch is running
+        self.current_index = 0              # index into self.excel_paths / manufacturers_to_run
+        self._next_timer = None             # single reusable timer for “check again in 10s”
+        # ──────────────────────────────────────────────────────────────────────
+        
       
     def initUI(self):
         self.setWindowTitle('Hyper')
@@ -1430,14 +1437,29 @@ class SeleniumAutomationApp(QWidget):
 
         self.terminal.show()
         self.terminal.raise_()
+        
+        # ── start a fresh batch run ────────────────────────────────────────────
+        self.queue_active = True
+        self.current_index = 0
+        self._clear_queue_state()   # defined below
+        # ──────────────────────────────────────────────────────────────────────
+
         self.process_next_manufacturer()
 
     def process_next_manufacturer(self):
-        # ── STOP BAILOUT ──
-        if self.stop_requested:
+        # ── HARD STOPS ─────────────────────────────────────────────────────
+        if getattr(self, "stop_requested", False):
             return
     
-        if self.current_index >= len(self.selected_manufacturers):
+        # Only proceed if we’re in an active batch (prevents stray calls)
+        if not getattr(self, "queue_active", False):
+            # If you don’t use queue_active elsewhere, set it True when starting the batch.
+            return
+        # ──────────────────────────────────────────────────────────────────
+    
+        # ── INDEX/BOUNDS GUARD ────────────────────────────────────────────
+        total = len(self.selected_manufacturers)
+        if self.current_index >= total:
             # 🆕 If cleanup mode, run final unresolved broken link removal
             if self.cleanup_checkbox.isChecked():
                 try:
@@ -1451,7 +1473,7 @@ class SeleniumAutomationApp(QWidget):
                             hyperlink_col = 11
                         else:
                             hyperlink_col = None
-        
+    
                         if hyperlink_col:
                             print("🧹 Finalizing cleanup — removing unresolved broken links...")
                             import openpyxl
@@ -1460,7 +1482,10 @@ class SeleniumAutomationApp(QWidget):
                             removed_count = 0
                             for row, (yr, mk, mdl, sys) in self.extractor.broken_entries:
                                 cell = ws.cell(row=row, column=hyperlink_col)
-                                link_to_test = cell.hyperlink.target if cell.hyperlink else str(cell.value).strip() if cell.value else ""
+                                link_to_test = (
+                                    cell.hyperlink.target if cell.hyperlink
+                                    else (str(cell.value).strip() if cell.value else "")
+                                )
                                 if not link_to_test or link_to_test.lower() == "hyperlink not available":
                                     continue
                                 if self.extractor.is_broken_sharepoint_link(link_to_test, file_name=sys):
@@ -1473,8 +1498,8 @@ class SeleniumAutomationApp(QWidget):
                             print(f"✅ Cleanup complete — removed {removed_count} unresolved links")
                 except Exception as e:
                     print(f"⚠️ Final cleanup pass failed: {e}")
-        
-            # done!
+    
+            # 🏁 Done with the batch — cleanly wrap up and reset state
             completed = "\n".join(sorted(self.selected_manufacturers, key=str.lower))
             QMessageBox.information(
                 self,
@@ -1482,9 +1507,15 @@ class SeleniumAutomationApp(QWidget):
                 f"The Following Manufacturers have been completed:\n{completed}",
                 QMessageBox.Ok
             )
+    
+            # Reset batch flags/state so a new run starts clean
+            self.queue_active = False
+            self.current_index = 0
+            self._clear_queue_state()
+            self._log_all_done()
             return
-        
-            
+        # ──────────────────────────────────────────────────────────────────
+    
         # Reset per‐manufacturer progress tracking
         self._initial_folder_count = None
     
@@ -1492,7 +1523,18 @@ class SeleniumAutomationApp(QWidget):
         self.current_manufacturer_label.setText(f"Current Manufacturer: {manufacturer}")
         self.current_manufacturer_progress.setValue(0)
     
+        # ── SAFELY FETCH PARALLEL LIST ENTRY ──────────────────────────────
+        if self.current_index >= len(self.excel_paths):
+            # Defensive guard — prevents IndexError if arrays get out of sync
+            print("⚠️ excel_paths shorter than selected_manufacturers; aborting this step.")
+            # Advance index and try to continue gracefully
+            self.current_index += 1
+            # Optionally schedule the next manufacturer instead of immediate recursion:
+            # return self._schedule_next_manufacturer()
+            return self.process_next_manufacturer()
         excel_path = self.excel_paths[self.current_index]
+        # ──────────────────────────────────────────────────────────────────
+    
         link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
     
         # Get all SharePoint links for this manufacturer (could be 1 or many)
@@ -1504,7 +1546,10 @@ class SeleniumAutomationApp(QWidget):
                 f"No SharePoint link found for {manufacturer} in {self.mode_flag} mode.",
                 QMessageBox.Ok
             )
-            return
+            # Advance safely to avoid stalling the queue
+            self.current_index += 1
+            # return self._schedule_next_manufacturer()
+            return self.process_next_manufacturer()
     
         # Normalize to list if it's a single string
         if isinstance(sharepoint_links, str):
@@ -1531,7 +1576,7 @@ class SeleniumAutomationApp(QWidget):
     
         # 🆕 Manufacturer hyperlink counter based on # of SharePoint links
         self._hyperlinks_total_links = len(self._multi_links)
-        self._hyperlinks_done_links = 0
+        self._hyperlinks_done_links  = 0
         self.update_manufacturer_progress_bar()
     
         # NEW: remember cleanup mode & reset its counters
@@ -1541,8 +1586,46 @@ class SeleniumAutomationApp(QWidget):
             self._fixed_count    = 0
     
         # Start the first sub-link run
-        self.run_all_links_batch() if self.cleanup_checkbox.isChecked() else self.run_next_sub_link()
+        # (Keeps your existing immediate-start behavior. If you prefer a delay, call self._schedule_next_manufacturer().)
+        self.run_all_links_batch() if self._cleanup_mode else self.run_next_sub_link()
+
+    def _clear_queue_state(self):
+        """Reset per-run tracking to avoid carryover between batches."""
+        try:
+            self.manufacturers_completed = []
+        except Exception:
+            pass
+        try:
+            self.manufacturers_failed = []
+        except Exception:
+            pass
+        # Stop any pending next-timer you might have elsewhere
+        if getattr(self, "_next_timer", None):
+            try:
+                self._next_timer.stop()
+            except Exception:
+                pass
+            self._next_timer = None
     
+    def _log_all_done(self):
+        print("🏁 All Manufacturers finished.")
+        # Also reset/disable any UI as you already do when everything completes
+        
+    def _schedule_next_manufacturer(self):
+        # stop previous timer if it exists
+        if self._next_timer:
+            try:
+                self._next_timer.stop()
+            except Exception:
+                pass
+            self._next_timer = None
+    
+        self._next_timer = QTimer(self)
+        self._next_timer.setSingleShot(True)
+        self._next_timer.timeout.connect(self.process_next_manufacturer)
+        print("⏱ Checking in 10s if i Need to run another Manufacturer…")
+        self._next_timer.start(10_000)
+        
     def run_next_sub_link(self):
         self._batch_links_mode = False
         if self._multi_link_index >= len(self._multi_links):
@@ -1582,6 +1665,7 @@ class SeleniumAutomationApp(QWidget):
         thread.finished_signal.connect(self.on_sub_link_finished)
         thread.start()
         self.threads.append(thread)
+        
     def run_all_links_batch(self):
         """
         Cleanup Mode: launch ONE extractor process passing ALL SharePoint links joined by '||'.
@@ -1789,134 +1873,160 @@ class SeleniumAutomationApp(QWidget):
         return sorted(years)
     
     def on_manufacturer_finished(self, manufacturer, success):
-        # If we ran in batch-links mode, mark all links done for the hyperlink counter
-        if getattr(self, '_batch_links_mode', False):
-            self._hyperlinks_done_links = self._hyperlinks_total_links
-            self.update_manufacturer_progress_bar()
-            self.manufacturer_hyperlink_label.setText('Manufacturer Hyperlinks Indexed: Completed')
-        # ── HARD BAIL-OUT: if we're not running, stop immediately ──
-        if not self.is_running:
-            # Reset UI to Stopped state
-            self.current_manufacturer_progress.setValue(0)
-            self.overall_progress_bar.setValue(0)
-            self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
-            self.overall_progress_label.setText("Overall Progress: Manually Stopped")
-    
-            # Swap back to Start button
-            layout = self.button_layout
-            layout.removeWidget(self.start_button)
-            self.start_button.deleteLater()
-            self.start_button = CustomButton("Start Automation", "#008000", self)
-            self.start_button.clicked.connect(self.on_start_stop)
-            layout.addWidget(self.start_button)
-    
-            # Disable Pause
-            self.pause_button.setEnabled(False)
+        # ── Reentrancy guard: prevents double entry from duplicate signals ──
+        if getattr(self, "_finish_guard", False):
             return
+        self._finish_guard = True
+        try:
+            # If we ran in batch-links mode, mark all links done for the hyperlink counter
+            if getattr(self, '_batch_links_mode', False):
+                self._hyperlinks_done_links = self._hyperlinks_total_links
+                self.update_manufacturer_progress_bar()
+                self.manufacturer_hyperlink_label.setText('Manufacturer Hyperlinks Indexed: Completed')
     
-        # ── YOUR ORIGINAL LOGIC STARTS HERE ──
+            # ── HARD BAIL-OUT: if we're not running, stop immediately ──
+            if not self.is_running:
+                # Reset UI to Stopped state
+                self.current_manufacturer_progress.setValue(0)
+                self.overall_progress_bar.setValue(0)
+                self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
+                self.overall_progress_label.setText("Overall Progress: Manually Stopped")
     
-        # 1) count this run
-        prev = self.attempts.get(manufacturer, 0)
-        self.attempts[manufacturer] = prev + 1
-        attempt_no = self.attempts[manufacturer]
+                # Swap back to Start button
+                layout = self.button_layout
+                layout.removeWidget(self.start_button)
+                self.start_button.deleteLater()
+                self.start_button = CustomButton("Start Automation", "#008000", self)
+                self.start_button.clicked.connect(self.on_start_stop)
+                layout.addWidget(self.start_button)
     
-        # 2) route based on success / attempt count
-        if success:
-            self.completed_manufacturers.append(manufacturer)
-            msg = f"✅ {manufacturer} succeeded on attempt {attempt_no}."
-            self.terminal.append_output(msg)
-            logging.info(msg)
+                # Disable Pause
+                self.pause_button.setEnabled(False)
+                return
     
-            # update overall on success
-            finalized = len(self.completed_manufacturers) + len(self.given_up_manufacturers)
-            percent   = int(finalized / self.total_manufacturers * 100)
-            self.overall_progress_bar.setValue(percent)
-            self.overall_progress_label.setText(
-                f"Overall Progress: {finalized} / {self.total_manufacturers}"
-            )
-        else:
-            if attempt_no < self.max_attempts:
-                err_excel = self.excel_paths[self.current_index]
-                self.failed_manufacturers.append(manufacturer)
-                self.failed_excels.append(err_excel)
-                msg = f"❗ {manufacturer} failed on attempt {attempt_no}; will retry later."
+            # ── YOUR ORIGINAL LOGIC (kept) ──────────────────────────────────
+    
+            # 1) count this run
+            prev = self.attempts.get(manufacturer, 0)
+            self.attempts[manufacturer] = prev + 1
+            attempt_no = self.attempts[manufacturer]
+    
+            # 2) route based on success / attempt count
+            if success:
+                # Avoid duplicate entries if a stray double-finish happens
+                if manufacturer not in self.completed_manufacturers:
+                    self.completed_manufacturers.append(manufacturer)
+                msg = f"✅ {manufacturer} succeeded on attempt {attempt_no}."
                 self.terminal.append_output(msg)
-                logging.warning(msg)
-            else:
-                self.given_up_manufacturers.append(manufacturer)
-                msg = (
-                    f"❌ {manufacturer} failed on attempt {attempt_no}; "
-                    f"giving up after {self.max_attempts} tries."
-                )
-                self.terminal.append_output(msg)
-                logging.error(msg)
+                logging.info(msg)
     
-                # update overall on final give-up
+                # update overall on success
                 finalized = len(self.completed_manufacturers) + len(self.given_up_manufacturers)
-                percent   = int(finalized / self.total_manufacturers * 100)
+                percent   = int(finalized / self.total_manufacturers * 100) if self.total_manufacturers else 100
                 self.overall_progress_bar.setValue(percent)
                 self.overall_progress_label.setText(
                     f"Overall Progress: {finalized} / {self.total_manufacturers}"
                 )
+            else:
+                if attempt_no < self.max_attempts:
+                    # Record failure for retry pass (keep lists in sync, avoid dupes)
+                    err_excel = self.excel_paths[self.current_index] if self.current_index < len(self.excel_paths) else None
+                    if manufacturer not in self.failed_manufacturers:
+                        self.failed_manufacturers.append(manufacturer)
+                    if err_excel and (err_excel not in self.failed_excels):
+                        self.failed_excels.append(err_excel)
+                    msg = f"❗ {manufacturer} failed on attempt {attempt_no}; will retry later."
+                    self.terminal.append_output(msg)
+                    logging.warning(msg)
+                else:
+                    if manufacturer not in self.given_up_manufacturers:
+                        self.given_up_manufacturers.append(manufacturer)
+                    msg = (
+                        f"❌ {manufacturer} failed on attempt {attempt_no}; "
+                        f"giving up after {self.max_attempts} tries."
+                    )
+                    self.terminal.append_output(msg)
+                    logging.error(msg)
     
-        # 3) pause, then advance index
-        msg = "⏱ Checking in 10s if i Need to run another Manufacturer…"
-        self.terminal.append_output(msg)
-        logging.info(msg)
-        sleep(10)
-        self.current_index += 1
+                    # update overall on final give-up
+                    finalized = len(self.completed_manufacturers) + len(self.given_up_manufacturers)
+                    percent   = int(finalized / self.total_manufacturers * 100) if self.total_manufacturers else 100
+                    self.overall_progress_bar.setValue(percent)
+                    self.overall_progress_label.setText(
+                        f"Overall Progress: {finalized} / {self.total_manufacturers}"
+                    )
     
-        # 4) if still in this pass, keep going
-        if self.current_index < len(self.selected_manufacturers):
-            self.process_next_manufacturer()
-            return
+            # 3) Debounced, UI-safe delay (replaces sleep(10))
+            msg = "⏱ Checking in 10s if i Need to run another Manufacturer…"
+            self.terminal.append_output(msg)
+            logging.info(msg)
     
-        # 5) end of pass: retry logic…
-        if self.failed_manufacturers:
-            retry_list = ", ".join(self.failed_manufacturers)
-            self.terminal.append_output(f"🔄 Retrying: {retry_list}")
-            sleep(10)
-            self.selected_manufacturers = self.failed_manufacturers
-            self.excel_paths            = self.failed_excels
-            self.current_index          = 0
-            self.failed_manufacturers   = []
-            self.failed_excels          = []
-            self.process_next_manufacturer()
-            return
+            def _continue_after_delay():
+                # Advance index ONCE here (not before the delay)
+                self.current_index += 1
     
-        # 6) final summary
-        completed_sorted = sorted(self.completed_manufacturers, key=str.lower)
-        given_up_sorted  = sorted(self.given_up_manufacturers,  key=str.lower)
+                # 4) if still in this pass, keep going
+                if self.current_index < len(self.selected_manufacturers):
+                    self.process_next_manufacturer()
+                    return
     
-        self.terminal.append_output("")
-        self.terminal.append_output("🏁 All Manufacturers finished.")
-        self.terminal.append_output(f"✅ Completed: {', '.join(completed_sorted)}")
-        self.terminal.append_output(f"❌ Gave up:   {', '.join(given_up_sorted)}")
+                # 5) end of pass: retry logic…
+                if self.failed_manufacturers:
+                    retry_list = ", ".join(self.failed_manufacturers)
+                    self.terminal.append_output(f"🔄 Retrying: {retry_list}")
     
-        # lock bars at 100%
-        self.current_manufacturer_progress.setValue(100)
-        self.overall_progress_bar.setValue(100)
-        self.current_manufacturer_label.setText("Current Manufacturer: Complete")
-        self.overall_progress_label.setText("Overall Progress: Complete")
-        self.terminal.append_output("=" * 66)
+                    # Small extra debounce so logs render nicely
+                    QTimer.singleShot(200, lambda: None)
     
-        # reset tracking for next run
-        self.completed_manufacturers    = []
-        self.failed_manufacturers       = []
-        self.failed_excels              = []
-        self.given_up_manufacturers     = []
-        self.attempts                   = {}
+                    # swap in failed sets, reset index, and go again
+                    self.selected_manufacturers = list(self.failed_manufacturers)
+                    self.excel_paths            = list(self.failed_excels)
+                    self.current_index          = 0
+                    self.failed_manufacturers   = []
+                    self.failed_excels          = []
+                    self.process_next_manufacturer()
+                    return
     
-        # swap back to Start button
-        layout = self.button_layout
-        layout.removeWidget(self.start_button)
-        self.start_button.deleteLater()
-        self.start_button = CustomButton("Start Automation", "#008000", self)
-        self.start_button.clicked.connect(self.on_start_stop)
-        layout.addWidget(self.start_button)
-        self.pause_button.setEnabled(False)
-        self.is_running = False
+                # 6) final summary
+                completed_sorted = sorted(self.completed_manufacturers, key=str.lower)
+                given_up_sorted  = sorted(self.given_up_manufacturers,  key=str.lower)
+    
+                self.terminal.append_output("")
+                self.terminal.append_output("🏁 All Manufacturers finished.")
+                self.terminal.append_output(f"✅ Completed: {', '.join(completed_sorted)}" if completed_sorted else "✅ Completed: ")
+                self.terminal.append_output(f"❌ Gave up:   {', '.join(given_up_sorted)}" if given_up_sorted else "❌ Gave up:   ")
+    
+                # lock bars at 100%
+                self.current_manufacturer_progress.setValue(100)
+                self.overall_progress_bar.setValue(100)
+                self.current_manufacturer_label.setText("Current Manufacturer: Complete")
+                self.overall_progress_label.setText("Overall Progress: Complete")
+                self.terminal.append_output("=" * 66)
+    
+                # reset tracking for next run
+                self.completed_manufacturers    = []
+                self.failed_manufacturers       = []
+                self.failed_excels              = []
+                self.given_up_manufacturers     = []
+                self.attempts                   = {}
+    
+                # swap back to Start button
+                layout = self.button_layout
+                layout.removeWidget(self.start_button)
+                self.start_button.deleteLater()
+                self.start_button = CustomButton("Start Automation", "#008000", self)
+                self.start_button.clicked.connect(self.on_start_stop)
+                layout.addWidget(self.start_button)
+                self.pause_button.setEnabled(False)
+                self.is_running = False
+    
+            # Fire the continuation in 10 seconds without blocking the UI
+            QTimer.singleShot(10_000, _continue_after_delay)
+    
+        finally:
+            # Release the guard so future *distinct* completions can run
+            self._finish_guard = False
+
 
     def select_all(self):
         select_all_checked = True
