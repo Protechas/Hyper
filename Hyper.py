@@ -1176,30 +1176,30 @@ class SeleniumAutomationApp(QWidget):
         """
         Ensure bars use the baseline CSS (no lingering red background),
         then flip only the CHUNK to red via the 'stopped' dynamic property.
+        Also force a visible red fill even if the bar value is 0%.
         """
         bars = (
             getattr(self, "current_manufacturer_progress", None),
             getattr(self, "manufacturer_hyperlink_bar", None),
             getattr(self, "overall_progress_bar", None),
         )
-        for bar in bars:
+        for name_hint, bar in zip(("cmBar", "mhBar", "ovBar"), bars):
             if not bar:
                 continue
     
-            # 1) HARD RESET any previous per-widget overrides that might have set a red background
+            # Reset and reapply baseline CSS
             bar.setStyleSheet("")
             bar.setStyleSheet(getattr(self, "_progress_css", ""))
     
-            # 2) Flip the property to switch the chunk color (groove stays grey)
+            # Apply stopped property
             bar.setProperty("stopped", bool(stopped))
             bar.style().unpolish(bar)
             bar.style().polish(bar)
             bar.update()
     
-            # 3) If value==0, flash 1→0 so you can immediately see the red chunk rule working
-            if stopped and bar.value() == 0:
-                bar.setValue(1)
-                bar.setValue(0)
+            # Force red fill to appear even if value == 0
+            self._force_zero_red(bar, enable=stopped, full=True)
+
           
     def on_si_mode_toggled(self, state):
         """Enable one list & button, disable—and clear—the other."""
@@ -1415,6 +1415,46 @@ class SeleniumAutomationApp(QWidget):
         self.selected_systems       = selected_systems
         self.mode_flag              = "repair" if self.mode_switch.isChecked() else "adas"
         self.current_index          = 0
+        self.total_manufacturers    = len(self.selected_manufacturers)
+        
+        # ---- PRE-PRIME LABELS TO AVOID "None" / "0 / 0" FLASH ----
+        first_manufacturer = self.selected_manufacturers[0]
+        self.current_manufacturer_label.setText(f"Current Manufacturer: {first_manufacturer}")
+        
+        # Compute the SharePoint links exactly like process_next_manufacturer
+        link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
+        sp_links = link_dict.get(first_manufacturer, [])
+        
+        # Normalize to list
+        if isinstance(sp_links, str):
+            sp_links = [sp_links]
+        
+        # If cleanup mode, filter by needed years (same logic you use later)
+        if self.cleanup_checkbox.isChecked():
+            years_needed = self.get_broken_hyperlink_years_for_manufacturer(first_manufacturer)
+            filtered = []
+            for link in sp_links:
+                m = re.search(r'\((\d{4})\s*-\s*(\d{4})\)', link)
+                if m:
+                    start_y, end_y = int(m.group(1)), int(m.group(2))
+                    if any(start_y <= y <= end_y for y in years_needed):
+                        filtered.append(link)
+            if filtered:
+                sp_links = filtered
+        
+        # Show the correct X / Y immediately (0 done so far)
+        total_links = max(1, len(sp_links)) if not sp_links else len(sp_links)
+        
+        # ✅ keep bar in sync so nothing can overwrite back to 0/0
+        self.manufacturer_hyperlink_bar.setMaximum(max(1, total_links))
+        self.manufacturer_hyperlink_bar.setValue(0)
+        self.manufacturer_hyperlink_label.setText(
+            f"Manufacturer Hyperlinks Indexed: 0 / {total_links}"
+        )
+        
+        # ✅ ALSO reset the overall progress label so it doesn’t stay "Manually Stopped"
+        self.overall_progress_label.setText(f"Overall Progress: 0 / {self.total_manufacturers}")
+
         
         # ── Initialize Overall Progress ──
         self.total_manufacturers = len(self.selected_manufacturers)
@@ -1422,7 +1462,30 @@ class SeleniumAutomationApp(QWidget):
         self.overall_progress_bar.setValue(0)
         self.current_manufacturer_progress.setValue(0)
         self.overall_progress_label.setText(f"Overall Progress: 0 / {self.total_manufacturers}")
-        self.current_manufacturer_label.setText("Current Manufacturer: None")
+        #self.current_manufacturer_label.setText("Current Manufacturer: None")
+
+        # Also reset the Manufacturer Hyperlink bar & per-run counters
+        # (do this only after the user clicked "Yes")
+        try:
+            # Label + bar back to a clean state
+            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks Indexed: 0 / 0")
+            if hasattr(self, "manufacturer_hyperlink_bar"):
+                self.manufacturer_hyperlink_bar.setMaximum(100)  # safe default before we know link count
+                self.manufacturer_hyperlink_bar.setValue(0)
+        except Exception:
+            pass
+        
+        # Clear per-run counters so Cleanup Mode starts fresh and nothing carries over
+        self._hyperlinks_total_links = 0
+        self._hyperlinks_done_links = 0
+        self._initial_broken = None
+        self._fixed_count = 0
+        self._initial_folder_count = None
+        
+        # Ensure bars are back to normal styles (remove any "stopped" red)
+        if hasattr(self, "_apply_stopped_style_to_all_bars"):
+            self._apply_stopped_style_to_all_bars(False)
+        
 
         # 6) show or reuse terminal & start
         if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
@@ -1588,6 +1651,32 @@ class SeleniumAutomationApp(QWidget):
         # Start the first sub-link run
         # (Keeps your existing immediate-start behavior. If you prefer a delay, call self._schedule_next_manufacturer().)
         self.run_all_links_batch() if self._cleanup_mode else self.run_next_sub_link()
+
+    def _links_for_manufacturer_preview(self, manufacturer: str):
+        """Return the exact list of SharePoint links this run will use for `manufacturer`.
+        Mirrors the logic in process_next_manufacturer(), including cleanup-mode filtering."""
+        link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
+        links = link_dict.get(manufacturer) or []
+        if isinstance(links, str):
+            links = [links]
+    
+        if self.cleanup_checkbox.isChecked():
+            years_needed = self.get_broken_hyperlink_years_for_manufacturer(manufacturer)
+            if years_needed:
+                filtered = []
+                for link in links:
+                    m = re.search(r'\((\d{4})\s*-\s*(\d{4})\)', link)
+                    if m:
+                        start_y, end_y = int(m.group(1)), int(m.group(2))
+                        if any(start_y <= y <= end_y for y in years_needed):
+                            filtered.append(link)
+                    else:
+                        # If no range on the link, keep it (conservative) so count never under-reports
+                        filtered.append(link)
+                if filtered:
+                    links = filtered
+        return links
+    
 
     def _clear_queue_state(self):
         """Reset per-run tracking to avoid carryover between batches."""
@@ -1805,7 +1894,7 @@ class SeleniumAutomationApp(QWidget):
     
         # Always show x/y format
         self.manufacturer_hyperlink_label.setText(
-            f"Manufacturer Hyperlinks Indexed: {done_links}/{total_links}"
+            f"Manufacturer Hyperlinks Indexed: {done_links} / {total_links}"
         )
       
     # --- Quick syntax/tenant check used by the GUI pre-scan ---
@@ -1891,6 +1980,10 @@ class SeleniumAutomationApp(QWidget):
                 self.overall_progress_bar.setValue(0)
                 self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
                 self.overall_progress_label.setText("Overall Progress: Manually Stopped")
+                self.manufacturer_hyperlink_label.setText('Manufacturer Hyperlinks Indexed: Manually Stopped')
+
+                    # 🆕 force bars into red "stopped" style
+                self._apply_stopped_style_to_all_bars(True)
     
                 # Swap back to Start button
                 layout = self.button_layout
@@ -2149,14 +2242,21 @@ class SeleniumAutomationApp(QWidget):
            
     def _apply_stopped_style_to_all_bars(self, stopped: bool):
         bars = (
-            getattr(self, "current_manufacturer_progress", None),
-            getattr(self, "manufacturer_hyperlink_bar", None),
-            getattr(self, "overall_progress_bar", None),
+            ("cmBar", self.current_manufacturer_progress),
+            ("mhBar", self.manufacturer_hyperlink_bar),
+            ("ovBar", self.overall_progress_bar),
         )
-        for name_hint, bar in zip(("cmBar","mhBar","ovBar"), bars):
+        for name_hint, bar in bars:
+            if not bar:
+                continue
+            # Always restyle per-bar
             self._style_bar(bar, stopped=stopped, name_hint=name_hint)
-            # at manual stop, force a visible red sliver while showing "0%"
-            self._force_zero_red(bar, enable=stopped)
+            # Always force red 0% fill if stopped
+            if stopped:
+                self._force_zero_red(bar, enable=True)
+            else:
+                self._force_zero_red(bar, enable=False)
+    
        
     def on_start_stop(self):
         # — START path —
