@@ -979,7 +979,7 @@ class SeleniumAutomationApp(QWidget):
         """)
         
         # 🆕 Manufacturer Hyperlink Status
-        self.manufacturer_hyperlink_label = QLabel("Manufacturer Hyperlinks Indexed: 0 / 0")
+        self.manufacturer_hyperlink_label = QLabel("Manufacturer Hyperlinks : 0 / 0")
         self.manufacturer_hyperlink_label.setStyleSheet("font-size: 13px; padding: 5px;")
         self.manufacturer_hyperlink_bar = QProgressBar()
         self.manufacturer_hyperlink_bar.setMaximum(100)
@@ -1147,7 +1147,7 @@ class SeleniumAutomationApp(QWidget):
         if hasattr(self, "current_manufacturer_label"):
             self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
         if hasattr(self, "manufacturer_hyperlink_label"):
-            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks Indexed: Manually Stopped")
+            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks: Manually Stopped")
         if hasattr(self, "overall_progress_label"):
             self.overall_progress_label.setText("Overall Progress: Manually Stopped")
     
@@ -1449,7 +1449,7 @@ class SeleniumAutomationApp(QWidget):
         self.manufacturer_hyperlink_bar.setMaximum(max(1, total_links))
         self.manufacturer_hyperlink_bar.setValue(0)
         self.manufacturer_hyperlink_label.setText(
-            f"Manufacturer Hyperlinks Indexed: 0 / {total_links}"
+            f"Manufacturer Hyperlinks: 0 / {total_links}"
         )
         
         # ✅ ALSO reset the overall progress label so it doesn’t stay "Manually Stopped"
@@ -1468,7 +1468,7 @@ class SeleniumAutomationApp(QWidget):
         # (do this only after the user clicked "Yes")
         try:
             # Label + bar back to a clean state
-            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks Indexed: 0 / 0")
+            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks: 0 / 0")
             if hasattr(self, "manufacturer_hyperlink_bar"):
                 self.manufacturer_hyperlink_bar.setMaximum(100)  # safe default before we know link count
                 self.manufacturer_hyperlink_bar.setValue(0)
@@ -1871,7 +1871,7 @@ class SeleniumAutomationApp(QWidget):
     
             if self._multi_link_index >= len(self._multi_links):
                 # All links for this manufacturer complete
-                self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks Indexed: Completed")
+                self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks: Complete")
                 self.manufacturer_hyperlink_bar.setValue(self.manufacturer_hyperlink_bar.maximum())
                 self.on_manufacturer_finished(manufacturer, True)
             else:
@@ -1894,7 +1894,7 @@ class SeleniumAutomationApp(QWidget):
     
         # Always show x/y format
         self.manufacturer_hyperlink_label.setText(
-            f"Manufacturer Hyperlinks Indexed: {done_links} / {total_links}"
+            f"Manufacturer Hyperlinks: {done_links} / {total_links}"
         )
       
     # --- Quick syntax/tenant check used by the GUI pre-scan ---
@@ -1971,7 +1971,7 @@ class SeleniumAutomationApp(QWidget):
             if getattr(self, '_batch_links_mode', False):
                 self._hyperlinks_done_links = self._hyperlinks_total_links
                 self.update_manufacturer_progress_bar()
-                self.manufacturer_hyperlink_label.setText('Manufacturer Hyperlinks Indexed: Completed')
+                self.manufacturer_hyperlink_label.setText('Manufacturer Hyperlinks: Complete')
     
             # ── HARD BAIL-OUT: if we're not running, stop immediately ──
             if not self.is_running:
@@ -1980,7 +1980,7 @@ class SeleniumAutomationApp(QWidget):
                 self.overall_progress_bar.setValue(0)
                 self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
                 self.overall_progress_label.setText("Overall Progress: Manually Stopped")
-                self.manufacturer_hyperlink_label.setText('Manufacturer Hyperlinks Indexed: Manually Stopped')
+                self.manufacturer_hyperlink_label.setText('Manufacturer Hyperlinks: Manually Stopped')
 
                     # 🆕 force bars into red "stopped" style
                 self._apply_stopped_style_to_all_bars(True)
@@ -2094,7 +2094,7 @@ class SeleniumAutomationApp(QWidget):
                 self.overall_progress_bar.setValue(100)
                 self.current_manufacturer_label.setText("Current Manufacturer: Complete")
                 self.overall_progress_label.setText("Overall Progress: Complete")
-                self.terminal.append_output("=" * 66)
+                self.terminal.append_output("=" * 68)
     
                 # reset tracking for next run
                 self.completed_manufacturers    = []
@@ -2343,7 +2343,7 @@ class SeleniumAutomationApp(QWidget):
         if hasattr(self, "current_manufacturer_label"):
             self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
         if hasattr(self, "manufacturer_hyperlink_label"):
-            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks Indexed: Manually Stopped")
+            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks: Manually Stopped")
         if hasattr(self, "overall_progress_label"):
             self.overall_progress_label.setText("Overall Progress: Manually Stopped")
     

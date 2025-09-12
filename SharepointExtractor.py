@@ -2006,7 +2006,7 @@ if __name__ == '__main__':
     
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
-    print("=" * 70)
+    print("=" * 68)
 
     if extractor.cleanup_mode:
         # Clean up mode: find broken links → re-index only those
@@ -2023,5 +2023,5 @@ if __name__ == '__main__':
         folders, files = extractor.extract_contents()
         extractor.populate_excel_file(files)
 
-    print("=" * 70)
+    print("=" * 68)
     print(f"Extraction and population for {extractor.sharepoint_make} is complete!")
