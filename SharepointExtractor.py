@@ -487,13 +487,13 @@ class SharepointExtractor:
         Returns ([], unique_matches)
         """
         from collections import defaultdict
-
+    
         print("🔍 Clean up Mode: Resolving broken links across all SharePoint links in a single pass...")
-
+    
         if not getattr(self, "broken_entries", None):
             print("ℹ️ No broken entries present; nothing to resolve.")
             return [], []
-
+    
         # Group Excel problems by Year → Model → [Systems]
         grouped = defaultdict(lambda: defaultdict(list))
         for _, (yr, mk, mdl, sys) in self.broken_entries:
@@ -504,10 +504,10 @@ class SharepointExtractor:
                     sys = acronym
                     break
             grouped[str(yr).strip()][str(mdl).strip()].append(str(sys).strip())
-
+    
         resolved = set()           # (year, model, system)
         matched_files = []
-
+    
         for root_link in getattr(self, "sharepoint_links", [self.sharepoint_link]):
             try:
                 self.selenium_driver.get(root_link)
@@ -515,39 +515,45 @@ class SharepointExtractor:
             except Exception as e:
                 print(f"⚠️ Could not navigate to link: {root_link} → {e}")
                 continue
-
+    
             # List year folders once for this root
             try:
                 year_folders, _ = self.__get_folder_rows__()
             except Exception as e:
                 print(f"⚠️ Could not read top-level year folders for link: {e}")
                 continue
-
+    
             for yr, models in grouped.items():
                 target_year = next((f for f in year_folders if yr == f.entry_name.strip()), None)
                 if not target_year:
                     continue
-
+    
                 # Enter year folder once
                 self.selenium_driver.get(target_year.entry_link)
                 time.sleep(0.8)
-
+    
                 # List model folders once for this year
                 try:
                     model_folders, _ = self.__get_folder_rows__()
                 except Exception as e:
                     print(f"⚠️ Could not read model folders under '{yr}': {e}")
                     continue
-
+    
                 for mdl, sys_list in models.items():
                     target_model = next((f for f in model_folders if mdl.upper() == f.entry_name.strip().upper()), None)
                     if not target_model:
                         continue
-
-                    # Enter model folder once
+    
+                    # 👇 NEW: announce each attempt BEFORE navigating into the model folder/files
+                    for sys_name in list(sys_list):
+                        if (yr, mdl, sys_name) in resolved:
+                            continue
+                        print(f"🔗 Attempting to gather link for {yr} {self.sharepoint_make} {mdl} ({sys_name})")
+    
+                    # Enter model folder once (navigation happens AFTER the attempt logs)
                     self.selenium_driver.get(target_model.entry_link)
                     time.sleep(0.8)
-
+    
                     # Grab file rows once
                     try:
                         table = WebDriverWait(self.selenium_driver, 15).until(
@@ -557,44 +563,44 @@ class SharepointExtractor:
                     except Exception as e:
                         print(f"⚠️ Failed to list files in {yr}/{mdl}: {e}")
                         continue
-
+    
                     # Prepare row names cache for matching
                     row_names = [self.__get_row_name__(r) for r in rows]
-
+    
                     for sys_name in list(sys_list):
                         if (yr, mdl, sys_name) in resolved:
                             continue
-
+    
                         base_sys = re.sub(r"\s*\(\s*\d+\s*\)\s*$", "", sys_name).strip()
                         regex = re.compile(
                             rf"(?<![A-Za-z0-9])\(?{re.escape(base_sys)}(?:\s*\d+)?\)?(?![A-Za-z0-9])",
                             re.IGNORECASE
                         )
-
+    
                         direct_row = None
                         no_doc_row = None
-
+    
                         for row, name in zip(rows, row_names):
                             if name.lower().startswith("no ") and regex.search(name):
                                 no_doc_row = row
-
+    
                             if not regex.search(name):
                                 continue
-
+    
                             # Year match
                             ym = re.search(r"(20\d{2})", name)
                             if not ym or ym.group(1).strip() != yr:
                                 continue
-
+    
                             # Model presence (clean parentheses and year, compare upper)
                             cleaned = re.sub(r"\(.*?\)", "", name)
                             cleaned = re.sub(r"(20\d{2})", "", cleaned).replace(".pdf", "").strip().upper()
                             if mdl.strip().upper() not in cleaned:
                                 continue
-
+    
                             direct_row = row
                             break
-
+    
                         if direct_row:
                             link = self.__get_encrypted_link__(direct_row)
                             if link:
@@ -609,7 +615,7 @@ class SharepointExtractor:
                                 resolved.add((yr, mdl, sys_name))
                                 print(f"✅ Direct match: {yr} {self.sharepoint_make} {mdl} ({sys_name})")
                                 continue
-
+    
                         if no_doc_row:
                             orig_name = self.__get_row_name__(no_doc_row)
                             link = self.__get_encrypted_link__(no_doc_row)
@@ -626,7 +632,7 @@ class SharepointExtractor:
                                 resolved.add((yr, mdl, sys_name))
                                 print(f"ℹ️ No real {sys_name} doc — using NO-doc: {orig_name}")
                                 print(f"   ↳ Renaming for placement as: {forced}")
-
+    
         # Dedupe by name
         seen = set()
         unique_matches = []
@@ -634,10 +640,11 @@ class SharepointExtractor:
             if entry.entry_name not in seen:
                 seen.add(entry.entry_name)
                 unique_matches.append(entry)
-
+    
         print(f"📥 Matched {len(unique_matches)} files for repair across all links.")
         return [], unique_matches
-    
+
+       
     def extract_contents(self) -> tuple[list, list]:
             """
             Extracts the file and folder links from the defined sharepoint location for the current extractor object.
@@ -664,7 +671,7 @@ class SharepointExtractor:
                             sys = acronym
                             break
     
-                    print(f"🔎 Seeking: {yr} ➝ {mdl} ➝ {sys}")
+                    print(f"🔎 Seeking: {yr} ➝ {mk} ➝ {mdl} ➝ {sys}")
     
                     # STEP 1: reset to root folder
                     self.selenium_driver.get(self.sharepoint_link)
@@ -1276,7 +1283,7 @@ class SharepointExtractor:
                 if encrypted_file_link != starting_clipboard_content:
                     return encrypted_file_link  # ✅ SUCCESS → return link
     
-                print(f"⚠️ Clipboard didn’t update on attempt {retry_count + 1}. Retrying…")
+                print(f"⚠️ Did not Successfully Gather link on attempt {retry_count + 1}. Retrying…")
     
             except Exception as e:
                 print(f"⚠️ Attempt {retry_count + 1} failed: {e}")
