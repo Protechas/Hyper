@@ -1010,7 +1010,7 @@ class SharepointExtractor:
         adas_last_row = {}
     
         for file_entry in file_entries:
-            print(f"Processing file: {file_entry.entry_name}")
+            #print(f"Processing file: {file_entry.entry_name}")
             file_name = file_entry.entry_name
     
             # Cleanup mode: force NO-docs into correct system row when needed
@@ -1084,10 +1084,10 @@ class SharepointExtractor:
                 )
                 continue
     
-            if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
-                if self.cleanup_mode:
-                    print(f"Fixed hyperlink for: {file_entry.entry_name}")
-                continue
+            #if self.__update_excel_with_whitelist__(model_worksheet, file_name, file_entry.entry_link):
+                #if self.cleanup_mode:
+                    #print(f"Fixed hyperlink for: {file_entry.entry_name}")
+                #continue
     
             self.__update_excel__(
                 model_worksheet,
@@ -1099,8 +1099,8 @@ class SharepointExtractor:
                 None
             )
     
-            if self.cleanup_mode:
-                print(f"Fixed hyperlink for: {file_entry.entry_name}")
+            #if self.cleanup_mode:
+                #print(f"Fixed hyperlink for: {file_entry.entry_name}")
     
         print(f"Saving updated changes to {self.sharepoint_make} sheet now...")
         model_workbook.save(self.excel_file_path)
