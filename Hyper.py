@@ -9,6 +9,7 @@ import signal
 import psutil
 from time import sleep
 import datetime
+import time
 import os
 import logging
 import re
@@ -86,6 +87,11 @@ class LoginDialog(QDialog):
         self.pass_edit.setFocus()
 
 ######################################################################################     Terminal & Certain GUI (Buttons and Switches) Code    ######################################################################################
+
+def format_runtime(seconds):
+    h, rem = divmod(int(seconds), 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}"
 
 # ── configure a “Logs” folder in Documents ──
 LOG_DIR = os.path.join(os.path.expanduser("~"), "Documents", "Hyper Logs")
@@ -330,13 +336,13 @@ class SeleniumAutomationApp(QWidget):
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eo9oo3jE0aFFiF0oq3SH-yIBtzO-fs9ujxin-xYtgiyPJw?e=dpp5K7" # Documents (2022 - 2026) ✅ Good
             ],
             "BMW": [
-               #"https://sharepoint.com/.../BMW (2012 - 2016)",# Documents (2012 - 2016)
-               #"https://sharepoint.com/.../BMW (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-               #"https://sharepoint.com/.../BMW (2022 - 2026)" # Documents (2022 - 2026)
+               # "https://sharepoint.com/.../BMW (2012 - 2016)",# Documents (2012 - 2016)
+                #"https://sharepoint.com/.../BMW (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+               # "https://sharepoint.com/.../BMW (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Brightdrop": [
-               #"https://sharepoint.com/.../Brightdrop (2012 - 2016)",# Documents (2012 - 2016)
-               #"https://sharepoint.com/.../Brightdrop (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                #"https://sharepoint.com/.../Brightdrop (2012 - 2016)",# Documents (2012 - 2016)
+                #"https://sharepoint.com/.../Brightdrop (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei7cezAnsYxArVcOgtX9NzUBUil6aILz29016KA8IVpdjw?e=k99Gif" # Documents (2022 - 2026) ✅ Good
             ],
             "Buick": [
@@ -435,14 +441,14 @@ class SeleniumAutomationApp(QWidget):
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ep8DTmuj43pGusDvRZ_zTwkB2z78hmexpaklaiYYy1SrOQ?e=F97HhX" # Documents (2022 - 2026) ✅ Good
             ],
             "Mercedes": [
-                "https://sharepoint.com/.../Mercedes (2012 - 2016)",# Documents (2012 - 2016)
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsgICO8lRkFCnaI9N7TQCE4B5S_fO8IhPaFICTgwc4TVaQ?e=I4iUVJ",# Documents (2017 - 2021) # Broken Still/ Not working / N/A ✅ Good
-                "https://sharepoint.com/.../Mercedes (2022 - 2026)" # Documents (2022 - 2026)
+                #"https://sharepoint.com/.../Mercedes (2012 - 2016)",# Documents (2012 - 2016)
+               # "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsgICO8lRkFCnaI9N7TQCE4B5S_fO8IhPaFICTgwc4TVaQ?e=I4iUVJ",# Documents (2017 - 2021) # Broken Still/ Not working / N/A ✅ Good
+                #"https://sharepoint.com/.../Mercedes (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Mini": [
-                "https://sharepoint.com/.../Mini (2012 - 2016)",# Documents (2012 - 2016)
-                "https://sharepoint.com/.../Mini (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-                "https://sharepoint.com/.../Mini (2022 - 2026)" # Documents (2022 - 2026)
+               # "https://sharepoint.com/.../Mini (2012 - 2016)",# Documents (2012 - 2016)
+               # "https://sharepoint.com/.../Mini (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                #"https://sharepoint.com/.../Mini (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Mitsubishi": [
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Emutf00F_UpHiZz4ZVs3uEUBLr9vFJ6YPvCjjsLFXs43Cw?e=w8EYYC",# Documents (2012 - 2016) ✅ Good
@@ -465,9 +471,9 @@ class SeleniumAutomationApp(QWidget):
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgUzFRAF62lOrD4DdzdqpSMBL75EuJisusIwlS61uNsAZw?e=eqW6pG" # Documents (2022 - 2026) ✅ Good
             ],
             "Rolls Royce": [
-                "https://sharepoint.com/.../Rolls Royce (2012 - 2016)",# Documents (2012 - 2016)
-                "https://sharepoint.com/.../Rolls Royce (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-                "https://sharepoint.com/.../Rolls Royce (2022 - 2026)" # Documents (2022 - 2026)
+               # "https://sharepoint.com/.../Rolls Royce (2012 - 2016)",# Documents (2012 - 2016)
+               # "https://sharepoint.com/.../Rolls Royce (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+               # "https://sharepoint.com/.../Rolls Royce (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Subaru": [
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eml2Qv0ylQ5Poi7tK08qS6IB3ySb8h_dSog0Y7alOPnTow?e=0Kmfbp",# Documents (2012 - 2016) ✅ Good
@@ -475,9 +481,9 @@ class SeleniumAutomationApp(QWidget):
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ek4gnQt6VfRBtnRkwYgg42oBaQISPSZd60uIOEVFHf59eg?e=I7pPNY" # Documents (2022 - 2026) ✅ Good
             ],
             "Tesla": [
-                "https://sharepoint.com/.../Tesla (2012 - 2016)",# Documents (2012 - 2016)
-                "https://sharepoint.com/.../Tesla (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-                "https://sharepoint.com/.../Tesla (2022 - 2026)" # Documents (2022 - 2026)
+               # "https://sharepoint.com/.../Tesla (2012 - 2016)",# Documents (2012 - 2016)
+              #  "https://sharepoint.com/.../Tesla (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+               # "https://sharepoint.com/.../Tesla (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Toyota": [
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErZ4ESHSPa5Fmtnek4YNEVIB74fdt5S6Om_G-ibLv1BPiA?e=6BiELq",# Documents (2012 - 2016) ✅ Good
@@ -490,9 +496,9 @@ class SeleniumAutomationApp(QWidget):
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjuBnvd7dbNHkbiug9wzbTMBpe-ieris6UoCWwuTohQJMA?e=kopsV8" # Documents (2022 - 2026) ✅ Good
             ],
             "Volvo": [
-                "https://sharepoint.com/.../Volvo (2012 - 2016)",# Documents (2012 - 2016)
-                "https://sharepoint.com/.../Volvo (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-                "https://sharepoint.com/.../Volvo (2022 - 2026)" # Documents (2022 - 2026)
+                #"https://sharepoint.com/.../Volvo (2012 - 2016)",# Documents (2012 - 2016)
+                #"https://sharepoint.com/.../Volvo (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+               # "https://sharepoint.com/.../Volvo (2022 - 2026)" # Documents (2022 - 2026)
             ]
         }
                              ########################################################     Repair SI Links     ########################################################
@@ -1088,56 +1094,236 @@ class SeleniumAutomationApp(QWidget):
     def handle_extractor_output(self, line: str):
         """
         Consume stdout from SharepointExtractor. Update UI progress bars,
-        but optionally suppress CM progress lines from the Terminal view.
+        parse report data, and manage terminal display.
         """
-        # ── 1) Current Manufacturer progress coming as explicit "CM_PROGRESS a/b (p%)" ──
-        m_cm = re.match(r"\s*CM_PROGRESS\s+(\d+)\s*/\s*(\d+)\s*\((\d+)%\)", line, re.IGNORECASE)
-        if m_cm:
-            done = int(m_cm.group(1))
-            total = max(1, int(m_cm.group(2)))
-            pct_from_text = int(m_cm.group(3))
-            # trust the numbers coming from the extractor, but clamp
-            pct = max(0, min(100, pct_from_text if 0 <= pct_from_text <= 100 else int(done/total*100)))
-            self.current_manufacturer_progress.setValue(pct)
+        import re
     
-            # optionally suppress showing this in the terminal
-            if self.hide_cm_progress_in_terminal:
-                return
+        # Ensure report buckets exist
+        if not hasattr(self, "report_stats"):
+            self.report_stats = {}
+        if not hasattr(self, "_report_year_totals"):
+            self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
     
-        # ── 2) Cleanup-mode progress (broken link repair) ──
-        if getattr(self, '_cleanup_mode', False):
-            # total to fix
-            m_total = re.search(r'Total broken hyperlinks:\s*(\d+)', line)
-            if m_total:
-                self._initial_broken = int(m_total.group(1))
-                self._fixed_count = 0
-                if self.hide_cm_progress_in_terminal:
-                    return
-            # each item processed (we treat ✅/❌/“Fixed hyperlink for …” as a tick)
-            if line.startswith(("Fixed hyperlink for", "✅", "❌")) and getattr(self, "_initial_broken", None):
-                self._fixed_count += 1
-                pct = int(self._fixed_count / max(1, self._initial_broken) * 100)
-                self.current_manufacturer_progress.setValue(pct)
-                if self.hide_cm_progress_in_terminal:
-                    return
+        # Build a canonical manufacturer map for quick detection
+        manu_name_map = {}
+        try:
+            if hasattr(self, "selected_manufacturers"):
+                manu_name_map = {m.lower(): m for m in self.selected_manufacturers}
+            elif hasattr(self, "manufacturer_links"):
+                manu_name_map = {m.lower(): m for m in self.manufacturer_links.keys()}
+        except Exception:
+            pass
     
-        # ── 3) Normal mode progress using "N Folders Remain" ──
-        m_fr = re.search(r'(\d+)\s+Folders Remain', line)
-        if m_fr:
-            remaining = int(m_fr.group(1))
-            if not hasattr(self, '_initial_folder_count') or self._initial_folder_count is None:
-                self._initial_folder_count = remaining
+        # ---------- helpers ----------
+        def _norm_range(rng: str) -> str:
+            # Normalize (2012–2016)/(2012-2016) → "2012–2016"
+            rng = rng.strip().replace("—", "-").replace("–", "-")
+            m = re.search(r"(\d{4})\s*-\s*(\d{4})", rng)
+            if not m:
+                return rng
+            a, b = int(m.group(1)), int(m.group(2))
+            return f"{a}–{b}"
+    
+        def _hms_to_seconds(s: str) -> int:
+            # Accept "H:MM:SS" or "MM:SS"
+            parts = [int(x) for x in s.split(":")]
+            if len(parts) == 3:
+                h, m, sec = parts
+            elif len(parts) == 2:
+                h, m, sec = 0, parts[0], parts[1]
             else:
-                self._initial_folder_count = max(self._initial_folder_count, remaining)
-            initial = max(1, self._initial_folder_count)
-            pct = max(0, min(100, int((initial - remaining) / initial * 100)))
-            self.current_manufacturer_progress.setValue(pct)
-            # we **do** still show these lines normally (they're not CM_PROGRESS),
-            # so no early return here.
+                h, m, sec = 0, 0, parts[0]
+            return h * 3600 + m * 60 + sec
     
-        # finally, append anything not suppressed
-        self.terminal.append_output(line)
+        def _int(s: str) -> int:
+            return int(s.replace(",", "").strip())
+    
+        # Tolerant regexes (compiled once per call)
+        RE_CM   = re.compile(r"\s*CM_PROGRESS\s+(\d+)\s*/\s*(\d+)\s*\((\d+)%\)", re.IGNORECASE)
+        RE_FR   = re.compile(r"(\d+)\s+Folders Remain", re.IGNORECASE)
+    
+        # Totals (several variants)
+        RE_TOT_A = re.compile(r"(\d{1,2}:\d{2}(?::\d{2})?)\s+Total Time\s*\|\s*Total Files\s*:\s*(\d{1,3}(?:,\d{3})*)", re.IGNORECASE)
+        RE_TOT_B = re.compile(r"Total Files\s*:\s*(\d{1,3}(?:,\d{3})*)\s*\|\s*Total Time\s*:\s*(\d{1,2}:\d{2}(?::\d{2})?)", re.IGNORECASE)
+        RE_TOT_TIME_ONLY  = re.compile(r"Total Time\s*:\s*(\d{1,2}:\d{2}(?::\d{2})?)", re.IGNORECASE)
+        RE_TOT_FILES_ONLY = re.compile(r"(?:Total Files|Files Indexed|Files Found)\s*:\s*(\d{1,3}(?:,\d{3})*)", re.IGNORECASE)
+        RE_TOT_SECONDS    = re.compile(r"Indexing routine took\s*(\d+(?:\.\d+)?)\s*seconds", re.IGNORECASE)
+    
+        # Per-link (very tolerant): try the canonical line first, then a generic fallback
+        RE_LINK_CANON = re.compile(
+            r"-{2,}\s*\d+(?:st|nd|rd|th)\s+([A-Za-z][A-Za-z &\-/]+?)\s+Link\s*\(([^)]+)\)\s*[:\-–]\s*"
+            r"(\d{1,2}:\d{2}(?::\d{2})?)\s*\|\s*(?:Files(?:\s*(?:Found|Indexed))?|Files)\s*[:=]?\s*(\d{1,3}(?:,\d{3})*)",
+            re.IGNORECASE
+        )
+        # Fallback: any line containing a year-range, a time token, and a files count token
+        RE_YEAR   = re.compile(r"\((\s*\d{4}\s*[-–—]\s*\d{4}\s*)\)")
+        RE_TIME   = re.compile(r"\b(\d{1,2}:\d{2}(?::\d{2})?)\b")
+        RE_FILES1 = re.compile(r"(?:Files(?:\s*(?:Found|Indexed))?|Found)\s*[:=]?\s*(\d{1,3}(?:,\d{3})*)", re.IGNORECASE)
+        RE_FILES2 = re.compile(r"\b(\d{1,3}(?:,\d{3})*)\s+Files\b", re.IGNORECASE)
+    
+        # Manufacturer header lines (several styles)
+        RE_MAKE1 = re.compile(r"^\s*Manufacturer\s*:\s*([A-Za-z][A-Za-z0-9 &\-/]+)\s*$", re.IGNORECASE)
+        RE_MAKE2 = re.compile(r"^\s*Processing\s+(?:manufacturer|make)\s*[:\-]\s*([A-Za-z][A-Za-z0-9 &\-/]+)\s*$", re.IGNORECASE)
+        RE_MAKE3 = re.compile(r"^\s*=+\s*([A-Za-z][A-Za-z0-9 &\-/]+)\s*=+\s*$")
+    
+        # We may receive multiple physical lines at once; handle each
+        text = line if isinstance(line, str) else str(line)
+        orig_ended_nl = text.endswith("\n")
+        echo_lines = []
+    
+        for raw in text.splitlines():
+            s = raw.strip()
+            show_this_line = True
+    
+            # 0) Detect and lock current make from header-like lines or a bare manufacturer name
+            mk_from_header = None
+            m = RE_MAKE1.match(s) or RE_MAKE2.match(s) or RE_MAKE3.match(s)
+            if m:
+                mk_from_header = m.group(1).strip()
+            elif s and s.lower() in manu_name_map:
+                mk_from_header = manu_name_map[s.lower()]
+    
+            if mk_from_header:
+                self._report_current_make = manu_name_map.get(mk_from_header.lower(), mk_from_header)
+                self.report_stats.setdefault(self._report_current_make, {"total_time": 0, "total_files": 0, "links": []})
+    
+            # 1) CM progress: "CM_PROGRESS a/b (p%)"
+            m_cm = RE_CM.match(s)
+            if m_cm:
+                done = int(m_cm.group(1))
+                total = max(1, int(m_cm.group(2)))
+                pct_from_text = int(m_cm.group(3))
+                pct = max(0, min(100, pct_from_text if 0 <= pct_from_text <= 100 else int(done / total * 100)))
+                self.current_manufacturer_progress.setValue(pct)
+                if getattr(self, "hide_cm_progress_in_terminal", False):
+                    show_this_line = False
+    
+            # 2) Cleanup-mode tickers
+            if getattr(self, '_cleanup_mode', False):
+                m_total = re.search(r'Total broken hyperlinks:\s*(\d+)', s)
+                if m_total:
+                    self._initial_broken = int(m_total.group(1))
+                    self._fixed_count = 0
+                if s.startswith(("Fixed hyperlink for", "✅", "❌")) and getattr(self, "_initial_broken", None):
+                    self._fixed_count += 1
+                    pct = int(self._fixed_count / max(1, self._initial_broken) * 100)
+                    self.current_manufacturer_progress.setValue(pct)
+    
+            # 3) Normal mode progress using "N Folders Remain"
+            m_fr = RE_FR.search(s)
+            if m_fr:
+                remaining = int(m_fr.group(1))
+                if not hasattr(self, '_initial_folder_count') or self._initial_folder_count is None:
+                    self._initial_folder_count = remaining
+                else:
+                    self._initial_folder_count = max(self._initial_folder_count, remaining)
+                initial = max(1, self._initial_folder_count)
+                pct = max(0, min(100, int((initial - remaining) / initial * 100)))
+                self.current_manufacturer_progress.setValue(pct)
+    
+            # 4) Report parsing
+            current_make = getattr(self, "_report_current_make", None)
+            if not current_make and hasattr(self, "selected_manufacturers") and 0 <= self.current_index < len(self.selected_manufacturers):
+                current_make = self.selected_manufacturers[self.current_index]
+    
+            # 4a) Per-link — canonical form first
+            m_link = RE_LINK_CANON.search(s)
+            if m_link:
+                make_name, yr_raw, rt_str, files_str = m_link.groups()
+                mk = manu_name_map.get(make_name.strip().lower(), make_name.strip())
+                yr = _norm_range(yr_raw)
+                secs = _hms_to_seconds(rt_str)
+                files = _int(files_str)
+                self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
+                sig = (yr, secs, files)
+                existing = {(l["range"], l["time"], l["files"]) for l in self.report_stats[mk]["links"]}
+                if sig not in existing:
+                    self.report_stats[mk]["links"].append({"range": yr, "time": secs, "files": files})
+                    if yr in self._report_year_totals:
+                        self._report_year_totals[yr] += files
+                # set context for a following TOTAL line
+                self._report_current_make = mk
+    
+            else:
+                # 4b) Per-link — generic fallback (year-range + a time + a files number)
+                m_year = RE_YEAR.search(s)
+                if m_year and (RE_FILES1.search(s) or RE_FILES2.search(s)) and RE_TIME.search(s):
+                    yr = _norm_range(m_year.group(1))
+                    # decide which "make" to attach to: prefer explicit "for <make>" or context
+                    mk = current_make
+                    m_for = re.search(r"\bfor\s+([A-Za-z][A-Za-z0-9 &\-/]+)", s, re.IGNORECASE)
+                    if m_for:
+                        guess = m_for.group(1).strip()
+                        mk = manu_name_map.get(guess.lower(), guess)
+                    if mk:
+                        # pick the last time token on the line
+                        times = RE_TIME.findall(s)
+                        rt_str = times[-1] if times else "0:00"
+                        files_m = RE_FILES1.search(s) or RE_FILES2.search(s)
+                        files = _int(files_m.group(1)) if files_m else 0
+                        secs = _hms_to_seconds(rt_str)
+                        self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
+                        sig = (yr, secs, files)
+                        existing = {(l["range"], l["time"], l["files"]) for l in self.report_stats[mk]["links"]}
+                        if sig not in existing:
+                            self.report_stats[mk]["links"].append({"range": yr, "time": secs, "files": files})
+                            if yr in self._report_year_totals:
+                                self._report_year_totals[yr] += files
+    
+            # 4c) Totals lines (various orders). Use context make if present.
+            mk_ctx = getattr(self, "_report_current_make", None) or current_make
+            if mk_ctx:
+                hit_total = False
+                m = RE_TOT_A.search(s)
+                if m:
+                    rt_str, files_str = m.groups()
+                    self.report_stats.setdefault(mk_ctx, {"total_time": 0, "total_files": 0, "links": []})
+                    self.report_stats[mk_ctx]["total_time"]  = max(self.report_stats[mk_ctx]["total_time"], _hms_to_seconds(rt_str))
+                    self.report_stats[mk_ctx]["total_files"] = max(self.report_stats[mk_ctx]["total_files"], _int(files_str))
+                    hit_total = True
+                else:
+                    m = RE_TOT_B.search(s)
+                    if m:
+                        files_str, rt_str = m.groups()
+                        self.report_stats.setdefault(mk_ctx, {"total_time": 0, "total_files": 0, "links": []})
+                        self.report_stats[mk_ctx]["total_time"]  = max(self.report_stats[mk_ctx]["total_time"], _hms_to_seconds(rt_str))
+                        self.report_stats[mk_ctx]["total_files"] = max(self.report_stats[mk_ctx]["total_files"], _int(files_str))
+                        hit_total = True
+                    else:
+                        m = RE_TOT_TIME_ONLY.search(s)
+                        if m:
+                            rt_str = m.group(1)
+                            self.report_stats.setdefault(mk_ctx, {"total_time": 0, "total_files": 0, "links": []})
+                            self.report_stats[mk_ctx]["total_time"] = max(self.report_stats[mk_ctx]["total_time"], _hms_to_seconds(rt_str))
+                            hit_total = True
+                        m2 = RE_TOT_FILES_ONLY.search(s)
+                        if m2:
+                            files_str = m2.group(1)
+                            self.report_stats.setdefault(mk_ctx, {"total_time": 0, "total_files": 0, "links": []})
+                            self.report_stats[mk_ctx]["total_files"] = max(self.report_stats[mk_ctx]["total_files"], _int(files_str))
+                            hit_total = True
+                        m3 = RE_TOT_SECONDS.search(s)
+                        if m3:
+                            secs = int(float(m3.group(1)))
+                            self.report_stats.setdefault(mk_ctx, {"total_time": 0, "total_files": 0, "links": []})
+                            self.report_stats[mk_ctx]["total_time"] = max(self.report_stats[mk_ctx]["total_time"], secs)
+                            hit_total = True
+                # if totals hit but files still 0 and we have links, backfill per-make files from links
+                if hit_total and self.report_stats.get(mk_ctx, {}).get("total_files", 0) == 0:
+                    links = self.report_stats.get(mk_ctx, {}).get("links", [])
+                    if links:
+                        self.report_stats[mk_ctx]["total_files"] = sum(l["files"] for l in links)
+    
+            # collect for echo, respecting hide flags
+            if show_this_line:
+                echo_lines.append(raw)
+    
+        # Append echo lines (rather than raw chunk)
+        if echo_lines:
+            self.terminal.append_output("\n".join(echo_lines) + ("\n" if orig_ended_nl else ""))
 
+
+   
     def mark_manual_stop(self):
         """
         Reflect a manual stop in labels and progress bars (works for Cleanup + Regular).
@@ -1326,6 +1512,237 @@ class SeleniumAutomationApp(QWidget):
                 "border: 1px solid #555555; border-radius: 5px;"
             )
 
+    # ========= REPORT LOG BACKFILL HELPERS =========
+    def _find_latest_log_file(self):
+        """
+        Return the most recent log file path. Prefer FileHandler's file; otherwise
+        scan the Hyper Logs directory for the freshest .log/.txt (excluding our report files).
+        """
+        import os, glob, logging
+        # Try logging.FileHandler first
+        try:
+            paths = []
+            for h in logging.getLogger().handlers:
+                if hasattr(h, "baseFilename"):
+                    paths.append(h.baseFilename)
+            # choose newest by mtime
+            paths = [p for p in paths if p and os.path.isfile(p)]
+            if paths:
+                paths.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+                return paths[0]
+        except Exception:
+            pass
+    
+        # Fallback: scan Hyper Logs folder
+        log_dir = self._get_hyper_logs_dir()
+        candidates = []
+        for pattern in ("*.log", "*.txt"):
+            candidates.extend(glob.glob(os.path.join(log_dir, pattern)))
+        # exclude report files themselves
+        candidates = [p for p in candidates if "Hyper Report " not in os.path.basename(p)]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        return candidates[0]
+    
+    def _backfill_report_from_log(self, log_path=None):
+        """
+        Parse the latest log and populate/merge self.report_stats and self._report_year_totals.
+        Works with segments like:
+          - 'Configured new SharepointExtractor for <Make> correctly!'  (segment start)
+          - '... Folders Remain | ... Files Indexed'                     (we keep last files count)
+          - 'Extraction and population for <Make> is complete!'          (segment end)
+          - 'Finished SharePoint link X/3 for <Make>'                    (link index => year range)
+        Returns True if anything was parsed.
+        """
+        import os, re, datetime
+    
+        # Buckets
+        if not hasattr(self, "report_stats"):
+            self.report_stats = {}
+        if not hasattr(self, "_report_year_totals"):
+            self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
+    
+        # Find a log file if none provided
+        if not log_path:
+            log_path = self._find_latest_log_file()
+        if not log_path or not os.path.isfile(log_path):
+            print("ℹ️ _backfill_report_from_log: no log file found.")
+            return False
+    
+        # Known manufacturers (for clean casing)
+        manu_map = {}
+        try:
+            if hasattr(self, "selected_manufacturers"):
+                manu_map = {m.lower(): m for m in self.selected_manufacturers}
+            elif hasattr(self, "manufacturer_links"):
+                manu_map = {m.lower(): m for m in self.manufacturer_links.keys()}
+        except Exception:
+            pass
+    
+        def canon_make(name):
+            if not name: return None
+            return manu_map.get(name.strip().lower(), name.strip())
+    
+        # Time parsing
+        def _parse_ts(line):
+            m = re.match(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),(\\d{3})', line)
+            if not m:
+                m = re.match(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),(\d{3})', line)  # in case backslash escaped
+            if not m:
+                m = re.match(r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),(\d{1,3})', line)
+            if not m:
+                return None
+            base, ms = m.group(1), int(m.group(2))
+            try:
+                dt = datetime.datetime.strptime(base, "%Y-%m-%d %H:%M:%S")
+                return dt + datetime.timedelta(milliseconds=ms)
+            except Exception:
+                return None
+    
+        # Year-range by index
+        def _yr_for(idx, total):
+            if total == 3 and 1 <= idx <= 3:
+                return ["2012–2016", "2017–2021", "2022–2026"][idx - 1]
+            # Fallbacks if you ever run 2 links or 1 link
+            if total == 2 and 1 <= idx <= 2:
+                return ["2012–2020", "2021–2026"][idx - 1]
+            return ""
+    
+        def _hms(seconds):
+            seconds = int(round(seconds))
+            h = seconds // 3600
+            m = (seconds % 3600) // 60
+            s = seconds % 60
+            return f"{h}:{m:02d}:{s:02d}"
+    
+        def _int(s):
+            return int(str(s).replace(",", "").strip())
+    
+        # Regexes for this log format
+        RE_CFG   = re.compile(r"Configured new SharepointExtractor for (.+?) correctly!", re.IGNORECASE)
+        RE_DONE  = re.compile(r"Extraction and population for (.+?) is complete!", re.IGNORECASE)
+        RE_FIN   = re.compile(r"Finished SharePoint link\s+(\d+)\s*/\s*(\d+)\s*for\s*(.+)$", re.IGNORECASE)
+        RE_FIDX  = re.compile(r"(\d+)\s+Folders Remain\s*\|\s*(\d{1,3}(?:,\d{3})*)\s+Files Indexed", re.IGNORECASE)
+        RE_TOT   = re.compile(r"(\d{1,2}:\d{2}(?::\d{2})?)\s+Total Time\s*\|\s*Total Files:\s*(\d{1,3}(?:,\d{3})*)", re.IGNORECASE)
+    
+        # State while scanning
+        any_hit = False
+        # Active segment per make: { make: {"start": ts, "end": ts|None, "last_files": int|0} }
+        seg = {}
+        # Which link indices already finalized per make (dedupe)
+        finalized = {}
+    
+        with open(log_path, "r", encoding="utf-8", errors="ignore") as fh:
+            for raw in fh:
+                s = raw.strip()
+                if not s:
+                    continue
+                ts = _parse_ts(raw)
+    
+                # Segment start
+                m = RE_CFG.search(s)
+                if m and ts:
+                    mk = canon_make(m.group(1))
+                    any_hit = True
+                    seg[mk] = {"start": ts, "end": None, "last_files": 0}
+                    finalized.setdefault(mk, set())
+                    # ensure bucket
+                    self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
+                    continue
+    
+                # Track last files count
+                m = RE_FIDX.search(s)
+                if m:
+                    folders, files = m.groups()
+                    files = _int(files)
+                    # attach to *some* active seg — choose the only one with start and no end
+                    for mk, st in seg.items():
+                        if st.get("start") and not st.get("end"):
+                            st["last_files"] = files
+                    continue
+    
+                # Segment end (extraction complete)
+                m = RE_DONE.search(s)
+                if m and ts:
+                    mk = canon_make(m.group(1))
+                    if mk in seg and seg[mk].get("start"):
+                        seg[mk]["end"] = ts
+                    continue
+    
+                # Link finalize (index/total)
+                m = RE_FIN.search(s)
+                if m:
+                    idx, total, mk_raw = m.groups()
+                    idx, total = int(idx), int(total)
+                    mk = canon_make(mk_raw)
+                    if not mk:
+                        continue
+                    any_hit = True
+                    # Make sure we have a segment
+                    if mk not in seg or not seg[mk].get("start"):
+                        # Start isn't recorded (edge case) — skip
+                        continue
+                    # Only finalize each index once
+                    if idx in finalized.setdefault(mk, set()):
+                        continue
+    
+                    start_ts = seg[mk].get("start")
+                    end_ts   = seg[mk].get("end")
+                    if not end_ts:
+                        # if we missed the 'complete' line, fallback to this line's timestamp
+                        end_ts = ts if ts else start_ts
+    
+                    duration = (end_ts - start_ts).total_seconds() if (start_ts and end_ts) else 0
+                    files    = int(seg[mk].get("last_files", 0))
+                    yr       = _yr_for(idx, total)
+    
+                    # Record per-link
+                    self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
+                    sig = (yr, int(round(duration)), files)
+                    existing = {(l["range"], l["time"], l["files"]) for l in self.report_stats[mk]["links"]}
+                    if sig not in existing:
+                        self.report_stats[mk]["links"].append({"range": yr, "time": int(round(duration)), "files": files})
+                        if yr in self._report_year_totals:
+                            self._report_year_totals[yr] += files
+    
+                    # Mark finalized; clear active segment so next "Configured" starts a fresh one
+                    finalized[mk].add(idx)
+                    seg[mk] = {"start": None, "end": None, "last_files": 0}
+                    continue
+    
+                # Optional: if the log ever prints a combined total line
+                m = RE_TOT.search(s)
+                if m:
+                    rt_str, files_str = m.groups()
+                    secs = sum(int(x) * f for x, f in zip(rt_str.split(":")[-3:], (3600, 60, 1)))
+                    files = _int(files_str)
+                    # Bind to most recent make with an active or recently closed segment
+                    # (Heuristic: take the last key in seg with a start/end seen)
+                    if seg:
+                        mk = list(seg.keys())[-1]
+                        self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
+                        self.report_stats[mk]["total_time"]  = max(self.report_stats[mk]["total_time"], secs)
+                        self.report_stats[mk]["total_files"] = max(self.report_stats[mk]["total_files"], files)
+                    continue
+    
+        # Backfill per-make totals from links if needed; otherwise also ensure totals are at least the sum of links
+        for mk, data in self.report_stats.items():
+            link_files = sum(l["files"] for l in data.get("links", []))
+            link_secs  = sum(l["time"]  for l in data.get("links", []))
+            if data.get("total_files", 0) == 0:
+                data["total_files"] = link_files
+            else:
+                data["total_files"] = max(data["total_files"], link_files)
+            if data.get("total_time", 0) == 0:
+                data["total_time"] = link_secs
+            else:
+                data["total_time"] = max(data["total_time"], link_secs)
+    
+        return any_hit
+
+
+
     def start_automation(self):
         # 1) gather selected manufacturers
         selected_manufacturers = []
@@ -1333,27 +1750,23 @@ class SeleniumAutomationApp(QWidget):
             item = self.manufacturer_tree.topLevelItem(i)
             if item.checkState(0) == Qt.Checked:
                 selected_manufacturers.append(item.text(0))
-
+    
         # 2) gather selected systems based on the slide‐toggle
         if self.mode_switch.isChecked():   # Repair mode
             selected_systems = [cb.text() for cb in self.repair_checkboxes if cb.isChecked()]
         else:                              # ADAS mode
             selected_systems = [cb.text() for cb in self.adas_checkboxes if cb.isChecked()]
-
+    
         # 3) sanity check
         if not (self.excel_paths and selected_manufacturers and selected_systems):
             QMessageBox.warning(self, 'Warning',
                 "Please select Excel files, manufacturers, and at least one system.", QMessageBox.Ok)
             return
-
+    
         # 4) confirm and kick off
-        # — build Excel list
-        excel_list = "\n".join(f"{i+1}. {os.path.basename(path)}"
-                               for i, path in enumerate(self.excel_paths))
-        # — build manufacturers list
-        manu_list = "\n".join(f"{i+1}. {m}"
-                              for i, m in enumerate(selected_manufacturers))
-        
+        excel_list = "\n".join(f"{i+1}. {os.path.basename(path)}" for i, path in enumerate(self.excel_paths))
+        manu_list  = "\n".join(f"{i+1}. {m}" for i, m in enumerate(selected_manufacturers))
+    
         cleanup_note = ""
         if self.cleanup_checkbox.isChecked():
             cleanup_note = (
@@ -1362,13 +1775,10 @@ class SeleniumAutomationApp(QWidget):
                 "and find the broken links. Based off of those results, it will\n"
                 "find the matching links and repair them."
             )
-        
-        # detect Excel Format (ADAS SI / Repair SI)
-        excel_format = "Repair SI" if self.mode_switch.isChecked() else "ADAS SI"
-        
-        # detect Version Format (OG / NEW)
+    
+        excel_format   = "Repair SI" if self.mode_switch.isChecked() else "ADAS SI"
         version_format = "NEW" if self.excel_mode_switch.isChecked() else "OG"
-        
+    
         confirm_message = (
             "Excel files selected:\n"
             f"{excel_list}\n\n"
@@ -1382,54 +1792,57 @@ class SeleniumAutomationApp(QWidget):
             f"{version_format}"
             + cleanup_note + "\n\nContinue?"
         )
-                
-        
-
+    
         if QMessageBox.question(self, 'Confirmation', confirm_message,
                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
             return
-        
+    
         # user clicked YES → mark running
         self.is_running     = True
         self.stop_requested = False
-        
+        self._report_written = False  # <-- reset "written" flag for this batch
+    
         # rip out the old “Start” button and insert a red “Stop Automation”
-        # ── swap Start → Stop inside our vertical button_layout ──
         layout = self.button_layout
         layout.removeWidget(self.start_button)
         self.start_button.deleteLater()
         self.start_button = CustomButton("Stop Automation", "#e63946", self)
         self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
-        
-
-        # ── step 3: enable the Pause button when we start ──
+    
+        # enable Pause
         self.pause_button.setEnabled(True)
         self.pause_button.setText('Pause Automation')
         self.pause_requested = False
-
-        # now proceed with the rest of your existing automation logic…
-
+    
         # 5) stash for process_next_manufacturer
         self.selected_manufacturers = selected_manufacturers
         self.selected_systems       = selected_systems
         self.mode_flag              = "repair" if self.mode_switch.isChecked() else "adas"
+    
+        # REPORT: fresh state for each batch (AFTER mode_flag is set)
+        self.report_stats = {}                        # per-make stats bucket
+        self._report_year_totals = {                  # grand-total per range
+            "2012–2016": 0,
+            "2017–2021": 0,
+            "2022–2026": 0,
+        }
+        self.run_start = time.time()
+        self._report_header_label = f"{'Repair SI' if self.mode_flag == 'repair' else 'ADAS SI'} PDF Document"
+    
         self.current_index          = 0
         self.total_manufacturers    = len(self.selected_manufacturers)
-        
+    
         # ---- PRE-PRIME LABELS TO AVOID "None" / "0 / 0" FLASH ----
         first_manufacturer = self.selected_manufacturers[0]
         self.current_manufacturer_label.setText(f"Current Manufacturer: {first_manufacturer}")
-        
-        # Compute the SharePoint links exactly like process_next_manufacturer
+    
+        # Compute links for first manufacturer
         link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
         sp_links = link_dict.get(first_manufacturer, [])
-        
-        # Normalize to list
         if isinstance(sp_links, str):
             sp_links = [sp_links]
-        
-        # If cleanup mode, filter by needed years (same logic you use later)
+    
         if self.cleanup_checkbox.isChecked():
             years_needed = self.get_broken_hyperlink_years_for_manufacturer(first_manufacturer)
             filtered = []
@@ -1441,82 +1854,277 @@ class SeleniumAutomationApp(QWidget):
                         filtered.append(link)
             if filtered:
                 sp_links = filtered
-        
-        # Show the correct X / Y immediately (0 done so far)
+    
         total_links = max(1, len(sp_links)) if not sp_links else len(sp_links)
-        
-        # ✅ keep bar in sync so nothing can overwrite back to 0/0
         self.manufacturer_hyperlink_bar.setMaximum(max(1, total_links))
         self.manufacturer_hyperlink_bar.setValue(0)
-        self.manufacturer_hyperlink_label.setText(
-            f"Manufacturer Hyperlinks: 0 / {total_links}"
-        )
-        
-        # ✅ ALSO reset the overall progress label so it doesn’t stay "Manually Stopped"
+        self.manufacturer_hyperlink_label.setText(f"Manufacturer Hyperlinks: 0 / {total_links}")
         self.overall_progress_label.setText(f"Overall Progress: 0 / {self.total_manufacturers}")
-
-        
-        # ── Initialize Overall Progress ──
-        self.total_manufacturers = len(self.selected_manufacturers)
-        # ── NEW: reset progress bars for new run ──
+    
+        # progress bars reset
         self.overall_progress_bar.setValue(0)
         self.current_manufacturer_progress.setValue(0)
         self.overall_progress_label.setText(f"Overall Progress: 0 / {self.total_manufacturers}")
-        #self.current_manufacturer_label.setText("Current Manufacturer: None")
-
-        # Also reset the Manufacturer Hyperlink bar & per-run counters
-        # (do this only after the user clicked "Yes")
+    
         try:
-            # Label + bar back to a clean state
             self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks: 0 / 0")
             if hasattr(self, "manufacturer_hyperlink_bar"):
-                self.manufacturer_hyperlink_bar.setMaximum(100)  # safe default before we know link count
+                self.manufacturer_hyperlink_bar.setMaximum(100)
                 self.manufacturer_hyperlink_bar.setValue(0)
         except Exception:
             pass
-        
-        # Clear per-run counters so Cleanup Mode starts fresh and nothing carries over
+    
         self._hyperlinks_total_links = 0
-        self._hyperlinks_done_links = 0
-        self._initial_broken = None
-        self._fixed_count = 0
-        self._initial_folder_count = None
-        
-        # Ensure bars are back to normal styles (remove any "stopped" red)
+        self._hyperlinks_done_links  = 0
+        self._initial_broken         = None
+        self._fixed_count            = 0
+        self._initial_folder_count   = None
+    
         if hasattr(self, "_apply_stopped_style_to_all_bars"):
             self._apply_stopped_style_to_all_bars(False)
-        
-
-        # 6) show or reuse terminal & start
+    
+        # terminal
         if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
             self.terminal = TerminalDialog(self)
-
             # ── MONKEY‐PATCH for live logging ──
             _orig_append = self.terminal.append_output
             def _live_append(text: str):
-                _orig_append(text)       # write to on‐screen terminal
-                logging.info(text)       # write to logfile
+                # Parse first (no UI writes inside)
+                try:
+                    # Avoid double parsing if caller already parsed this line
+                    if not getattr(self, "_skip_parse_in_monkeypatch", False):
+                        self._parse_and_update_report(text)
+                except Exception as e:
+                    logging.exception("Report parser error: %s", e)
+                # Then show in UI and log file
+                _orig_append(text)
+                logging.info(text)
             self.terminal.append_output = _live_append
-
+            
+    
         self.terminal.show()
         self.terminal.raise_()
-        
-        # ── start a fresh batch run ────────────────────────────────────────────
+    
+        # start batch
         self.queue_active = True
         self.current_index = 0
-        self._clear_queue_state()   # defined below
-        # ──────────────────────────────────────────────────────────────────────
-
+        self._clear_queue_state()
         self.process_next_manufacturer()
+
+    def _get_hyper_logs_dir(self) -> str:
+        import os, logging
+        try:
+            for h in logging.getLogger().handlers:
+                if hasattr(h, "baseFilename"):
+                    d = os.path.dirname(h.baseFilename)
+                    if d and os.path.isdir(d):
+                        return d
+        except Exception:
+            pass
+        d = os.path.join(os.getcwd(), "Hyper Logs")
+        os.makedirs(d, exist_ok=True)
+        return d
+    
+    def _write_hyper_report(self) -> str:
+        import os, time, datetime
+        if not hasattr(self, "report_stats"):
+            self.report_stats = {}
+        if not hasattr(self, "_report_year_totals"):
+            self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
+        header_label = getattr(self, "_report_header_label", "ADAS SI PDF Document")
+    
+        def hms(seconds: int) -> str:
+            h = seconds // 3600; m = (seconds % 3600) // 60; s = seconds % 60
+            return f"{h}:{m:02d}:{s:02d}"
+    
+        def human_dhm(seconds: int) -> str:
+            days = seconds // 86400; rem  = seconds % 86400
+            hrs  = rem // 3600; mins = (rem % 3600) // 60
+            parts = []
+            if days: parts.append(f"{days} day{'s' if days != 1 else ''}")
+            if hrs:  parts.append(f"{hrs} hour{'s' if hrs != 1 else ''}")
+            parts.append(f"{mins} minute{'s' if mins != 1 else ''}")
+            return ", ".join(parts)
+    
+        # backfill if extractor didn’t print totals
+        for make, data in self.report_stats.items():
+            if data.get("total_files", 0) == 0 and data.get("links"):
+                data["total_files"] = sum(l["files"] for l in data["links"])
+            if data.get("total_time", 0) == 0 and data.get("links"):
+                data["total_time"] = sum(l["time"] for l in data["links"])
+    
+        run_start  = getattr(self, "run_start", time.time())
+        grand_secs = int(time.time() - run_start)
+        grand_files = sum(d.get("total_files", 0) for d in self.report_stats.values())
+    
+        log_dir = self._get_hyper_logs_dir()
+        os.makedirs(log_dir, exist_ok=True)
+        filename = os.path.join(log_dir, f"Hyper Report {datetime.date.today().strftime('%m-%d-%Y')}.txt")
+    
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write("Grand Totals (All Makes Combined)\n\n")
+            f.write(f"Complete Runtime: {human_dhm(grand_secs)} ({hms(grand_secs)})\n")
+            f.write(f"{header_label} 2012–2016 Files: {self._report_year_totals.get('2012–2016', 0):,}\n")
+            f.write(f"{header_label} 2017–2021 Files: {self._report_year_totals.get('2017–2021', 0):,}\n")
+            f.write(f"{header_label} 2022–2026 Files: {self._report_year_totals.get('2022–2026', 0):,}\n")
+            f.write(f"Total Files (All Years): {grand_files:,}\n\n")
+            f.write("-" * 90 + "\n\n")
+    
+            ordinals = ["1st", "2nd", "3rd", "4th", "5th"]
+            for make in sorted(self.report_stats.keys(), key=str.lower):
+                data = self.report_stats[make]
+                f.write(f"{make}\n\n")
+                f.write(f"{hms(int(data.get('total_time', 0)))} Total Time | Total Files: {int(data.get('total_files', 0)):,}\n")
+                for idx, link in enumerate(data.get("links", []), start=1):
+                    ord_label = ordinals[idx-1] if idx <= len(ordinals) else f"{idx}th"
+                    yr = link.get("range", "")
+                    t  = hms(int(link.get("time", 0)))
+                    files = int(link.get("files", 0))
+                    f.write(f"-----{ord_label} {make} Link ({yr}): {t} | Files: {files:,}\n")
+                f.write("\n")
+            f.flush(); os.fsync(f.fileno())
+    
+        msg = f"📄 Report written to: {os.path.abspath(filename)} (exists={os.path.exists(filename)})"
+        print(msg)
+        try:
+            if getattr(self, "terminal", None):
+                self.terminal.append_output(msg)
+        except Exception:
+            pass
+        return filename
+    
+    def _try_write_report_once(self, reason: str = "") -> None:
+        """Write the report only once per batch, with backfill from the latest log if needed."""
+        if getattr(self, "_report_written", False):
+            return
+        try:
+            # 🔄 Always attempt a backfill from the latest log so counts/times are present
+            self._backfill_report_from_log()  # safe no-op if nothing found
+    
+            fn = self._write_hyper_report()
+            self._report_written = True
+            note = f"✅ Report saved ({reason}): {fn}"
+            print(note)
+            if getattr(self, "terminal", None):
+                self.terminal.append_output(note)
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            err = f"❌ Report write failed ({reason}): {e}\n{tb}"
+            print(err)
+            if getattr(self, "terminal", None):
+                self.terminal.append_output(err)
+
+
+    def _parse_and_update_report(self, line: str) -> None:
+        """
+        Parse a single log line to update progress bars and the dynamic report.
+        This function NEVER writes to the terminal; it's parse-only.
+        """
+        import re
+    
+        # progress: CM_PROGRESS a/b (p%)
+        m_cm = re.match(r"\s*CM_PROGRESS\s+(\d+)\s*/\s*(\d+)\s*\((\d+)%\)", line, re.IGNORECASE)
+        if m_cm:
+            done = int(m_cm.group(1))
+            total = max(1, int(m_cm.group(2)))
+            pct_from_text = int(m_cm.group(3))
+            pct = max(0, min(100, pct_from_text if 0 <= pct_from_text <= 100 else int(done/total*100)))
+            self.current_manufacturer_progress.setValue(pct)
+            return
+    
+        # cleanup mode tickers
+        if getattr(self, '_cleanup_mode', False):
+            m_total = re.search(r'Total broken hyperlinks:\s*(\d+)', line)
+            if m_total:
+                self._initial_broken = int(m_total.group(1))
+                self._fixed_count = 0
+                return
+            if line.startswith(("Fixed hyperlink for", "✅", "❌")) and getattr(self, "_initial_broken", None):
+                self._fixed_count += 1
+                pct = int(self._fixed_count / max(1, self._initial_broken) * 100)
+                self.current_manufacturer_progress.setValue(pct)
+                return
+    
+        # normal mode: "N Folders Remain"
+        m_fr = re.search(r'(\d+)\s+Folders Remain', line)
+        if m_fr:
+            remaining = int(m_fr.group(1))
+            if not hasattr(self, '_initial_folder_count') or self._initial_folder_count is None:
+                self._initial_folder_count = remaining
+            else:
+                self._initial_folder_count = max(self._initial_folder_count, remaining)
+            initial = max(1, self._initial_folder_count)
+            pct = max(0, min(100, int((initial - remaining) / initial * 100)))
+            self.current_manufacturer_progress.setValue(pct)
+    
+        # --------------- REPORT PARSING ---------------
+        # ensure buckets
+        if not hasattr(self, "report_stats"):
+            self.report_stats = {}
+        if not hasattr(self, "_report_year_totals"):
+            self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
+    
+        # current make (set in process_next_manufacturer)
+        current_make = getattr(self, "_report_current_make", None)
+        if not current_make and hasattr(self, "selected_manufacturers") and 0 <= self.current_index < len(self.selected_manufacturers):
+            current_make = self.selected_manufacturers[self.current_index]
+    
+        if not current_make:
+            return
+    
+        # helpers
+        def _norm_range(rng: str) -> str:
+            rng = rng.strip().replace("—", "-").replace("–", "-")
+            m = re.search(r"(\d{4})\s*-\s*(\d{4})", rng)
+            if not m:
+                return rng
+            a, b = int(m.group(1)), int(m.group(2))
+            return f"{a}–{b}"  # EN DASH
+    
+        def _hms_to_seconds(s: str) -> int:
+            parts = [int(x) for x in s.split(":")]
+            if   len(parts) == 3: h, m, sec = parts
+            elif len(parts) == 2: h, m, sec = 0, parts[0], parts[1]
+            else:                 h, m, sec = 0, 0, parts[0]
+            return h*3600 + m*60 + sec
+    
+        # Total line (tolerant of prefixes)
+        m_total_line = re.search(r"(\d{1,2}:\d{2}:\d{2})\s+Total Time\s+\|\s+Total Files:\s+(\d+)", line)
+        if m_total_line:
+            runtime_str, total_files = m_total_line.groups()
+            self.report_stats.setdefault(current_make, {"total_time": 0, "total_files": 0, "links": []})
+            self.report_stats[current_make]["total_time"]  = _hms_to_seconds(runtime_str)
+            self.report_stats[current_make]["total_files"] = int(total_files)
+            return
+    
+        # Per-link line (accepts "36:42" or "1:03:25" and hyphen/en-dash ranges)
+        # Example: "-----1st Alfa Romeo Link (2012–2016): 2:51 | Files: 18"
+        m_link_line = re.search(
+            r"-{2,}\s*\d+(?:st|nd|rd|th)\s+[A-Za-z ]+\s+Link\s*\(([^)]+)\)\s*:\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*\|\s*Files:\s*(\d+)",
+            line
+        )
+        if m_link_line:
+            year_range_raw, runtime_str, files_str = m_link_line.groups()
+            year_range = _norm_range(year_range_raw)
+            seconds = _hms_to_seconds(runtime_str)
+            files   = int(files_str)
+            self.report_stats.setdefault(current_make, {"total_time": 0, "total_files": 0, "links": []})
+            self.report_stats[current_make]["links"].append({"range": year_range, "time": seconds, "files": files})
+            if year_range in self._report_year_totals:
+                self._report_year_totals[year_range] += files
+            return
+
 
     def process_next_manufacturer(self):
         # ── HARD STOPS ─────────────────────────────────────────────────────
         if getattr(self, "stop_requested", False):
+            # Write whatever we have so far on manual stop
+            self._try_write_report_once("manual stop")
             return
     
         # Only proceed if we’re in an active batch (prevents stray calls)
         if not getattr(self, "queue_active", False):
-            # If you don’t use queue_active elsewhere, set it True when starting the batch.
             return
         # ──────────────────────────────────────────────────────────────────
     
@@ -1527,7 +2135,6 @@ class SeleniumAutomationApp(QWidget):
             if self.cleanup_checkbox.isChecked():
                 try:
                     if hasattr(self, "extractor") and hasattr(self.extractor, "broken_entries"):
-                        # Determine hyperlink column based on mode
                         if self.extractor.repair_mode and self.extractor.excel_mode == "og":
                             hyperlink_col = 8
                         elif not self.extractor.repair_mode and self.extractor.excel_mode == "og":
@@ -1571,7 +2178,9 @@ class SeleniumAutomationApp(QWidget):
                 QMessageBox.Ok
             )
     
-            # Reset batch flags/state so a new run starts clean
+            # ✅ ALWAYS write report here (only once)
+            self._try_write_report_once("batch complete")
+    
             self.queue_active = False
             self.current_index = 0
             self._clear_queue_state()
@@ -1583,24 +2192,23 @@ class SeleniumAutomationApp(QWidget):
         self._initial_folder_count = None
     
         manufacturer = self.selected_manufacturers[self.current_index]
+        # REPORT: remember which make's lines we are parsing right now
+        self._report_current_make = manufacturer
+        self.report_stats.setdefault(manufacturer, {"total_time": 0, "total_files": 0, "links": []})
+    
         self.current_manufacturer_label.setText(f"Current Manufacturer: {manufacturer}")
         self.current_manufacturer_progress.setValue(0)
     
         # ── SAFELY FETCH PARALLEL LIST ENTRY ──────────────────────────────
         if self.current_index >= len(self.excel_paths):
-            # Defensive guard — prevents IndexError if arrays get out of sync
             print("⚠️ excel_paths shorter than selected_manufacturers; aborting this step.")
-            # Advance index and try to continue gracefully
             self.current_index += 1
-            # Optionally schedule the next manufacturer instead of immediate recursion:
-            # return self._schedule_next_manufacturer()
             return self.process_next_manufacturer()
         excel_path = self.excel_paths[self.current_index]
         # ──────────────────────────────────────────────────────────────────
     
         link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
     
-        # Get all SharePoint links for this manufacturer (could be 1 or many)
         sharepoint_links = link_dict.get(manufacturer)
         if not sharepoint_links:
             QMessageBox.warning(
@@ -1609,16 +2217,12 @@ class SeleniumAutomationApp(QWidget):
                 f"No SharePoint link found for {manufacturer} in {self.mode_flag} mode.",
                 QMessageBox.Ok
             )
-            # Advance safely to avoid stalling the queue
             self.current_index += 1
-            # return self._schedule_next_manufacturer()
             return self.process_next_manufacturer()
     
-        # Normalize to list if it's a single string
         if isinstance(sharepoint_links, str):
             sharepoint_links = [sharepoint_links]
     
-        # 🆕 Cleanup Mode: Filter only the links matching the years from broken hyperlinks
         if self.cleanup_checkbox.isChecked():
             years_needed = self.get_broken_hyperlink_years_for_manufacturer(manufacturer)
             filtered_links = []
@@ -1631,26 +2235,22 @@ class SeleniumAutomationApp(QWidget):
             if filtered_links:
                 sharepoint_links = filtered_links
     
-        # Store state for multi-link handling
         self._multi_links        = sharepoint_links
         self._multi_link_index   = 0
         self._multi_excel_path   = excel_path
         self._multi_manufacturer = manufacturer
     
-        # 🆕 Manufacturer hyperlink counter based on # of SharePoint links
         self._hyperlinks_total_links = len(self._multi_links)
         self._hyperlinks_done_links  = 0
         self.update_manufacturer_progress_bar()
     
-        # NEW: remember cleanup mode & reset its counters
         self._cleanup_mode = self.cleanup_checkbox.isChecked()
         if self._cleanup_mode:
             self._initial_broken = None
             self._fixed_count    = 0
     
-        # Start the first sub-link run
-        # (Keeps your existing immediate-start behavior. If you prefer a delay, call self._schedule_next_manufacturer().)
         self.run_all_links_batch() if self._cleanup_mode else self.run_next_sub_link()
+
 
     def _links_for_manufacturer_preview(self, manufacturer: str):
         """Return the exact list of SharePoint links this run will use for `manufacturer`.
@@ -2089,6 +2689,12 @@ class SeleniumAutomationApp(QWidget):
                 self.terminal.append_output(f"✅ Completed: {', '.join(completed_sorted)}" if completed_sorted else "✅ Completed: ")
                 self.terminal.append_output(f"❌ Gave up:   {', '.join(given_up_sorted)}" if given_up_sorted else "❌ Gave up:   ")
     
+                            # >>> NEW <<< Write the final dynamic report once the entire batch is finished
+                try:
+                    self._try_write_report_once("batch complete")
+                except Exception as e:
+                    print(f"⚠️ Could not write final report: {e}")
+
                 # lock bars at 100%
                 self.current_manufacturer_progress.setValue(100)
                 self.overall_progress_bar.setValue(100)
