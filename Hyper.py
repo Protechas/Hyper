@@ -321,179 +321,179 @@ class SeleniumAutomationApp(QWidget):
                                    ########################################################     ADAS SI Links     ########################################################
         self.manufacturer_links = {
             "Acura": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EspTUjFt3OdIhD2Z20IbR_wBCcuX40N8ZmDgVLLXO4jt3Q?e=MZJOre",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgQlE-SLZlpOss5Z2inYdooBzj8IZbUwbDS-HNcAVANirw?e=p7D1C1",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsuRKBo8DtNImW7a64j79joBDGn0UYSYGCHPcbqp-XFAMw?e=ifCncI" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EspTUjFt3OdIhD2Z20IbR_wBCcuX40N8ZmDgVLLXO4jt3Q?e=MZJOre (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgQlE-SLZlpOss5Z2inYdooBzj8IZbUwbDS-HNcAVANirw?e=p7D1C1 (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsuRKBo8DtNImW7a64j79joBDGn0UYSYGCHPcbqp-XFAMw?e=ifCncI (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Alfa Romeo": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsGovtpVv-1FipM9E1TzEKIBuBMnWBrDP34ScAn5bPZUSw?e=rFK76Q",# Documents (2012 - 2016) ✅ Good 
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Epv09DPLKJRNrEUj5R6cQk8BA8gUfT7ZwvslyakI10EbOg?e=QBUAH9",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtrP-HIyuOdKlyKfJ2hmDzMB-tyImvbcKlgswwoQxC6k6Q?e=r0nSvf" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsGovtpVv-1FipM9E1TzEKIBuBMnWBrDP34ScAn5bPZUSw?e=rFK76Q (2012 - 2016)",# Documents (2012 - 2016) ✅ Good 
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Epv09DPLKJRNrEUj5R6cQk8BA8gUfT7ZwvslyakI10EbOg?e=QBUAH9 (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtrP-HIyuOdKlyKfJ2hmDzMB-tyImvbcKlgswwoQxC6k6Q?e=r0nSvf (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Audi": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EipuRo0nUq5CkVRBkjVkU1cBQM9gIgD6eR7CPdgQo-H3Qg?e=WckOCh",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhRQIGi2SBBKp1lRzvawf-4BF5nmz7Hz2zUMUglUKlMlmg?e=OCPHme",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eo9oo3jE0aFFiF0oq3SH-yIBtzO-fs9ujxin-xYtgiyPJw?e=dpp5K7" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EipuRo0nUq5CkVRBkjVkU1cBQM9gIgD6eR7CPdgQo-H3Qg?e=WckOCh (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhRQIGi2SBBKp1lRzvawf-4BF5nmz7Hz2zUMUglUKlMlmg?e=OCPHme (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eo9oo3jE0aFFiF0oq3SH-yIBtzO-fs9ujxin-xYtgiyPJw?e=dpp5K7 (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "BMW": [
-               # "https://sharepoint.com/.../BMW (2012 - 2016)",# Documents (2012 - 2016)
-                #"https://sharepoint.com/.../BMW (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-               # "https://sharepoint.com/.../BMW (2022 - 2026)" # Documents (2022 - 2026)
+                "https://sharepoint.com/.../BMW (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../BMW (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../BMW (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Brightdrop": [
-                #"https://sharepoint.com/.../Brightdrop (2012 - 2016)",# Documents (2012 - 2016)
-                #"https://sharepoint.com/.../Brightdrop (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei7cezAnsYxArVcOgtX9NzUBUil6aILz29016KA8IVpdjw?e=k99Gif" # Documents (2022 - 2026) ✅ Good
+                "https://sharepoint.com/.../Brightdrop (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../Brightdrop (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei7cezAnsYxArVcOgtX9NzUBUil6aILz29016KA8IVpdjw?e=k99Gif (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Buick": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EmW1t8aemNhNuZN92virTRQBMGghhhWM6AePn2OXP1YL9w?e=3B3JU0",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiRN_OCTDctAvjZT1YOJ0AEBJ4OWnhXXQWXRYrzFdkPX2Q?e=JtcEEC",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgpOwVcu7zhNs9iIl6DFrckBptOY_OlkE2lSkzYHpcmzOg?e=qZClAv" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EmW1t8aemNhNuZN92virTRQBMGghhhWM6AePn2OXP1YL9w?e=3B3JU0 (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiRN_OCTDctAvjZT1YOJ0AEBJ4OWnhXXQWXRYrzFdkPX2Q?e=JtcEEC (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgpOwVcu7zhNs9iIl6DFrckBptOY_OlkE2lSkzYHpcmzOg?e=qZClAv (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Cadillac": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ElYnor5frJJHhqKehzA10owBBBr3DLac0FVdMhRXZNWxOQ?e=IgG63K",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhHgUBCDD8xIjQHGgTsOWDoBeIqJEe2oyYy2_FeEPOJgNA?e=ToxUAU",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Elp2Gkwt-oxCqx9qVdQFIxsBGjBn5uSubJO6ag6yzH4orA?e=vXZthY" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ElYnor5frJJHhqKehzA10owBBBr3DLac0FVdMhRXZNWxOQ?e=IgG63K (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhHgUBCDD8xIjQHGgTsOWDoBeIqJEe2oyYy2_FeEPOJgNA?e=ToxUAU (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Elp2Gkwt-oxCqx9qVdQFIxsBGjBn5uSubJO6ag6yzH4orA?e=vXZthY (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Chevrolet": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjZomoP2-mxCro0p2jLWl-wBUNAfHGasqFhqfqYxTxMH7Q?e=59owyw",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjfgYkSV1fhAsTT-Do6R52kB4AWPvk_a0mOafHZJLoltYg?e=zwMMra",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EogMukdtjuFMs_yjy-1dnQ0B-GJQhM07NXvsctAJ9ZAq3Q?e=KZjiTB" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjZomoP2-mxCro0p2jLWl-wBUNAfHGasqFhqfqYxTxMH7Q?e=59owyw (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjfgYkSV1fhAsTT-Do6R52kB4AWPvk_a0mOafHZJLoltYg?e=zwMMra (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EogMukdtjuFMs_yjy-1dnQ0B-GJQhM07NXvsctAJ9ZAq3Q?e=KZjiTB (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Chrysler": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Er-R4z6dJAZJoGlGkjQAg9IBllLfvVzAfAuM1hHTqvXiKg?e=5Ay7vR",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvvrSfdbu3BHhtnoIOJKY-oBKqsmxY58y2tSXaE2TGOM8w?e=MKbm9x",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ehxam9K3OMJOtA4jpwRR2YMBpsN5MU5OydMqOaYuNeKr4Q?e=913cUt" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Er-R4z6dJAZJoGlGkjQAg9IBllLfvVzAfAuM1hHTqvXiKg?e=5Ay7vR (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvvrSfdbu3BHhtnoIOJKY-oBKqsmxY58y2tSXaE2TGOM8w?e=MKbm9x (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ehxam9K3OMJOtA4jpwRR2YMBpsN5MU5OydMqOaYuNeKr4Q?e=913cUt (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Dodge": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/En6Qdad6t85CsqZb8J9XlU0BqEvKe58FTSVTM0JXOLvjow?e=UbpBSt",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjRbTsFS0GFJqx3Qt3N3rOoBDLHBUODwPCoQwat9S4QBMQ?e=SzTHT1",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/En_ChrJkNnlBgVgFniTGVt8BONzdWB1tJ5HNAqLPrftT0A?e=mxGoZG" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/En6Qdad6t85CsqZb8J9XlU0BqEvKe58FTSVTM0JXOLvjow?e=UbpBSt (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjRbTsFS0GFJqx3Qt3N3rOoBDLHBUODwPCoQwat9S4QBMQ?e=SzTHT1 (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/En_ChrJkNnlBgVgFniTGVt8BONzdWB1tJ5HNAqLPrftT0A?e=mxGoZG (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Fiat": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ev307Ux1lTtOv5aHZBlyQoUBDz2EDe1zFPvGXGMRcs_dXw?e=rA4ok6",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpIXzzoE1RZLo1MT_wFXp9cBXxZUu4Tm16G3VAFfu07m6g?e=seWdoh",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsqBYtRHBQZCqYQRlKnX3egB2P8W3RXsnhXlaAsu1qOWKw?e=eb4bom" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ev307Ux1lTtOv5aHZBlyQoUBDz2EDe1zFPvGXGMRcs_dXw?e=rA4ok6 (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpIXzzoE1RZLo1MT_wFXp9cBXxZUu4Tm16G3VAFfu07m6g?e=seWdoh (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsqBYtRHBQZCqYQRlKnX3egB2P8W3RXsnhXlaAsu1qOWKw?e=eb4bom (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Ford": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiharJfeh4hKny6JRFER1RwBGAYnhikNtq-svLpvwlpiPQ?e=swQPhF",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EoZfItLSGiNLp7mp51dS4VMBFWOj1uw3TxZT_9WTdnygIg?e=tRiYsc",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvgyA1M68wtApATg8RxYEjUBtZ_jemtAWxDtHfYx4LmwkQ?e=PqOGgq" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiharJfeh4hKny6JRFER1RwBGAYnhikNtq-svLpvwlpiPQ?e=swQPhF (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EoZfItLSGiNLp7mp51dS4VMBFWOj1uw3TxZT_9WTdnygIg?e=tRiYsc (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvgyA1M68wtApATg8RxYEjUBtZ_jemtAWxDtHfYx4LmwkQ?e=PqOGgq (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Genesis": [
-               #"https://sharepoint.com/.../Genesis (2012 - 2016)",# Documents (2012 - 2016) # N/A
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Evor7Yqywm1Ojycrt521FWwBakEVRl_ekOjvZ1N_JuBWWA?e=34P9U0",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiHIqA4qdadDuj3-H2BWJsAB2XJSO8HDzgwjG6yoYr_bYg?e=4cPSvA" # Documents (2022 - 2026) ✅ Good
+                "https://sharepoint.com/.../Genesis (2012 - 2016)",# Documents (2012 - 2016) # N/A
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Evor7Yqywm1Ojycrt521FWwBakEVRl_ekOjvZ1N_JuBWWA?e=34P9U0 (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiHIqA4qdadDuj3-H2BWJsAB2XJSO8HDzgwjG6yoYr_bYg?e=4cPSvA (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "GMC": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjJrroVSTwhLh24031qzzeQBdq9AqYFaSlhIoO8K4Wbi6Q?e=12KSHl",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EspM71CKRcVOibTIUmPs5jsBfXC0kzQfM9qdZ6TOrALIhQ?e=xdCE91",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EkzXUCY0LDFEvjP1oeot2VgBQTyVCItSKyNmBJgTrQVnOw?e=LXseCc" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjJrroVSTwhLh24031qzzeQBdq9AqYFaSlhIoO8K4Wbi6Q?e=12KSHl (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EspM71CKRcVOibTIUmPs5jsBfXC0kzQfM9qdZ6TOrALIhQ?e=xdCE91 (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EkzXUCY0LDFEvjP1oeot2VgBQTyVCItSKyNmBJgTrQVnOw?e=LXseCc (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Honda": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Egg02pC8jgtCoe7EW_Li2woB0yN4jOaT3k6MLcq5zDxdYQ?e=gBTZcj",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErR4he1aNYdAqPoULpmOwGUBkXZVqn4Zplr-0y7Ioa9WNw?e=YtoQz9",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuLPH1tNJvhJv8y-WiyvIK8B2UHixRTx7HAa89oevf4sBA?e=DlRuyP" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Egg02pC8jgtCoe7EW_Li2woB0yN4jOaT3k6MLcq5zDxdYQ?e=gBTZcj (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErR4he1aNYdAqPoULpmOwGUBkXZVqn4Zplr-0y7Ioa9WNw?e=YtoQz9 (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuLPH1tNJvhJv8y-WiyvIK8B2UHixRTx7HAa89oevf4sBA?e=DlRuyP (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Hyundai": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Elw-CK6c069DiFwCZto82ZYBaORQaAYt77e8radnyTOrtw?e=dRclHC",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EkklrubnZfxPla-OeeeUfK0BC-iTi8f5BD6bDiYld2-bEA?e=QbOIag",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/En_vbaFqn1lEu37oJ_D1RUIBHYbukA1y9_zM9rULSx2hwA?e=aUszTT" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Elw-CK6c069DiFwCZto82ZYBaORQaAYt77e8radnyTOrtw?e=dRclHC (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EkklrubnZfxPla-OeeeUfK0BC-iTi8f5BD6bDiYld2-bEA?e=QbOIag (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/En_vbaFqn1lEu37oJ_D1RUIBHYbukA1y9_zM9rULSx2hwA?e=aUszTT (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
-            "Infiniti": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Egy9iyCtEi1IvFzBPS0iWNABUOnWqrfl0JDxLzh_Vow8ww?e=OaZcrP",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgS2T_E4HKRLkLcG_vop9HAB2-WJcIwC0gTrHp4Ya3P2pg?e=tOiUQz",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvB19belkKdGiMiJcSMR0qYBg47FqdYkO3CHQspvSX-l_g?e=wzRKEB" # Documents (2022 - 2026) ✅ Good
+            "Infiniti": [ 
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Egy9iyCtEi1IvFzBPS0iWNABUOnWqrfl0JDxLzh_Vow8ww?e=OaZcrP (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgS2T_E4HKRLkLcG_vop9HAB2-WJcIwC0gTrHp4Ya3P2pg?e=tOiUQz (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvB19belkKdGiMiJcSMR0qYBg47FqdYkO3CHQspvSX-l_g?e=wzRKEB (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Jaguar": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EnNN93VprllFn6DT-CycfjIBtKEtb4E3oY0E3U9eDSWWRQ?e=8tSDaP",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ElNgWFp9qvhIhEAPyGXaA7oB4Xc-2DZ8j-a5rEj3PZQAuA?e=ClBaho",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ejn_jRMFRvdOqG3z6fLl-TMBsjRYStv9CNO5SIXzeU4mIg?e=mbN8q9" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EnNN93VprllFn6DT-CycfjIBtKEtb4E3oY0E3U9eDSWWRQ?e=8tSDaP (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ElNgWFp9qvhIhEAPyGXaA7oB4Xc-2DZ8j-a5rEj3PZQAuA?e=ClBaho (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ejn_jRMFRvdOqG3z6fLl-TMBsjRYStv9CNO5SIXzeU4mIg?e=mbN8q9 (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Jeep": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EthSEacYfihKnQCvZOYnT2EBDjGtBV8buqtr-S_Q9gggSg?e=v59vat",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eq14_T3MtspLp2W-nylCpfEBp2UZoFIQ-HJAyMnBNkA5vg?e=kQzoFf",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtF65xz6Mq1DqJtqp0JsubwBVSGQWVVgswpDDCXgQIGw_g?e=eQa2A6" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EthSEacYfihKnQCvZOYnT2EBDjGtBV8buqtr-S_Q9gggSg?e=v59vat (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eq14_T3MtspLp2W-nylCpfEBp2UZoFIQ-HJAyMnBNkA5vg?e=kQzoFf (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtF65xz6Mq1DqJtqp0JsubwBVSGQWVVgswpDDCXgQIGw_g?e=eQa2A6 (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Kia": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhBfxgerthVGpnuLtXJESa8Bluk20TtxM0TW46VBZp8khg?e=0if9hg",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eo9cHs6tXSVEuey0EsQU2O8BKydwIXa7C0fu0rrR3Gn6kg?e=supySy",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpExCGt17SZIjmLxM-Ce0P0ByF8uHuE8qgK2QDfBKNU6VA?e=NVseh1" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhBfxgerthVGpnuLtXJESa8Bluk20TtxM0TW46VBZp8khg?e=0if9hg (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eo9cHs6tXSVEuey0EsQU2O8BKydwIXa7C0fu0rrR3Gn6kg?e=supySy (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpExCGt17SZIjmLxM-Ce0P0ByF8uHuE8qgK2QDfBKNU6VA?e=NVseh1 (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Land Rover": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EnPY6SWYkjNGj0aXjr1xr1oBdmwg_39_IOncFKEL5UMJLA?e=K4POWg",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eq3HW7IZG4pHsdje0dTb2joBCqhNayVF-6tFYtjaZPAkzg?e=H2YryY",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhvQnV7BpPdIslXfAB8QehEBfUi0kfBCu7s99cQZXVbEkQ?e=fl2oEp" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EnPY6SWYkjNGj0aXjr1xr1oBdmwg_39_IOncFKEL5UMJLA?e=K4POWg (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eq3HW7IZG4pHsdje0dTb2joBCqhNayVF-6tFYtjaZPAkzg?e=H2YryY (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhvQnV7BpPdIslXfAB8QehEBfUi0kfBCu7s99cQZXVbEkQ?e=fl2oEp (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Lexus": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Etad0hntY9FAjQj3MLRx4Y4BhMXNcAwl7KRqR93btSQaDQ?e=3ybhbS",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErNvbCmZTN5GvBwrdMBWPYAB7pjswEyFCuDHnYveoDpXMg?e=3paNvZ",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuN5fsfzvZdCtAjQi28yrfMBBlTiYGLI0AUu4lgoEJ8soQ?e=IdVCkB" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Etad0hntY9FAjQj3MLRx4Y4BhMXNcAwl7KRqR93btSQaDQ?e=3ybhbS (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErNvbCmZTN5GvBwrdMBWPYAB7pjswEyFCuDHnYveoDpXMg?e=3paNvZ (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EuN5fsfzvZdCtAjQi28yrfMBBlTiYGLI0AUu4lgoEJ8soQ?e=IdVCkB (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Lincoln": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpZAnAVozGBPtnWbCC_n6_0B46JeaTnUYfcYDSNSNK8caA?e=ILjD0e",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgeaPlov7hVNpXTedJAU8eQBNxn6rt1onTsluiiUEkbMcQ?e=xCtC5t",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhPEKdD-vGxEg-OXWJoLlg8BqqVBZlX3xYUX1TOVWRToiw?e=n0umPN" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpZAnAVozGBPtnWbCC_n6_0B46JeaTnUYfcYDSNSNK8caA?e=ILjD0e (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgeaPlov7hVNpXTedJAU8eQBNxn6rt1onTsluiiUEkbMcQ?e=xCtC5t (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhPEKdD-vGxEg-OXWJoLlg8BqqVBZlX3xYUX1TOVWRToiw?e=n0umPN (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Mazda": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EisyjKK9maBAnK21j732GTYBqQcZs_jejS1QkxF94DgPoA?e=OaEbn2",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ehst89Z7otpOvfv8mQT11OMByf-TwLEM8LAP5vPM-j1xAg?e=dzDjaG",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ep8DTmuj43pGusDvRZ_zTwkB2z78hmexpaklaiYYy1SrOQ?e=F97HhX" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EisyjKK9maBAnK21j732GTYBqQcZs_jejS1QkxF94DgPoA?e=OaEbn2 (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ehst89Z7otpOvfv8mQT11OMByf-TwLEM8LAP5vPM-j1xAg?e=dzDjaG (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ep8DTmuj43pGusDvRZ_zTwkB2z78hmexpaklaiYYy1SrOQ?e=F97HhX (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Mercedes": [
-                #"https://sharepoint.com/.../Mercedes (2012 - 2016)",# Documents (2012 - 2016)
-               # "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsgICO8lRkFCnaI9N7TQCE4B5S_fO8IhPaFICTgwc4TVaQ?e=I4iUVJ",# Documents (2017 - 2021) # Broken Still/ Not working / N/A ✅ Good
-                #"https://sharepoint.com/.../Mercedes (2022 - 2026)" # Documents (2022 - 2026)
+                "https://sharepoint.com/.../Mercedes (2012 - 2016)",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsgICO8lRkFCnaI9N7TQCE4B5S_fO8IhPaFICTgwc4TVaQ?e=I4iUVJ (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A ✅ Good
+                "https://sharepoint.com/.../Mercedes (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Mini": [
-               # "https://sharepoint.com/.../Mini (2012 - 2016)",# Documents (2012 - 2016)
-               # "https://sharepoint.com/.../Mini (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-                #"https://sharepoint.com/.../Mini (2022 - 2026)" # Documents (2022 - 2026)
+                "https://sharepoint.com/.../Mini (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../Mini (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../Mini (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Mitsubishi": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Emutf00F_UpHiZz4ZVs3uEUBLr9vFJ6YPvCjjsLFXs43Cw?e=w8EYYC",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ElgPpIeNeupCu-EHVNG7HDoBEn8R7xN-zFRph6cBKsLnPw?e=558nRI",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErRAFbNOm-RKpgdyGJ5JjI4BM1tr6RhoQKjTEvh6PaPvQw?e=caTE3C" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Emutf00F_UpHiZz4ZVs3uEUBLr9vFJ6YPvCjjsLFXs43Cw?e=w8EYYC (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ElgPpIeNeupCu-EHVNG7HDoBEn8R7xN-zFRph6cBKsLnPw?e=558nRI (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErRAFbNOm-RKpgdyGJ5JjI4BM1tr6RhoQKjTEvh6PaPvQw?e=caTE3C (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Nissan": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EqNaQRjh1m1Ct8MSBQXqFlsBiH8G16q-HDbvzM_sjcAlTA?e=72JSRk",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EouiTM-R04tOnVb3ibA87v8BBLlte2WDG8boZ_aH4Ow39Q?e=DLe3Tt",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvtWSjTFIVlMp5aZ7ul54V0BYmHJpf6zCy-arV4i6IMRZA?e=K7iuLq" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EqNaQRjh1m1Ct8MSBQXqFlsBiH8G16q-HDbvzM_sjcAlTA?e=72JSRk (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EouiTM-R04tOnVb3ibA87v8BBLlte2WDG8boZ_aH4Ow39Q?e=DLe3Tt (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EvtWSjTFIVlMp5aZ7ul54V0BYmHJpf6zCy-arV4i6IMRZA?e=K7iuLq (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Porsche": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EnuZFy8D0-REldDMWRX4fxkBaiHrJV6R3Yi3If7Ldh3uew?e=bSrcsf",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhzADw5oZ3tOsGq0-rrrJ3IBdwnUYemArAP77Eeb2NYPVQ?e=7xGrvF",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiZ0R1foo9VEncTKKxwY9EkBC8t2VM953E9lPKbAFkCOjg?e=9voyeB" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EnuZFy8D0-REldDMWRX4fxkBaiHrJV6R3Yi3If7Ldh3uew?e=bSrcsf (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhzADw5oZ3tOsGq0-rrrJ3IBdwnUYemArAP77Eeb2NYPVQ?e=7xGrvF (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EiZ0R1foo9VEncTKKxwY9EkBC8t2VM953E9lPKbAFkCOjg?e=9voyeB (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Ram": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EkQqnfVhDHpLnImUmdDZa6ABqWH7H4zG8RCuPkQ1jAKOpw?e=y2cNOG",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eq5_geYARUdBszZGg_93lrABGThbnamRd-AzlmBTCclI8g?e=YbOCOZ",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgUzFRAF62lOrD4DdzdqpSMBL75EuJisusIwlS61uNsAZw?e=eqW6pG" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EkQqnfVhDHpLnImUmdDZa6ABqWH7H4zG8RCuPkQ1jAKOpw?e=y2cNOG (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eq5_geYARUdBszZGg_93lrABGThbnamRd-AzlmBTCclI8g?e=YbOCOZ (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EgUzFRAF62lOrD4DdzdqpSMBL75EuJisusIwlS61uNsAZw?e=eqW6pG (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Rolls Royce": [
-               # "https://sharepoint.com/.../Rolls Royce (2012 - 2016)",# Documents (2012 - 2016)
-               # "https://sharepoint.com/.../Rolls Royce (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-               # "https://sharepoint.com/.../Rolls Royce (2022 - 2026)" # Documents (2022 - 2026)
+                "https://sharepoint.com/.../Rolls Royce (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../Rolls Royce (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../Rolls Royce (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Subaru": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eml2Qv0ylQ5Poi7tK08qS6IB3ySb8h_dSog0Y7alOPnTow?e=0Kmfbp",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhSU9dc3QFZIoW4h9lD-zUIBbroZonTZoV8eUietX_J5pA?e=abnvJW",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ek4gnQt6VfRBtnRkwYgg42oBaQISPSZd60uIOEVFHf59eg?e=I7pPNY" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Eml2Qv0ylQ5Poi7tK08qS6IB3ySb8h_dSog0Y7alOPnTow?e=0Kmfbp (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EhSU9dc3QFZIoW4h9lD-zUIBbroZonTZoV8eUietX_J5pA?e=abnvJW (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ek4gnQt6VfRBtnRkwYgg42oBaQISPSZd60uIOEVFHf59eg?e=I7pPNY (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Tesla": [
-               # "https://sharepoint.com/.../Tesla (2012 - 2016)",# Documents (2012 - 2016)
-              #  "https://sharepoint.com/.../Tesla (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
-               # "https://sharepoint.com/.../Tesla (2022 - 2026)" # Documents (2022 - 2026)
+                "https://sharepoint.com/.../Tesla (2012 - 2016)",# Documents (2012 - 2016)
+                "https://sharepoint.com/.../Tesla (2017 - 2021)",# Documents (2017 - 2021) # Broken Still/ Not working / N/A
+                "https://sharepoint.com/.../Tesla (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Toyota": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErZ4ESHSPa5Fmtnek4YNEVIB74fdt5S6Om_G-ibLv1BPiA?e=6BiELq",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsYb5kXgO3dBmvXXB9BcZvgBK5aEiDq7rAhKegnV51EZgQ?e=uR8yfa",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei6UJeiAxidPhOAlNuMQ5WABq9R1aAXGPNmLCbmZOBzPAA?e=kXvnfJ" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErZ4ESHSPa5Fmtnek4YNEVIB74fdt5S6Om_G-ibLv1BPiA?e=6BiELq (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsYb5kXgO3dBmvXXB9BcZvgBK5aEiDq7rAhKegnV51EZgQ?e=uR8yfa (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei6UJeiAxidPhOAlNuMQ5WABq9R1aAXGPNmLCbmZOBzPAA?e=kXvnfJ (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Volkswagen": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EofI-9qPCZZGjSUIJIDF1j4B8mnnb0HytSgTi3xuC8pBjg?e=EyBHdh",# Documents (2012 - 2016) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtVWFcFUfJFFoJWebnxcueYB_TJfdHp9aFm6tF2DiRXkCQ?e=CkFAZ8",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjuBnvd7dbNHkbiug9wzbTMBpe-ieris6UoCWwuTohQJMA?e=kopsV8" # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EofI-9qPCZZGjSUIJIDF1j4B8mnnb0HytSgTi3xuC8pBjg?e=EyBHdh (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtVWFcFUfJFFoJWebnxcueYB_TJfdHp9aFm6tF2DiRXkCQ?e=CkFAZ8 (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjuBnvd7dbNHkbiug9wzbTMBpe-ieris6UoCWwuTohQJMA?e=kopsV8 " # Documents (2022 - 2026) ✅ Good
             ],
             "Volvo": [
                 #"https://sharepoint.com/.../Volvo (2012 - 2016)",# Documents (2012 - 2016)
@@ -748,6 +748,12 @@ class SeleniumAutomationApp(QWidget):
         self.select_all_manufacturers_button = CustomButton('Select All (Manufacturers)', '#e3b505', self)
         self.select_all_manufacturers_button.clicked.connect(self.select_all_manufacturers)
         select_all_buttons_layout.addWidget(self.select_all_manufacturers_button)
+        
+        # NEW: Select All (Year Ranges)
+        self.select_all_years_button = CustomButton('Select All (Year Ranges)', '#e3b505', self)
+        self.select_all_years_button.clicked.connect(self.select_all_year_ranges)
+        select_all_buttons_layout.addWidget(self.select_all_years_button)
+        
     
         self.select_all_adas_button = CustomButton('Select All (ADAS Systems)', '#e3b505', self)
         self.select_all_adas_button.clicked.connect(self.select_all_adas)
@@ -797,6 +803,34 @@ class SeleniumAutomationApp(QWidget):
         manufacturer_list_layout.addWidget(self.manufacturer_tree)
         
         manufacturer_selection_layout.addLayout(manufacturer_list_layout)
+        
+        # === Year Ranges (goes between Manufacturers and ADAS) ===
+        years_selection_layout = QVBoxLayout()
+        
+        years_label = QLabel("Year Ranges")
+        years_label.setAlignment(Qt.AlignHCenter)
+        years_label.setStyleSheet("font-size: 14px; padding: 5px;")
+        years_selection_layout.addWidget(years_label)
+        
+        years_box = QWidget(self)
+        years_box.setStyleSheet("background-color: #3e3e3e; border: 1px solid #555555; "
+                                "border-radius: 5px;")
+        years_box_layout = QVBoxLayout(years_box); years_box_layout.setContentsMargins(8,8,8,8)
+        
+        # Keep handles to the checkboxes
+        self.year_2012_2016 = QCheckBox("2012–2016 Years", self)
+        self.year_2017_2021 = QCheckBox("2017–2021 Years", self)
+        self.year_2022_2026 = QCheckBox("2022–2026 Years", self)
+        for cb in (self.year_2012_2016, self.year_2017_2021, self.year_2022_2026):
+            cb.setStyleSheet("font-size: 12px; padding: 5px;")
+            years_box_layout.addWidget(cb)
+        
+        # Keep a convenience list
+        self._year_checkboxes = [self.year_2012_2016, self.year_2017_2021, self.year_2022_2026]
+        
+        years_selection_layout.addWidget(years_box)
+        manufacturer_selection_layout.addLayout(years_selection_layout)
+
     
         # ADAS Acronyms section
         adas_selection_layout = QVBoxLayout()
@@ -1091,6 +1125,64 @@ class SeleniumAutomationApp(QWidget):
         self.setLayout(layout)
         self.resize(600, 400)
 
+    def select_all_year_ranges(self):
+        for cb in getattr(self, "_year_checkboxes", []):
+            cb.setChecked(True)
+    
+    def get_selected_year_ranges(self):
+        ranges = []
+        if getattr(self, "year_2012_2016", None) and self.year_2012_2016.isChecked():
+            ranges.append((2012, 2016))
+        if getattr(self, "year_2017_2021", None) and self.year_2017_2021.isChecked():
+            ranges.append((2017, 2021))
+        if getattr(self, "year_2022_2026", None) and self.year_2022_2026.isChecked():
+            ranges.append((2022, 2026))
+        return ranges
+    
+    def _filter_links_by_selected_years(self, links):
+        """
+        Filter manufacturer SharePoint links by the Year Ranges checkboxes.
+        Priority: (1) regex match '(YYYY-YYYY)' in the link text; (2) index fallback:
+          0 -> 2012–2016, 1 -> 2017–2021, 2 -> 2022–2026
+        If nothing is selected, return all links.
+        """
+        import re
+        selected = self.get_selected_year_ranges()  # [(2012,2016), (2017,2021), ...]
+        if not selected:
+            return links
+    
+        selected_set = set(selected)
+        pattern = re.compile(r'(?:(?:\(|\[)?\s*)(20\d{2})\s*[–-]\s*(20\d{2})(?:\s*(?:\)|\]))?')
+    
+        # Try regex filtering first
+        filtered = []
+        unmatched_indices = []
+        for i, link in enumerate(links):
+            m = pattern.search(link)
+            if m:
+                s, e = int(m.group(1)), int(m.group(2))
+                if (s, e) in selected_set:
+                    filtered.append(link)
+            else:
+                unmatched_indices.append(i)
+    
+        if filtered:
+            return filtered
+    
+        # Fallback: map checkboxes to 0/1/2 positions
+        wanted_idx = []
+        mapping = {(2012, 2016): 0, (2017, 2021): 1, (2022, 2026): 2}
+        for rng in selected:
+            if rng in mapping:
+                wanted_idx.append(mapping[rng])
+    
+        if not wanted_idx:
+            return links  # nothing mapped → don't surprise the user
+    
+        return [links[i] for i in sorted(set(wanted_idx)) if 0 <= i < len(links)]
+
+    
+
     def handle_extractor_output(self, line: str):
         """
         Consume stdout from SharepointExtractor. Update UI progress bars,
@@ -1138,6 +1230,40 @@ class SeleniumAutomationApp(QWidget):
         def _int(s: str) -> int:
             return int(s.replace(",", "").strip())
     
+        # NEW: safe hint to current link (string), its index and total
+        def _safe_link_hint():
+            link_hint, idx, total = "", None, 0
+            try:
+                if hasattr(self, "_multi_links") and isinstance(self._multi_links, list):
+                    total = len(self._multi_links)
+                    idx = getattr(self, "_multi_link_index", 0)
+                    if total and idx is not None and 0 <= idx < total:
+                        link_hint = str(self._multi_links[idx])
+            except Exception:
+                pass
+            return link_hint, idx, total
+        
+        def _ordinal_to_range_label(ord_num: int) -> str:
+            """1→2012–2016, 2→2017–2021, 3→2022–2026; else ''."""
+            mapping = {1: "2012–2016", 2: "2017–2021", 3: "2022–2026"}
+            return mapping.get(ord_num, "")
+            
+        # NEW: index→range fallback (matches your report buckets)
+        def _index_range_label(idx: int | None, total: int) -> str:
+            if idx is None or total <= 0:
+                return ""
+            if total >= 3:
+                mapping = {0: "2012–2016", 1: "2017–2021", 2: "2022–2026"}
+                return mapping.get(idx, "")
+            if total == 2:
+                # sensible fallback if a make only has 2 links
+                mapping = {0: "2012–2020", 1: "2021–2026"}
+                return mapping.get(idx, "")
+            return ""
+    
+        # NOTE: assumes you added this class helper earlier
+        # def _extract_year_range_from_link(self, link: str) -> str: ...
+    
         # Tolerant regexes (compiled once per call)
         RE_CM   = re.compile(r"\s*CM_PROGRESS\s+(\d+)\s*/\s*(\d+)\s*\((\d+)%\)", re.IGNORECASE)
         RE_FR   = re.compile(r"(\d+)\s+Folders Remain", re.IGNORECASE)
@@ -1149,12 +1275,13 @@ class SeleniumAutomationApp(QWidget):
         RE_TOT_FILES_ONLY = re.compile(r"(?:Total Files|Files Indexed|Files Found)\s*:\s*(\d{1,3}(?:,\d{3})*)", re.IGNORECASE)
         RE_TOT_SECONDS    = re.compile(r"Indexing routine took\s*(\d+(?:\.\d+)?)\s*seconds", re.IGNORECASE)
     
-        # Per-link (very tolerant): try the canonical line first, then a generic fallback
+        # Per-link (very tolerant): allow empty () in canonical form
         RE_LINK_CANON = re.compile(
-            r"-{2,}\s*\d+(?:st|nd|rd|th)\s+([A-Za-z][A-Za-z &\-/]+?)\s+Link\s*\(([^)]+)\)\s*[:\-–]\s*"
+            r"-{2,}\s*(\d+)(?:st|nd|rd|th)\s+([A-Za-z][A-Za-z &\-/]+?)\s+Link\s*\(([^)]*)\)\s*[:\-–]\s*"
             r"(\d{1,2}:\d{2}(?::\d{2})?)\s*\|\s*(?:Files(?:\s*(?:Found|Indexed))?|Files)\s*[:=]?\s*(\d{1,3}(?:,\d{3})*)",
             re.IGNORECASE
         )
+
         # Fallback: any line containing a year-range, a time token, and a files count token
         RE_YEAR   = re.compile(r"\((\s*\d{4}\s*[-–—]\s*\d{4}\s*)\)")
         RE_TIME   = re.compile(r"\b(\d{1,2}:\d{2}(?::\d{2})?)\b")
@@ -1226,29 +1353,56 @@ class SeleniumAutomationApp(QWidget):
             if not current_make and hasattr(self, "selected_manufacturers") and 0 <= self.current_index < len(self.selected_manufacturers):
                 current_make = self.selected_manufacturers[self.current_index]
     
-            # 4a) Per-link — canonical form first
+            # 4a) Per-link — canonical form first (now accepts empty '()')
             m_link = RE_LINK_CANON.search(s)
             if m_link:
-                make_name, yr_raw, rt_str, files_str = m_link.groups()
+                ord_str, make_name, yr_raw, rt_str, files_str = m_link.groups()
                 mk = manu_name_map.get(make_name.strip().lower(), make_name.strip())
-                yr = _norm_range(yr_raw)
+                printed_yr = _norm_range((yr_raw or "").strip())  # may be empty
                 secs = _hms_to_seconds(rt_str)
                 files = _int(files_str)
+            
+                # derive final range: printed → from link text → ordinal mapping → index mapping
+                link_hint, idx, total = _safe_link_hint()
+                fallback_range = ""
+                try:
+                    if hasattr(self, "_extract_year_range_from_link"):
+                        fallback_range = self._extract_year_range_from_link(link_hint) or ""
+                except Exception:
+                    pass
+                if not fallback_range:
+                    try:
+                        ord_num = int(ord_str)
+                        fallback_range = _ordinal_to_range_label(ord_num)
+                    except Exception:
+                        fallback_range = ""
+                if not fallback_range:
+                    fallback_range = _index_range_label(idx, total)
+            
+                final_range = printed_yr or fallback_range
+            
                 self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
-                sig = (yr, secs, files)
+                sig = (final_range, secs, files)
                 existing = {(l["range"], l["time"], l["files"]) for l in self.report_stats[mk]["links"]}
                 if sig not in existing:
-                    self.report_stats[mk]["links"].append({"range": yr, "time": secs, "files": files})
-                    if yr in self._report_year_totals:
-                        self._report_year_totals[yr] += files
-                # set context for a following TOTAL line
+                    self.report_stats[mk]["links"].append({
+                        "range": final_range,
+                        "time": secs,
+                        "files": files
+                    })
+                    # increment GRAND TOTALS using the final label (not raw printed)
+                    if final_range in self._report_year_totals:
+                        self._report_year_totals[final_range] += files
+            
+                # keep your existing context line
                 self._report_current_make = mk
+
     
             else:
                 # 4b) Per-link — generic fallback (year-range + a time + a files number)
                 m_year = RE_YEAR.search(s)
                 if m_year and (RE_FILES1.search(s) or RE_FILES2.search(s)) and RE_TIME.search(s):
-                    yr = _norm_range(m_year.group(1))
+                    printed_yr = _norm_range(m_year.group(1) or "")
                     # decide which "make" to attach to: prefer explicit "for <make>" or context
                     mk = current_make
                     m_for = re.search(r"\bfor\s+([A-Za-z][A-Za-z0-9 &\-/]+)", s, re.IGNORECASE)
@@ -1262,13 +1416,32 @@ class SeleniumAutomationApp(QWidget):
                         files_m = RE_FILES1.search(s) or RE_FILES2.search(s)
                         files = _int(files_m.group(1)) if files_m else 0
                         secs = _hms_to_seconds(rt_str)
+                    
+                        # derive final range (printed → from link text → index mapping)
+                        link_hint, idx, total = _safe_link_hint()
+                        fallback_range = ""
+                        try:
+                            if hasattr(self, "_extract_year_range_from_link"):
+                                fallback_range = self._extract_year_range_from_link(link_hint) or ""
+                        except Exception:
+                            pass
+                        if not fallback_range:
+                            fallback_range = _index_range_label(idx, total)
+                    
+                        final_range = printed_yr or fallback_range
+                    
                         self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
-                        sig = (yr, secs, files)
+                        sig = (final_range, secs, files)
                         existing = {(l["range"], l["time"], l["files"]) for l in self.report_stats[mk]["links"]}
                         if sig not in existing:
-                            self.report_stats[mk]["links"].append({"range": yr, "time": secs, "files": files})
-                            if yr in self._report_year_totals:
-                                self._report_year_totals[yr] += files
+                            self.report_stats[mk]["links"].append({
+                                "range": final_range,
+                                "time": secs,
+                                "files": files
+                            })
+                            if final_range in self._report_year_totals:
+                                self._report_year_totals[final_range] += files
+                    
     
             # 4c) Totals lines (various orders). Use context make if present.
             mk_ctx = getattr(self, "_report_current_make", None) or current_make
@@ -1321,6 +1494,7 @@ class SeleniumAutomationApp(QWidget):
         # Append echo lines (rather than raw chunk)
         if echo_lines:
             self.terminal.append_output("\n".join(echo_lines) + ("\n" if orig_ended_nl else ""))
+
 
 
    
@@ -1834,14 +2008,48 @@ class SeleniumAutomationApp(QWidget):
         self.total_manufacturers    = len(self.selected_manufacturers)
     
         # ---- PRE-PRIME LABELS TO AVOID "None" / "0 / 0" FLASH ----
+        # ---- PRE-PRIME LABELS TO AVOID "None" / "0 / 0" FLASH ----
         first_manufacturer = self.selected_manufacturers[0]
         self.current_manufacturer_label.setText(f"Current Manufacturer: {first_manufacturer}")
+        
+        # Build the preview list once (already applies year-range + cleanup filters)
+        # so the progress bar shows the real count.
+        sp_links = self._links_for_manufacturer_preview(first_manufacturer)
+        
+        total_links = len(sp_links) or 1  # keep bar valid even if empty
+        self._hyperlinks_total_links = total_links
+        
+        # keep bar in sync so nothing can overwrite back to 0/0
+        self.manufacturer_hyperlink_bar.setMaximum(max(1, total_links))
+        self.manufacturer_hyperlink_bar.setValue(0)
+        self.manufacturer_hyperlink_label.setText(
+            f"Manufacturer Hyperlinks Indexed: 0 / {total_links}"
+        )
+        
     
-        # Compute links for first manufacturer
+        # get links for this manufacturer
         link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
-        sp_links = link_dict.get(first_manufacturer, [])
-        if isinstance(sp_links, str):
-            sp_links = [sp_links]
+        sharepoint_links = link_dict.get(first_manufacturer) or []
+        if isinstance(sharepoint_links, str):
+            sharepoint_links = [sharepoint_links]
+        
+        # NEW: honor Year Ranges checkboxes for the actual run
+        sharepoint_links = self._filter_links_by_selected_years(sharepoint_links)
+        if not sharepoint_links:
+            self.terminal.append_output(
+                f"ℹ️ No links match selected years for {first_manufacturer}; skipping."
+            )
+            # make sure you advance to the next manufacturer cleanly
+            self.on_manufacturer_finished(first_manufacturer, True)
+            return
+        
+        # proceed as before
+        self._multi_links = sharepoint_links
+        self._multi_link_index = 0
+        self._hyperlinks_total_links = len(self._multi_links)
+        # (keep your existing label/bar updates here)
+        
+        
     
         if self.cleanup_checkbox.isChecked():
             years_needed = self.get_broken_hyperlink_years_for_manufacturer(first_manufacturer)
@@ -1927,10 +2135,12 @@ class SeleniumAutomationApp(QWidget):
     
     def _write_hyper_report(self) -> str:
         import os, time, datetime
+    
         if not hasattr(self, "report_stats"):
             self.report_stats = {}
         if not hasattr(self, "_report_year_totals"):
             self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
+    
         header_label = getattr(self, "_report_header_label", "ADAS SI PDF Document")
     
         def hms(seconds: int) -> str:
@@ -1938,49 +2148,71 @@ class SeleniumAutomationApp(QWidget):
             return f"{h}:{m:02d}:{s:02d}"
     
         def human_dhm(seconds: int) -> str:
-            days = seconds // 86400; rem  = seconds % 86400
-            hrs  = rem // 3600; mins = (rem % 3600) // 60
+            days = seconds // 86400; rem = seconds % 86400
+            hrs = rem // 3600; mins = (rem % 3600) // 60
             parts = []
             if days: parts.append(f"{days} day{'s' if days != 1 else ''}")
             if hrs:  parts.append(f"{hrs} hour{'s' if hrs != 1 else ''}")
             parts.append(f"{mins} minute{'s' if mins != 1 else ''}")
             return ", ".join(parts)
     
-        # backfill if extractor didn’t print totals
+        # 🔁 Self-heal: recompute year totals and fill missing per-link labels
+        yr_map_by_index = {0: "2012–2016", 1: "2017–2021", 2: "2022–2026"}
+        recomputed_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
+    
         for make, data in self.report_stats.items():
-            if data.get("total_files", 0) == 0 and data.get("links"):
-                data["total_files"] = sum(l["files"] for l in data["links"])
-            if data.get("total_time", 0) == 0 and data.get("links"):
-                data["total_time"] = sum(l["time"] for l in data["links"])
+            links = data.get("links", []) or []
+            # Fill per-make totals if missing
+            if data.get("total_files", 0) == 0 and links:
+                data["total_files"] = sum(int(l.get("files", 0)) for l in links)
+            if data.get("total_time", 0) == 0 and links:
+                data["total_time"] = sum(int(l.get("time", 0)) for l in links)  # heuristic
     
-        run_start  = getattr(self, "run_start", time.time())
-        grand_secs = int(time.time() - run_start)
-        grand_files = sum(d.get("total_files", 0) for d in self.report_stats.values())
+            # Normalize per-link ranges and re-accumulate year totals
+            for idx, l in enumerate(links):
+                yr = (l.get("range") or "").strip()
+                if not yr:
+                    yr = yr_map_by_index.get(idx, "")
+                    if yr:
+                        l["range"] = yr
+                if yr in recomputed_year_totals:
+                    try:
+                        recomputed_year_totals[yr] += int(l.get("files", 0))
+                    except Exception:
+                        pass
     
-        log_dir = self._get_hyper_logs_dir()
-        os.makedirs(log_dir, exist_ok=True)
-        filename = os.path.join(log_dir, f"Hyper Report {datetime.date.today().strftime('%m-%d-%Y')}.txt")
+        # Replace live totals with the recomputed values (guarantees non-zero header)
+        self._report_year_totals = recomputed_year_totals
     
+        # ---------- Write the file ----------
+        ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = os.path.join(self._get_hyper_logs_dir(), f"ADAS_SI_Report_{ts}.txt")
         with open(filename, "w", encoding="utf-8") as f:
+            # Header
+            grand_runtime = sum(int(v.get("total_time", 0)) for v in self.report_stats.values())
             f.write("Grand Totals (All Makes Combined)\n\n")
-            f.write(f"Complete Runtime: {human_dhm(grand_secs)} ({hms(grand_secs)})\n")
-            f.write(f"{header_label} 2012–2016 Files: {self._report_year_totals.get('2012–2016', 0):,}\n")
-            f.write(f"{header_label} 2017–2021 Files: {self._report_year_totals.get('2017–2021', 0):,}\n")
-            f.write(f"{header_label} 2022–2026 Files: {self._report_year_totals.get('2022–2026', 0):,}\n")
-            f.write(f"Total Files (All Years): {grand_files:,}\n\n")
+            f.write(f"Complete Runtime: {human_dhm(grand_runtime)} ({hms(grand_runtime)})\n")
+            f.write(f"{header_label} 2012–2016 Files: {self._report_year_totals['2012–2016']}\n")
+            f.write(f"{header_label} 2017–2021 Files: {self._report_year_totals['2017–2021']}\n")
+            f.write(f"{header_label} 2022–2026 Files: {self._report_year_totals['2022–2026']}\n")
+            f.write(f"Total Files (All Years): {sum(self._report_year_totals.values())}\n\n")
             f.write("-" * 90 + "\n\n")
     
-            ordinals = ["1st", "2nd", "3rd", "4th", "5th"]
+            # Per-make blocks
+            def ord_label(i: int) -> str:
+                return {1:"1st", 2:"2nd", 3:"3rd"}.get(i, f"{i}th")
+    
             for make in sorted(self.report_stats.keys(), key=str.lower):
                 data = self.report_stats[make]
                 f.write(f"{make}\n\n")
                 f.write(f"{hms(int(data.get('total_time', 0)))} Total Time | Total Files: {int(data.get('total_files', 0)):,}\n")
-                for idx, link in enumerate(data.get("links", []), start=1):
-                    ord_label = ordinals[idx-1] if idx <= len(ordinals) else f"{idx}th"
-                    yr = link.get("range", "")
+                for i, link in enumerate(data.get("links", []), start=1):
+                    yr = (link.get("range") or "").strip()
+                    if not yr:
+                        yr = yr_map_by_index.get(i-1, "")
                     t  = hms(int(link.get("time", 0)))
                     files = int(link.get("files", 0))
-                    f.write(f"-----{ord_label} {make} Link ({yr}): {t} | Files: {files:,}\n")
+                    f.write(f"-----{ord_label(i)} {make} Link ({yr}): {t} | Files: {files:,}\n")
                 f.write("\n")
             f.flush(); os.fsync(f.fileno())
     
@@ -1992,6 +2224,7 @@ class SeleniumAutomationApp(QWidget):
         except Exception:
             pass
         return filename
+
     
     def _try_write_report_once(self, reason: str = "") -> None:
         """Write the report only once per batch, with backfill from the latest log if needed."""
@@ -2023,7 +2256,7 @@ class SeleniumAutomationApp(QWidget):
         """
         import re
     
-        # progress: CM_PROGRESS a/b (p%)
+        # 0) Progress hooks ----------------------------------------------------
         m_cm = re.match(r"\s*CM_PROGRESS\s+(\d+)\s*/\s*(\d+)\s*\((\d+)%\)", line, re.IGNORECASE)
         if m_cm:
             done = int(m_cm.group(1))
@@ -2033,7 +2266,6 @@ class SeleniumAutomationApp(QWidget):
             self.current_manufacturer_progress.setValue(pct)
             return
     
-        # cleanup mode tickers
         if getattr(self, '_cleanup_mode', False):
             m_total = re.search(r'Total broken hyperlinks:\s*(\d+)', line)
             if m_total:
@@ -2046,7 +2278,6 @@ class SeleniumAutomationApp(QWidget):
                 self.current_manufacturer_progress.setValue(pct)
                 return
     
-        # normal mode: "N Folders Remain"
         m_fr = re.search(r'(\d+)\s+Folders Remain', line)
         if m_fr:
             remaining = int(m_fr.group(1))
@@ -2058,65 +2289,134 @@ class SeleniumAutomationApp(QWidget):
             pct = max(0, min(100, int((initial - remaining) / initial * 100)))
             self.current_manufacturer_progress.setValue(pct)
     
-        # --------------- REPORT PARSING ---------------
-        # ensure buckets
+        # 1) Reporting buckets -------------------------------------------------
         if not hasattr(self, "report_stats"):
             self.report_stats = {}
         if not hasattr(self, "_report_year_totals"):
             self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
     
-        # current make (set in process_next_manufacturer)
         current_make = getattr(self, "_report_current_make", None)
         if not current_make and hasattr(self, "selected_manufacturers") and 0 <= self.current_index < len(self.selected_manufacturers):
             current_make = self.selected_manufacturers[self.current_index]
-    
         if not current_make:
             return
     
-        # helpers
+        # 2) Helpers -----------------------------------------------------------
         def _norm_range(rng: str) -> str:
             rng = rng.strip().replace("—", "-").replace("–", "-")
             m = re.search(r"(\d{4})\s*-\s*(\d{4})", rng)
             if not m:
-                return rng
+                return rng.strip()
             a, b = int(m.group(1)), int(m.group(2))
-            return f"{a}–{b}"  # EN DASH
+            return f"{a}–{b}"
     
         def _hms_to_seconds(s: str) -> int:
             parts = [int(x) for x in s.split(":")]
-            if   len(parts) == 3: h, m, sec = parts
-            elif len(parts) == 2: h, m, sec = 0, parts[0], parts[1]
-            else:                 h, m, sec = 0, 0, parts[0]
-            return h*3600 + m*60 + sec
+            if len(parts) == 3:
+                h, m, sec = parts
+            elif len(parts) == 2:
+                h, m, sec = 0, parts[0], parts[1]
+            else:
+                h, m, sec = 0, 0, parts[0]
+            return h * 3600 + m * 60 + sec
     
-        # Total line (tolerant of prefixes)
-        m_total_line = re.search(r"(\d{1,2}:\d{2}:\d{2})\s+Total Time\s+\|\s+Total Files:\s+(\d+)", line)
-        if m_total_line:
-            runtime_str, total_files = m_total_line.groups()
-            self.report_stats.setdefault(current_make, {"total_time": 0, "total_files": 0, "links": []})
-            self.report_stats[current_make]["total_time"]  = _hms_to_seconds(runtime_str)
-            self.report_stats[current_make]["total_files"] = int(total_files)
-            return
+        def _int(s: str) -> int:
+            return int(str(s).replace(",", "").strip())
     
-        # Per-link line (accepts "36:42" or "1:03:25" and hyphen/en-dash ranges)
-        # Example: "-----1st Alfa Romeo Link (2012–2016): 2:51 | Files: 18"
-        m_link_line = re.search(
-            r"-{2,}\s*\d+(?:st|nd|rd|th)\s+[A-Za-z ]+\s+Link\s*\(([^)]+)\)\s*:\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*\|\s*Files:\s*(\d+)",
-            line
+        # We’ll try a few tolerant formats. If a per-link line omits the year
+        # we’ll fill it using the running link index (1→2012–2016, 2→2017–2021, 3→2022–2026).
+        RE_LINK_CANON = re.compile(
+            r"-{2,}\s*(\d+)(?:st|nd|rd|th)\s+[A-Za-z][A-Za-z &\-/]+?\s+Link\s*\(([^)]*)\)\s*[:\-–]\s*"
+            r"(\d{1,2}:\d{2}(?::\d{2})?)\s*\|\s*(?:Files(?:\s*(?:Found|Indexed))?|Files)\s*[:=]?\s*(\d{1,3}(?:,\d{3})*)",
+            re.IGNORECASE
         )
-        if m_link_line:
-            year_range_raw, runtime_str, files_str = m_link_line.groups()
-            year_range = _norm_range(year_range_raw)
-            seconds = _hms_to_seconds(runtime_str)
-            files   = int(files_str)
+        RE_YEAR   = re.compile(r"\((\s*\d{4}\s*[-–—]\s*\d{4}\s*)\)")
+        RE_TIME   = re.compile(r"\b(\d{1,2}:\d{2}(?::\d{2})?)\b")
+        RE_FILES1 = re.compile(r"(?:Files(?:\s*(?:Found|Indexed))?|Found)\s*[:=]?\s*(\d{1,3}(?:,\d{3})*)", re.IGNORECASE)
+        RE_FILES2 = re.compile(r"\b(\d{1,3}(?:,\d{3})*)\s+Files\b", re.IGNORECASE)
+    
+        # 3) Per-link (canonical)
+        m = RE_LINK_CANON.search(line)
+        if m:
+            ord_idx_str, yr_raw, rt_str, files_str = m.groups()
+            ord_idx = max(1, int(ord_idx_str))
+            files   = _int(files_str)
+            secs    = _hms_to_seconds(rt_str)
+    
+            # fallback year if missing in the line
+            idx_map = {1: "2012–2016", 2: "2017–2021", 3: "2022–2026"}
+            yr = _norm_range(yr_raw) if yr_raw.strip() else idx_map.get(ord_idx, "")
+    
             self.report_stats.setdefault(current_make, {"total_time": 0, "total_files": 0, "links": []})
-            self.report_stats[current_make]["links"].append({"range": year_range, "time": seconds, "files": files})
-            if year_range in self._report_year_totals:
-                self._report_year_totals[year_range] += files
+            sig = (yr, secs, files)
+            existing = {(l.get("range",""), l.get("time",0), l.get("files",0)) for l in self.report_stats[current_make]["links"]}
+            if sig not in existing:
+                self.report_stats[current_make]["links"].append({"range": yr, "time": secs, "files": files})
+                if yr in self._report_year_totals:
+                    self._report_year_totals[yr] += files
             return
+    
+        # 4) Per-link (fallback: year-range + time + files scattered)
+        m_year = RE_YEAR.search(line)
+        if m_year and (RE_FILES1.search(line) or RE_FILES2.search(line)) and RE_TIME.search(line):
+            yr = _norm_range(m_year.group(1))
+            times = RE_TIME.findall(line)
+            rt_str = times[-1] if times else "0:00"
+            files_m = RE_FILES1.search(line) or RE_FILES2.search(line)
+            files = _int(files_m.group(1)) if files_m else 0
+            secs = _hms_to_seconds(rt_str)
+    
+            # If the year still somehow empty, map by index from the running sub-link index.
+            if not yr:
+                try:
+                    # _multi_link_index is 0-based for in-flight link; report lines are printed after finish,
+                    # so add 1 to get human-ordinal.
+                    ord_idx = int(getattr(self, "_multi_link_index", 0)) + 1
+                    yr = {1:"2012–2016", 2:"2017–2021", 3:"2022–2026"}.get(ord_idx, "")
+                except Exception:
+                    pass
+    
+            self.report_stats.setdefault(current_make, {"total_time": 0, "total_files": 0, "links": []})
+            sig = (yr, secs, files)
+            existing = {(l.get("range",""), l.get("time",0), l.get("files",0)) for l in self.report_stats[current_make]["links"]}
+            if sig not in existing:
+                self.report_stats[current_make]["links"].append({"range": yr, "time": secs, "files": files})
+                if yr in self._report_year_totals:
+                    self._report_year_totals[yr] += files
+            return
+    
+        # 5) Totals (per-make) from various orders
+        for pat in (
+            re.compile(r"(\d{1,2}:\d{2}(?::\d{2})?)\s+Total Time\s*\|\s*Total Files\s*:\s*(\d{1,3}(?:,\d{3})*)", re.IGNORECASE),
+            re.compile(r"Total Files\s*:\s*(\d{1,3}(?:,\d{3})*)\s*\|\s*Total Time\s*:\s*(\d{1,2}:\d{2}(?::\d{2})?)", re.IGNORECASE),
+            re.compile(r"Total Time\s*:\s*(\d{1,2}:\d{2}(?::\d{2})?)", re.IGNORECASE),
+            re.compile(r"(?:Total Files|Files Indexed|Files Found)\s*:\s*(\d{1,3}(?:,\d{3})*)", re.IGNORECASE),
+            re.compile(r"Indexing routine took\s*(\d+(?:\.\d+)?)\s*seconds", re.IGNORECASE),
+        ):
+            m = pat.search(line)
+            if not m:
+                continue
+            self.report_stats.setdefault(current_make, {"total_time": 0, "total_files": 0, "links": []})
+            if pat.pattern.startswith("("):  # time | files
+                t, f = m.groups(); self.report_stats[current_make]["total_time"] = max(self.report_stats[current_make]["total_time"], _hms_to_seconds(t)); self.report_stats[current_make]["total_files"] = max(self.report_stats[current_make]["total_files"], _int(f)); break
+            if "Total Files" in pat.pattern and "Total Time" in pat.pattern:  # files | time
+                f, t = m.groups(); self.report_stats[current_make]["total_time"] = max(self.report_stats[current_make]["total_time"], _hms_to_seconds(t)); self.report_stats[current_make]["total_files"] = max(self.report_stats[current_make]["total_files"], _int(f)); break
+            if "Total Time" in pat.pattern:  # time only
+                t = m.group(1); self.report_stats[current_make]["total_time"] = max(self.report_stats[current_make]["total_time"], _hms_to_seconds(t)); break
+            if "Total Files" in pat.pattern or "Files Indexed" in pat.pattern or "Files Found" in pat.pattern:
+                f = m.group(1); self.report_stats[current_make]["total_files"] = max(self.report_stats[current_make]["total_files"], _int(f)); break
+            if "Indexing routine took" in pat.pattern:
+                secs = int(float(m.group(1))); self.report_stats[current_make]["total_time"] = max(self.report_stats[current_make]["total_time"], secs); break
+    
+        # Backfill per-make files if totals seen but zero
+        data = self.report_stats.get(current_make, {})
+        if data.get("total_files", 0) == 0 and data.get("links"):
+            data["total_files"] = sum(int(l.get("files", 0)) for l in data["links"])
 
 
     def process_next_manufacturer(self):
+        import re
+    
         # ── HARD STOPS ─────────────────────────────────────────────────────
         if getattr(self, "stop_requested", False):
             # Write whatever we have so far on manual stop
@@ -2181,11 +2481,7 @@ class SeleniumAutomationApp(QWidget):
             # ✅ ALWAYS write report here (only once)
             self._try_write_report_once("batch complete")
     
-            self.queue_active = False
-            self.current_index = 0
-            self._clear_queue_state()
-            self._log_all_done()
-            return
+
         # ──────────────────────────────────────────────────────────────────
     
         # Reset per‐manufacturer progress tracking
@@ -2208,7 +2504,6 @@ class SeleniumAutomationApp(QWidget):
         # ──────────────────────────────────────────────────────────────────
     
         link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
-    
         sharepoint_links = link_dict.get(manufacturer)
         if not sharepoint_links:
             QMessageBox.warning(
@@ -2223,18 +2518,28 @@ class SeleniumAutomationApp(QWidget):
         if isinstance(sharepoint_links, str):
             sharepoint_links = [sharepoint_links]
     
+        # === NEW: honor Year Ranges checkboxes (regex first; index fallback 0/1/2) ===
+        sharepoint_links = self._filter_links_by_selected_years(sharepoint_links)
+        if not sharepoint_links:
+            self.terminal.append_output(f"ℹ️ No links match selected years for {manufacturer}; skipping.")
+            self.on_manufacturer_finished(manufacturer, True)
+            return
+    
+        # Cleanup mode: intersect with broken-link years (keep previous set if no regex match)
         if self.cleanup_checkbox.isChecked():
             years_needed = self.get_broken_hyperlink_years_for_manufacturer(manufacturer)
-            filtered_links = []
-            for link in sharepoint_links:
-                m = re.search(r'\((\d{4})\s*-\s*(\d{4})\)', link)
-                if m:
-                    start_year, end_year = int(m.group(1)), int(m.group(2))
-                    if any(start_year <= y <= end_year for y in years_needed):
-                        filtered_links.append(link)
-            if filtered_links:
-                sharepoint_links = filtered_links
+            if years_needed:
+                filtered_links = []
+                for link in sharepoint_links:
+                    m = re.search(r'\((\d{4})\s*-\s*(\d{4})\)', link)
+                    if m:
+                        start_year, end_year = int(m.group(1)), int(m.group(2))
+                        if any(start_year <= y <= end_year for y in years_needed):
+                            filtered_links.append(link)
+                if filtered_links:
+                    sharepoint_links = filtered_links
     
+        # ── set up multi-link run state ────────────────────────────────────
         self._multi_links        = sharepoint_links
         self._multi_link_index   = 0
         self._multi_excel_path   = excel_path
@@ -2249,8 +2554,33 @@ class SeleniumAutomationApp(QWidget):
             self._initial_broken = None
             self._fixed_count    = 0
     
+        # Kick it off
         self.run_all_links_batch() if self._cleanup_mode else self.run_next_sub_link()
 
+    def _extract_year_range_label(self, link: str, index: int | None = None) -> str:
+        """
+        Pull a '(YYYY - YYYY)' or '(YYYY–YYYY)' suffix out of the link text.
+        Falls back to index mapping (0/1/2) → 2012–2016 / 2017–2021 / 2022–2026.
+        Returns an empty string if unknown.
+        """
+        import re
+    
+        # try a suffix like "... (2012 - 2016)" or "(2017-2021)" or with en dash
+        m = re.search(r'\(\s*(20\d{2})\s*[–-]\s*(20\d{2})\s*\)\s*$', link)
+        if not m:
+            # try anywhere in the string inside parentheses, just in case
+            m = re.search(r'\((?:[^)]*?)(20\d{2})\s*[–-]\s*(20\d{2})(?:[^)]*?)\)', link)
+    
+        if m:
+            return f"{m.group(1)}–{m.group(2)}"
+    
+        # index fallback (0-based)
+        mapping = {0: "2012–2016", 1: "2017–2021", 2: "2022–2026"}
+        if index is not None and index in mapping:
+            return mapping[index]
+    
+        return ""
+    
 
     def _links_for_manufacturer_preview(self, manufacturer: str):
         """Return the exact list of SharePoint links this run will use for `manufacturer`.
@@ -2259,6 +2589,9 @@ class SeleniumAutomationApp(QWidget):
         links = link_dict.get(manufacturer) or []
         if isinstance(links, str):
             links = [links]
+            
+        # ⬇️ NEW: apply UI year-range filter for both normal & cleanup previews
+        links = self._filter_links_by_selected_years(links)
     
         if self.cleanup_checkbox.isChecked():
             years_needed = self.get_broken_hyperlink_years_for_manufacturer(manufacturer)
@@ -2453,7 +2786,19 @@ class SeleniumAutomationApp(QWidget):
                     count += 1
     
         return count
-        
+    
+    def _extract_year_range_from_link(self, link: str) -> str:
+        """
+        Extract 'YYYY–YYYY' from the link text (anywhere).
+        Returns '' if not found.
+        """
+
+        m = re.search(r'\(\s*(20\d{2})\s*[-–]\s*(20\d{2})\s*\)', link)
+        if m:
+            return f"{m.group(1)}–{m.group(2)}"
+        return ""
+
+            
     def on_sub_link_finished(self, manufacturer, success):
         if not self.is_running:
             return
@@ -2482,7 +2827,21 @@ class SeleniumAutomationApp(QWidget):
             msg = f"❌ SharePoint link {self._multi_link_index+1}/{len(self._multi_links)} for {manufacturer} failed"
             self.terminal.append_output(msg)
             logging.warning(msg)
-            self.on_manufacturer_finished(manufacturer, False)
+        
+            # NEW: treat as incomplete but keep going
+            self._hyperlinks_done_links += 1
+            self.update_manufacturer_progress_bar()
+            self._multi_link_index += 1
+        
+            if self._multi_link_index >= len(self._multi_links):
+                # Finished this manufacturer (some links may be incomplete)
+                self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks: Complete")
+                self.manufacturer_hyperlink_bar.setValue(self.manufacturer_hyperlink_bar.maximum())
+                self.on_manufacturer_finished(manufacturer, True)
+            else:
+                # Try the next sub-link
+                self.run_all_links_batch() if self.cleanup_checkbox.isChecked() else self.run_next_sub_link()
+
     
     def update_manufacturer_progress_bar(self):
         total_links = getattr(self, "_hyperlinks_total_links", 1)
