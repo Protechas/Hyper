@@ -411,7 +411,7 @@ class SharepointExtractor:
         elif not self.repair_mode and self.excel_mode == "og":
             self.system_col, self.HYPERLINK_COLUMN_INDEX = 5, 12
         elif not self.repair_mode and self.excel_mode == "new":
-            self.system_col, self.HYPERLINK_COLUMN_INDEX = 19, 11
+            self.system_col, self.HYPERLINK_COLUMN_INDEX = 21, 11
         else:
             print("⚠️ Unsupported mode/Excel combination in cleanup mode")
             self.system_col, self.HYPERLINK_COLUMN_INDEX = None, None
@@ -928,7 +928,7 @@ class SharepointExtractor:
             elif not self.repair_mode and self.excel_mode == "og":
                 system_col, hyperlink_col = 5, 12
             elif not self.repair_mode and self.excel_mode == "new":
-                system_col, hyperlink_col = 19, 11
+                system_col, hyperlink_col = 21, 11
             else:
                 print("⚠️ Unsupported mode/Excel combination in cleanup mode")
                 model_workbook.save(self.excel_file_path)
@@ -1890,7 +1890,7 @@ class SharepointExtractor:
         adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "")
         adas_file_name = re.sub(r"[\[\]()\-]", "", adas_file_name).replace("WL", "").replace("BSM-RCTW", "BSW-RCTW").strip().upper()
         
-        for row in ws.iter_rows(min_row=2, max_col=20):
+        for row in ws.iter_rows(min_row=2, max_col=22):
             if not any(cell.value for cell in row):
                 continue  # skip empty rows
         
@@ -1904,9 +1904,9 @@ class SharepointExtractor:
                 .replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT") \
                 .replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value else ''
         
-            # ADAS column (E vs T)
-            if self.excel_mode == "new" and len(row) > 18 and row[18].value:
-                adas_value = str(row[18].value).replace(".pdf", "").replace("(", "").replace(")", "").strip()
+            # ADAS column (E vs U)
+            if self.excel_mode == "new" and len(row) > 20 and row[20].value:
+                adas_value = str(row[20].value).replace(".pdf", "").replace("(", "").replace(")", "").strip()
             elif len(row) > 4 and row[7].value:
                 adas_value = str(row[7].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
                     .replace("SCC 1", "ACC").replace(".pdf", "").strip()
@@ -1960,7 +1960,7 @@ class SharepointExtractor:
                                 sys_cell = ws.cell(row=r, column=4)   # Column D
                         else:
                             if self.excel_mode == "new":
-                                sys_cell = ws.cell(row=r, column=19)  # Column S (ADAS SI new mode)
+                                sys_cell = ws.cell(row=r, column=21)  # Column S (ADAS SI new mode)
                             else:
                                 sys_cell = ws.cell(row=r, column=5)   # Column E
                         
@@ -1986,8 +1986,8 @@ class SharepointExtractor:
                     sys_cell = row[3]   # Column D
                 system = str(sys_cell.value).strip().upper() if sys_cell.value else ''
             else:
-                if self.excel_mode == "new" and len(row) > 19:
-                    system = str(row[19].value).strip().upper() if row[19].value else ''
+                if self.excel_mode == "new" and len(row) > 21: # ADAS Mode
+                    system = str(row[21].value).strip().upper() if row[21].value else ''
                 else:
                     system = str(row[4].value).strip().upper() if len(row) > 4 and row[4].value else ''
     
@@ -2009,7 +2009,7 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
+    debug_run = True
     
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
