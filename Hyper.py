@@ -493,7 +493,7 @@ class SeleniumAutomationApp(QWidget):
             "Volkswagen": [
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EofI-9qPCZZGjSUIJIDF1j4B8mnnb0HytSgTi3xuC8pBjg?e=EyBHdh (2012 - 2016)",# Documents (2012 - 2016) ✅ Good
                 "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EtVWFcFUfJFFoJWebnxcueYB_TJfdHp9aFm6tF2DiRXkCQ?e=CkFAZ8 (2017 - 2021)",# Documents (2017 - 2021) ✅ Good
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjuBnvd7dbNHkbiug9wzbTMBpe-ieris6UoCWwuTohQJMA?e=kopsV8 " # Documents (2022 - 2026) ✅ Good
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EjuBnvd7dbNHkbiug9wzbTMBpe-ieris6UoCWwuTohQJMA?e=kopsV8 (2022 - 2026)" # Documents (2022 - 2026) ✅ Good
             ],
             "Volvo": [
                 #"https://sharepoint.com/.../Volvo (2012 - 2016)",# Documents (2012 - 2016)
@@ -2134,7 +2134,7 @@ class SeleniumAutomationApp(QWidget):
         return d
     
     def _write_hyper_report(self) -> str:
-        import os, time, datetime
+        import os, time, datetime, re  # re reserved if needed elsewhere
     
         if not hasattr(self, "report_stats"):
             self.report_stats = {}
@@ -2156,8 +2156,42 @@ class SeleniumAutomationApp(QWidget):
             parts.append(f"{mins} minute{'s' if mins != 1 else ''}")
             return ", ".join(parts)
     
-        # 🔁 Self-heal: recompute year totals and fill missing per-link labels
-        yr_map_by_index = {0: "2012–2016", 1: "2017–2021", 2: "2022–2026"}
+        # ---- Year selection + labels (we'll reuse in recompute AND header/link print)
+        try:
+            # returns [(2012,2016), (2017,2021), ...] or [] if none checked
+            selected_ranges = self.get_selected_year_ranges()
+        except Exception:
+            selected_ranges = []
+    
+        tuple_to_label = {
+            (2012, 2016): "2012–2016",
+            (2017, 2021): "2017–2021",
+            (2022, 2026): "2022–2026",
+        }
+        # If none selected, treat as "all" (legacy behavior)
+        if not selected_ranges:
+            display_labels = ["2012–2016", "2017–2021", "2022–2026"]
+        else:
+            display_labels = [tuple_to_label[t] for t in selected_ranges if t in tuple_to_label]
+    
+        # Fixed legacy map used only when NO year filter is applied
+        legacy_map_by_index = {0: "2012–2016", 1: "2017–2021", 2: "2022–2026"}
+        valid_labels = {"2012–2016", "2017–2021", "2022–2026"}
+    
+        # helper: compute the intended label for a link by zero-based index
+        def _label_for_link_index(zero_idx: int) -> str:
+            # exactly one selected → force it
+            if len(display_labels) == 1:
+                return display_labels[0]
+            # some selected (>=2) → map by index through selected list; if out of range, use last
+            if len(display_labels) >= 2:
+                if 0 <= zero_idx < len(display_labels):
+                    return display_labels[zero_idx]
+                return display_labels[-1]
+            # none selected → legacy mapping
+            return legacy_map_by_index.get(zero_idx, "")
+    
+        # 🔁 Self-heal: recompute year totals and normalize per-link labels
         recomputed_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
     
         for make, data in self.report_stats.items():
@@ -2169,33 +2203,41 @@ class SeleniumAutomationApp(QWidget):
                 data["total_time"] = sum(int(l.get("time", 0)) for l in links)  # heuristic
     
             # Normalize per-link ranges and re-accumulate year totals
-            for idx, l in enumerate(links):
+            for idx, l in enumerate(links):  # idx is 0-based
                 yr = (l.get("range") or "").strip()
-                if not yr:
-                    yr = yr_map_by_index.get(idx, "")
+    
+                # If range present and valid, keep it; otherwise compute from selection/index
+                if not yr or yr not in valid_labels:
+                    yr = _label_for_link_index(idx)
                     if yr:
-                        l["range"] = yr
+                        l["range"] = yr  # persist normalized label for print step
+    
                 if yr in recomputed_year_totals:
                     try:
                         recomputed_year_totals[yr] += int(l.get("files", 0))
                     except Exception:
                         pass
     
-        # Replace live totals with the recomputed values (guarantees non-zero header)
+        # Replace live totals with the recomputed values (guarantees header consistency)
         self._report_year_totals = recomputed_year_totals
     
         # ---------- Write the file ----------
         ts = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = os.path.join(self._get_hyper_logs_dir(), f"ADAS_SI_Report_{ts}.txt")
         with open(filename, "w", encoding="utf-8") as f:
-            # Header
+            # Header (dynamic by selected year ranges)
             grand_runtime = sum(int(v.get("total_time", 0)) for v in self.report_stats.values())
             f.write("Grand Totals (All Makes Combined)\n\n")
             f.write(f"Complete Runtime: {human_dhm(grand_runtime)} ({hms(grand_runtime)})\n")
-            f.write(f"{header_label} 2012–2016 Files: {self._report_year_totals['2012–2016']}\n")
-            f.write(f"{header_label} 2017–2021 Files: {self._report_year_totals['2017–2021']}\n")
-            f.write(f"{header_label} 2022–2026 Files: {self._report_year_totals['2022–2026']}\n")
-            f.write(f"Total Files (All Years): {sum(self._report_year_totals.values())}\n\n")
+    
+            # Write only the selected bucket lines and compute total from those
+            selected_total = 0
+            for lbl in display_labels:
+                count = int(self._report_year_totals.get(lbl, 0))
+                f.write(f"{header_label} {lbl} Files: {count}\n")
+                selected_total += count
+    
+            f.write(f"Total Files (All Years): {selected_total}\n\n")
             f.write("-" * 90 + "\n\n")
     
             # Per-make blocks
@@ -2206,13 +2248,16 @@ class SeleniumAutomationApp(QWidget):
                 data = self.report_stats[make]
                 f.write(f"{make}\n\n")
                 f.write(f"{hms(int(data.get('total_time', 0)))} Total Time | Total Files: {int(data.get('total_files', 0)):,}\n")
+    
+                # ---- Per-link rows (dynamic label per selection/index) ----
                 for i, link in enumerate(data.get("links", []), start=1):
-                    yr = (link.get("range") or "").strip()
-                    if not yr:
-                        yr = yr_map_by_index.get(i-1, "")
+                    # i is 1-based for display; use (i-1) for zero-based index mapping
+                    link_label = (link.get("range") or "").strip()
+                    if not link_label or link_label not in valid_labels:
+                        link_label = _label_for_link_index(i - 1)
                     t  = hms(int(link.get("time", 0)))
                     files = int(link.get("files", 0))
-                    f.write(f"-----{ord_label(i)} {make} Link ({yr}): {t} | Files: {files:,}\n")
+                    f.write(f"-----{ord_label(i)} {make} Link ({link_label}): {t} | Files: {files:,}\n")
                 f.write("\n")
             f.flush(); os.fsync(f.fileno())
     
@@ -2224,8 +2269,7 @@ class SeleniumAutomationApp(QWidget):
         except Exception:
             pass
         return filename
-
-    
+  
     def _try_write_report_once(self, reason: str = "") -> None:
         """Write the report only once per batch, with backfill from the latest log if needed."""
         if getattr(self, "_report_written", False):
