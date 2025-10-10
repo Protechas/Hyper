@@ -804,7 +804,7 @@ class SeleniumAutomationApp(QWidget):
         
         manufacturer_selection_layout.addLayout(manufacturer_list_layout)
         
-        # === Year Ranges (goes between Manufacturers and ADAS) ===
+        # === Year Ranges (match ADAS Systems visuals) ===
         years_selection_layout = QVBoxLayout()
         
         years_label = QLabel("Year Ranges")
@@ -812,26 +812,38 @@ class SeleniumAutomationApp(QWidget):
         years_label.setStyleSheet("font-size: 14px; padding: 5px;")
         years_selection_layout.addWidget(years_label)
         
-        years_box = QWidget(self)
-        years_box.setStyleSheet("background-color: #3e3e3e; border: 1px solid #555555; "
-                                "border-radius: 5px;")
-        years_box_layout = QVBoxLayout(years_box); years_box_layout.setContentsMargins(8,8,8,8)
+        # Mirror the ADAS pattern: a list + a place to store the created QCheckBox widgets
+        year_items = ["2012–2016 Years", "2017–2021 Years", "2022–2026 Years"]
+        self.year_checkboxes = []  # analogous to self.adas_checkboxes
         
-        # Keep handles to the checkboxes
-        self.year_2012_2016 = QCheckBox("2012–2016 Years", self)
-        self.year_2017_2021 = QCheckBox("2017–2021 Years", self)
-        self.year_2022_2026 = QCheckBox("2022–2026 Years", self)
-        for cb in (self.year_2012_2016, self.year_2017_2021, self.year_2022_2026):
-            cb.setStyleSheet("font-size: 12px; padding: 5px;")
-            years_box_layout.addWidget(cb)
+        # Create the three year checkboxes just like ADAS does its acronyms
+        for text in year_items:
+            cb = QCheckBox(text, self)
+            self.year_checkboxes.append(cb)
+            years_selection_layout.addWidget(cb)
         
-        # Keep a convenience list
+        # Keep direct handles for compatibility with existing logic
+        # (old names used across your codebase)
+        self.year_2012_2016 = self.year_checkboxes[0]
+        self.year_2017_2021 = self.year_checkboxes[1]
+        self.year_2022_2026 = self.year_checkboxes[2]
+        
+        # Also provide the *_checkbox aliases some code paths expect
+        self.year_2012_2016_checkbox = self.year_2012_2016
+        self.year_2017_2021_checkbox = self.year_2017_2021
+        self.year_2022_2026_checkbox = self.year_2022_2026
+        
+        # Convenience list (kept for any existing loops)
         self._year_checkboxes = [self.year_2012_2016, self.year_2017_2021, self.year_2022_2026]
         
-        years_selection_layout.addWidget(years_box)
+        # ⬆️ keep content pinned to the top
+        years_selection_layout.addStretch(1)
+        
+        # Add the Year Ranges column into the same parent layout as ADAS Systems
         manufacturer_selection_layout.addLayout(years_selection_layout)
 
-    
+        
+        
         # ADAS Acronyms section
         adas_selection_layout = QVBoxLayout()
         adas_label = QLabel("ADAS Systems")
@@ -1953,11 +1965,17 @@ class SeleniumAutomationApp(QWidget):
         excel_format   = "Repair SI" if self.mode_switch.isChecked() else "ADAS SI"
         version_format = "NEW" if self.excel_mode_switch.isChecked() else "OG"
     
+        # Format the selected year ranges like "2012–2016, 2017–2021"
+        ranges = self.get_selected_year_ranges() if hasattr(self, "get_selected_year_ranges") else []
+        years_list = ", ".join(f"{a}–{b}" for (a, b) in ranges) if ranges else "None"
+        
         confirm_message = (
             "Excel files selected:\n"
             f"{excel_list}\n\n"
             "Manufacturers selected:\n"
             f"{manu_list}\n\n"
+            "Years selected:\n"
+            f"{years_list}\n\n"
             "Systems selected:\n"
             + ", ".join(selected_systems) + "\n\n"
             "Excel Format:\n"
@@ -1966,6 +1984,7 @@ class SeleniumAutomationApp(QWidget):
             f"{version_format}"
             + cleanup_note + "\n\nContinue?"
         )
+        
     
         if QMessageBox.question(self, 'Confirmation', confirm_message,
                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
