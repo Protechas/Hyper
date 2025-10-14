@@ -33,6 +33,88 @@ from selenium.webdriver.support import expected_conditions as EC
 
 #####################################################################################################################################################
 
+import re
+from difflib import SequenceMatcher
+
+def _strip_qualifiers(s: str) -> str:
+    s = (s or '')
+    s = re.sub(r'\[[^\]]*\]', '', s)   # remove [HEV], etc.
+    s = re.sub(r'\([^)]+\)', '', s)    # remove (Hybrid), etc.
+    s = s.replace('-', ' ')
+    s = re.sub(r'\s+', ' ', s)
+    return s.strip().upper()
+
+def _model_regex_from_excel(model_text: str):
+    core = _strip_qualifiers(model_text)
+    core = re.sub(r'\s+', r'\\s*', re.escape(core))  # allow optional spaces
+    return re.compile(rf'(^|[^A-Z0-9]){core}([^A-Z0-9]|$)', re.IGNORECASE)
+
+def _similar(a: str, b: str) -> float:
+    # compare on alphanum-only uppercase
+    norm = lambda x: re.sub(r'[^A-Z0-9]', '', (x or '').upper())
+    return SequenceMatcher(None, norm(a), norm(b)).ratio()
+
+def _norm_system_index(s: str) -> str:
+    # EXACTLY how your index normalizes: keep digits, strip non-alphanum
+    return re.sub(r'[^A-Z0-9]', '', (s or '').upper())
+
+def _norm_system_loose(s: str) -> str:
+    # fallback: letters only (rare sheets that drop digits)
+    return re.sub(r'[^A-Z]', '', (s or '').upper())
+
+def _extract_system_from_filename(file_name: str) -> str:
+    name = (file_name or '').upper()
+    # prefer () or []
+    for m in re.findall(r'[\(\[]([^\)\]]+)[\)\]]', name):
+        tok = m.strip().upper()
+        if tok:
+            return tok
+    # then last token
+    parts = name.split()
+    if parts:
+        tok = parts[-1].strip().upper()
+        if tok:
+            return tok
+    # finally scan known acronyms
+    for k in ["ACC","AEB","AHL","APA","BSW","BUC","LKA","LW","NV","SVC","WAMC",
+              "ACC1","APA1","ACC2","APA2"]:
+        if k in name:
+            return k
+    return ""
+
+def _system_val_for_row(self, row, repair_mode: bool):
+    """
+    Return (system_text, system_norm_for_index) for a given openpyxl 'row' (tuple of cells).
+    Uses the correct columns for OG vs NEW and Repair vs ADAS.
+    NOTE: 'row[i]' here is 0-based indexing (row[0] == Column A).
+    """
+    # Decide which source column to read the system from
+    if repair_mode:
+        # Repair SI
+        if self.excel_mode == "new":
+            # NEW Repair: Column T (0-based 19)
+            sys_cell = row[19] if len(row) > 19 and row[19].value else None
+        elif str(self.sharepoint_make).lower() == "toyota":
+            # OG Repair for Toyota uses Column E (0-based 4)
+            sys_cell = row[4] if len(row) > 4 and row[4].value else None
+        else:
+            # OG Repair default uses Column D (0-based 3)
+            sys_cell = row[3] if len(row) > 3 and row[3].value else None
+    else:
+        # ADAS SI
+        if self.excel_mode == "new":
+            # 🔧 NEW ADAS: Column U (0-based 20) after the S→U move
+            sys_cell = row[20] if len(row) > 20 and row[20].value else None
+        else:
+            # OG ADAS: Column E (0-based 4)
+            sys_cell = row[4] if len(row) > 4 and row[4].value else None
+
+    sys_text = (str(sys_cell.value).strip().upper() if sys_cell else "")
+    sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACTLY like your __build_row_index__
+    return sys_text, sys_norm
+
+
+
 class SharepointExtractor: 
     """
     Class definition for a SharepointExtractor. 
@@ -595,8 +677,12 @@ class SharepointExtractor:
                             # Model presence (clean parentheses and year, compare upper)
                             cleaned = re.sub(r"\(.*?\)", "", name)
                             cleaned = re.sub(r"(20\d{2})", "", cleaned).replace(".pdf", "").strip().upper()
-                            if mdl.strip().upper() not in cleaned:
-                                continue
+                            # ★ NEW: allow small model typos in file names
+                            clean_model = mdl.strip().upper()
+                            if clean_model not in cleaned.upper():
+                                if _similar(clean_model, cleaned) < 0.75:
+                                    continue
+
     
                             direct_row = row
                             break
@@ -1738,10 +1824,49 @@ class SharepointExtractor:
                     cell.hyperlink = document_url
                     cell.value = document_url
                     cell.font = Font(color="0000FF", underline='single')
+                    # Color logic
+                    force_red = bool(getattr(self, "debug_mode", False)) and bool(getattr(self, "write_in_debug", True))
+                    if getattr(self, "_last_match_approx", False):
+                        cell.font = Font(color="FF0000", underline='single')   # red hyperlink for regex/fuzzy placement
+                    else:
+                        cell.font = Font(color="0000FF", underline='single')   # blue for perfect match
                     print(f"Hyperlink for {entry_name} added at {cell.coordinate}")
                     return True
         return False
+ 
+    # ★ Add this helper once inside your class (above the two methods below)
+    def _system_val_for_row(self, row, repair_mode: bool):
+        """
+        Return (system_text, system_norm_for_index) for a given openpyxl 'row' (tuple of cells).
+        Uses the correct columns for OG vs NEW and Repair vs ADAS.
+        NOTE: 'row[i]' here is 0-based indexing (row[0] == Column A).
+        """
+        if repair_mode:
+            # Repair SI
+            if self.excel_mode == "new":
+                # NEW Repair: Column T (0-based 19)
+                sys_cell = row[19] if len(row) > 19 and row[19].value else None
+            elif str(self.sharepoint_make).lower() == "toyota":
+                # OG Repair for Toyota: Column E (0-based 4)
+                sys_cell = row[4] if len(row) > 4 and row[4].value else None
+            else:
+                # OG Repair default: Column D (0-based 3)
+                sys_cell = row[3] if len(row) > 3 and row[3].value else None
+        else:
+            # ADAS SI
+            if self.excel_mode == "new":
+                # NEW ADAS: Column U (0-based 20) after S→U move
+                sys_cell = row[20] if len(row) > 20 and row[20].value else None
+            else:
+                # OG ADAS: Column E (0-based 4)
+                sys_cell = row[4] if len(row) > 4 and row[4].value else None
     
+        sys_text = (str(sys_cell.value).strip().upper() if sys_cell else "")
+        sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACT match with your __build_row_index__
+        return sys_text, sys_norm
+    
+
+    # ★ REPLACE your __update_excel__ with this (adds row verifier; keeps your color logic)
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
         # Skip filtering if in Repair mode
         if not self.repair_mode:
@@ -1752,18 +1877,47 @@ class SharepointExtractor:
         if doc_name in self.SPECIFIC_HYPERLINKS:
             cell = ws[self.SPECIFIC_HYPERLINKS[doc_name]]
             error_message = None
+            # ensure exact (no red) when SPECIFIC_HYPERLINKS used
+            self._last_match_approx = False
         else:
             cell, error_message = self.__find_row_in_excel__(
                 ws, year, self.sharepoint_make, model, doc_name,
-                repair_mode=self.repair_mode, row_index=self.row_index
+                repair_mode=self.repair_mode, row_index=getattr(self, "row_index", None)
             )
     
-        # Create a unique key for tracking the row (includes system/module name now for Repair SI)
+        # --- VERIFY the picked row actually matches (Y, M, Model, System). If not, fix it. ---
+        try:
+            Y  = (year or "").strip().upper()
+            M  = (self.sharepoint_make or "").strip().upper()
+            MR = (model or "").strip().upper()
+            sys_raw     = _extract_system_from_filename(doc_name)
+            sys_norm_ix = re.sub(r"[^A-Z0-9]", "", (sys_raw or "").upper())
+    
+            # Ensure we have the latest index
+            self.row_index = getattr(self, "row_index", None) or self.__build_row_index__(ws, repair_mode=self.repair_mode)
+    
+            exact_key = (Y, M, MR, sys_norm_ix)
+            expected_row = self.row_index.get(exact_key)
+    
+            if expected_row and cell and cell.row != expected_row:
+                print(f"🔁 Row verifier: correcting from row {cell.row} to expected row {expected_row} for {doc_name}")
+                cell = ws.cell(row=expected_row, column=self.HYPERLINK_COLUMN_INDEX)
+                self._last_match_approx = False
+            elif not expected_row and cell is None:
+                # nothing indexed for this exact key and no cell chosen → will create new row below
+                pass
+            elif not expected_row:
+                # we matched via regex/fuzzy to some row; mark approx so it goes red
+                self._last_match_approx = True
+        except Exception as _e:
+            print(f"⚠️ Row verifier error for {doc_name}: {_e}")
+    
+        # Create a unique key ...
         if self.repair_mode:
             module_matches = re.findall(r'\((.*?)\)', doc_name)
             system_name = None
             for mod in module_matches:
-                if mod.strip().upper() in [s.upper() for s in self.selected_adas]:
+                if self.selected_adas and mod.strip().upper() in [s.upper() for s in self.selected_adas]:
                     system_name = mod.strip().upper()
                     break
             if not system_name:
@@ -1771,7 +1925,6 @@ class SharepointExtractor:
                     system_name = module_matches[0].strip().upper()
                 else:
                     system_name = os.path.splitext(doc_name)[0].split()[-1].strip().upper()
-    
             key = (year, self.sharepoint_make, model, system_name)
         else:
             key = (year, self.sharepoint_make, model, doc_name)
@@ -1788,157 +1941,134 @@ class SharepointExtractor:
                     adas_last_row[key] = row
                 cell = ws.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
     
-            # ✅ Place RED NAME text in the correct column depending on mode
-            if self.repair_mode:
-                error_column = 7    # Column G for Repair mode
-            elif self.excel_mode == "new":
-                error_column = 10   # Column J for New mode
-            else:
-                error_column = 11   # Column K for OG mode
+            # force "approx" on fallback placements so they go red
+            self._last_match_approx = True
     
+            # Place RED NAME text in the proper error column
+            if self.repair_mode:
+                error_column = 7    # G
+            elif self.excel_mode == "new":
+                error_column = 10   # J
+            else:
+                error_column = 11   # K
             error_cell = ws.cell(row=cell.row, column=error_column)
             error_cell.value = doc_name.splitlines()[0]
             error_cell.font = Font(color="FF0000")
     
         # ✅ Always set visible text
         if document_url:
-            # 🔵 GOOD LINK → show doc_name as visible text (not just the URL)
             cell.hyperlink = document_url
             cell.value = document_url
-            cell.font = Font(color="0000FF", underline='single')
+    
+            approx = bool(getattr(self, "_last_match_approx", False))
+            debug_writing = bool(getattr(self, "debug_mode", False)) and bool(getattr(self, "write_in_debug", True))
+    
+            # neutralize "Hyperlink" style (blue) before we set our color
+            if approx or debug_writing:
+                try:
+                    cell.style = "Normal"
+                except Exception:
+                    pass
+                cell.font = Font(color="FF0000", underline='single')  # RED on regex/fuzzy or debug-write
+            else:
+                # exact → keep blue
+                cell.font = Font(color="0000FF", underline='single')
+    
         else:
-            # 🔴 NO LINK → write doc_name in red & track it in mismatched list
             cell.hyperlink = None
             cell.value = f"{doc_name} "
             cell.font = Font(color="FF0000")
     
-            # ✅ Make sure we have a mismatched list on this instance
             if not hasattr(self, "mismatched_files"):
                 self.mismatched_files = []
-    
-            # ✅ Add to mismatched list for reporting
             self.mismatched_files.append(doc_name)
             print(f"⚠️ No hyperlink for {doc_name} → adding to proper location as placeholder")
     
-        # ✅ Track the row so we don’t add duplicates later
         adas_last_row[key] = cell.row
-    
-        print(f"Hyperlink for {doc_name} added at {cell.coordinate}")
+        print(f"Hyperlink for {doc_name} added at {cell.coordinate} "
+              f"[{'approx' if getattr(self, '_last_match_approx', False) else 'exact'}]")
+
+
     
     def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
-        def normalize_system_name(name):
-            return re.sub(r"[^A-Z0-9]", "", name.upper()) if name else ''
+        """
+        Strict on:  Year + Make + System (system normalized like your index)
+        Model:      exact(raw) → regex(raw) → fuzzy(raw)
+        Flags:      self._last_match_approx = True on regex/fuzzy (so writer colors red)
+        """
+        # reset per-lookup flag
+        self._last_match_approx = False
     
-        # Extract from file name
-        extracted_year = re.search(r'\d{4}', file_name)
-        extracted_make = self.sharepoint_make
-        extracted_model = re.search(r'\b(?:Zevo 600|Other Model Names)\b', file_name)  # Modify as needed
+        # ensure we have the same index you already build
+        if row_index is None:
+            try:
+                row_index = self.__build_row_index__(ws, repair_mode=repair_mode)
+            except TypeError:
+                row_index = self.__build_row_index__(ws)
     
-        extracted_adas_systems = [adas for adas in self.__DEFINED_MODULE_NAMES__ if adas in file_name.upper()]
-        extracted_year = extracted_year.group(0) if extracted_year else "Unknown Year"
-        extracted_model = extracted_model.group(0) if extracted_model else model
-        adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "")
-        adas_file_name = re.sub(r"[\[\]()\-]", "", adas_file_name).replace("WL", "").replace("BSM-RCTW", "BSW-RCTW").strip().upper()
+        # normalize keys consistent with your index
+        Y  = (year  or "").strip().upper()
+        M  = (make  or "").strip().upper()
+        MR = (model or "").strip().upper()      # RAW UPPER (your index uses this for model)
+        sys_raw = _extract_system_from_filename(file_name)
     
-        normalization_patterns = [
-            (r'(RS)(\d)', r'\1 \2'),
-            (r'(SQ)(\d)', r'\1 \2'),
-            (r'BSW RCTW', r'BSW/RCTW'),
-            (r'BSW-RCT W', r'BSW/RCTW')
-        ]
-        for pattern, replacement in normalization_patterns:
-            adas_file_name = re.sub(pattern, replacement, adas_file_name)
-    
-        # ⬇️ REPAIR MODE LOGIC
-        if repair_mode:
-            module_matches = re.findall(r'\((.*?)\)', file_name)
-            system_name = None
-            for mod in module_matches:
-                if mod.strip().upper() in [s.upper() for s in self.selected_adas]:
-                    system_name = mod.strip().upper()
-                    break
-            if not system_name:
-                if module_matches:
-                    system_name = module_matches[0].strip().upper()
-                else:
-                    system_name = file_name.split()[-1].strip().upper()
-            normalized_system = re.sub(r"[^A-Z0-9]", "", system_name).upper().strip()
-
-    
-            key = (
-                year.strip().upper(),
-                make.strip().upper(),
-                model.strip().upper(),
-                normalized_system
-            )
-            
-            # Debug output for validation
-            #if row_index:
-               # print(f"[DEBUG] Looking for key: {key}")
-                #if key not in row_index:
-                   # print(f"[DEBUG] Key not found in index.")
-                    #print(f"[DEBUG] Available keys (sample): {list(row_index.keys())[:5]}")
-            
-                
-            if row_index and key in row_index:
-                row_num = row_index[key]
-                return ws.cell(row=row_num, column=self.HYPERLINK_COLUMN_INDEX), None
+        if not (Y and M and sys_raw):
             return None, file_name
     
-        # ⬇️ ADAS LOGIC
-        # Build once per file
-        adas_file_name = file_name.replace(year, "").replace(make, "").replace(model, "")
-        adas_file_name = re.sub(r"[\[\]()\-]", "", adas_file_name).replace("WL", "").replace("BSM-RCTW", "BSW-RCTW").strip().upper()
-        
-        for row in ws.iter_rows(min_row=2, max_col=22):
-            if not any(cell.value for cell in row):
-                continue  # skip empty rows
-        
-            year_value = str(row[0].value).strip() if row[0].value else ''
-            make_value = str(row[1].value).replace("audi", "Audi").strip() if row[1].value else ''
-            model_value = str(row[2].value).replace("Super Duty F-250", "F-250 SUPER DUTY") \
-                .replace("Super Duty F-350", "F-350 SUPER DUTY").replace("Super Duty F-450", "F-450 SUPER DUTY") \
-                .replace("Super Duty F-550", "F-550 SUPER DUTY").replace("Super Duty F-600", "F-600 SUPER DUTY") \
-                .replace("MACH-E", "Mustang Mach-E ").replace("G Convertable", "G Convertible") \
-                .replace("Carnival MPV", "Carnival").replace("RANGE ROVER VELAR", "VELAR") \
-                .replace("RANGE ROVER SPORT", "SPORT").replace("Range Rover Sport", "SPORT") \
-                .replace("RANGE ROVER EVOQUE", "EVOQUE").replace("MX5", "MX-5").strip() if row[2].value else ''
-        
-            # ADAS column (E vs U)
-            if self.excel_mode == "new" and len(row) > 20 and row[20].value:
-                adas_value = str(row[20].value).replace(".pdf", "").replace("(", "").replace(")", "").strip()
-            elif len(row) > 4 and row[7].value:
-                adas_value = str(row[7].value).replace("%", "").replace("(", "").replace(")", "").replace("-", "/") \
-                    .replace("SCC 1", "ACC").replace(".pdf", "").strip()
-            else:
-                adas_value = ''
-        
-            # Compare
-            if (
-                year_value.strip().upper() == year.strip().upper()
-                and make_value.strip().upper() == make.strip().upper()
-                and model_value.strip().upper() == model.strip().upper()
-                and adas_value.strip().upper() in adas_file_name
-            ):
-                #print(f"✅ MATCHED: {year_value} {make_value} {model_value} {adas_value}")
-                return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
-        
-        # If no match found
-        print(f"❌ No match found in any row for {file_name}")
+        # system normalized EXACTLY like your index; plus a loose fallback
+        SN_index = _norm_system_index(sys_raw)   # e.g., "ACC 1" -> "ACC1"
+        SN_loose = _norm_system_loose(sys_raw)   # rare sheets that drop digits (letters-only)
+    
+        # 1) EXACT by raw model + index-style system
+        key = (Y, M, MR, SN_index)
+        if key in row_index:
+            return ws.cell(row=row_index[key], column=self.HYPERLINK_COLUMN_INDEX), None
+    
+        # 1b) EXACT with loose system (treat as approx because key was relaxed)
+        if SN_loose and SN_loose != SN_index:
+            key_loose = (Y, M, MR, SN_loose)
+            if key_loose in row_index:
+                self._last_match_approx = True
+                return ws.cell(row=row_index[key_loose], column=self.HYPERLINK_COLUMN_INDEX), None
+    
+        # 2) REGEX on RAW model (still strict Year/Make/System)
+        rgx = _model_regex_from_excel(model)
+        for (yr, mk, mdl_raw, sys_norm), r in row_index.items():
+            if yr == Y and mk == M and sys_norm in (SN_index, SN_loose):
+                if rgx.search(_strip_qualifiers(mdl_raw)):
+                    self._last_match_approx = True
+                    return ws.cell(row=r, column=self.HYPERLINK_COLUMN_INDEX), None
+    
+        # 3) FUZZY on RAW model (still strict Year/Make/System)
+        best_row, best_score = None, 0.0
+        for (yr, mk, mdl_raw, sys_norm), r in row_index.items():
+            if yr == Y and mk == M and sys_norm in (SN_index, SN_loose):
+                sc = _similar(mdl_raw, MR)
+                if sc > best_score:
+                    best_score, best_row = sc, r
+    
+        if best_row and best_score >= 0.72:
+            self._last_match_approx = True
+            return ws.cell(row=best_row, column=self.HYPERLINK_COLUMN_INDEX), None
+    
+        # nothing found
         return None, file_name
+    
+    
 
+    # ★ REPLACE your __build_row_index__ with this
     def __build_row_index__(self, ws, repair_mode=False):
         index = {}
     
         # 🆕 Cleanup Mode Override: index all rows with hyperlinks
         if getattr(self, "cleanup_mode", False):
-            # Determine hyperlink column for this mode
+            # Determine hyperlink column for this mode (1-based)
             if repair_mode and self.excel_mode == "og":
-                hyperlink_col = 8
+                hyperlink_col = 8   # H
             elif not repair_mode and self.excel_mode == "og":
-                hyperlink_col = 12
+                hyperlink_col = 12  # L
             elif not repair_mode and self.excel_mode == "new":
-                hyperlink_col = 11
+                hyperlink_col = 11  # K
             else:
                 hyperlink_col = None
     
@@ -1946,56 +2076,39 @@ class SharepointExtractor:
                 for r in range(2, ws.max_row + 1):
                     cell = ws.cell(row=r, column=hyperlink_col)
                     # If cell has a hyperlink object or its value looks like a URL, index it
-                    if cell.hyperlink or (cell.value and str(cell.value).strip().lower().startswith("http")):
-                        year = str(ws.cell(row=r, column=1).value).strip().upper() if ws.cell(row=r, column=1).value else ''
-                        make = str(ws.cell(row=r, column=2).value).strip().upper() if ws.cell(row=r, column=2).value else ''
-                        model = str(ws.cell(row=r, column=3).value).strip().upper() if ws.cell(row=r, column=3).value else ''
-                        # Always pull the system name from the correct system column
-                        if repair_mode:
-                            if self.excel_mode == "new":
-                                sys_cell = ws.cell(row=r, column=20)  # Column T (Repair SI new mode)
-                            elif self.sharepoint_make.lower() == "toyota":
-                                sys_cell = ws.cell(row=r, column=5)   # Column E
-                            else:
-                                sys_cell = ws.cell(row=r, column=4)   # Column D
-                        else:
-                            if self.excel_mode == "new":
-                                sys_cell = ws.cell(row=r, column=21)  # Column S (ADAS SI new mode)
-                            else:
-                                sys_cell = ws.cell(row=r, column=5)   # Column E
-                        
+                    looks_link = bool(cell.hyperlink) or (cell.value and str(cell.value).strip().lower().startswith("http"))
+                    if not looks_link:
+                        continue
     
-                        system = str(sys_cell.value).strip().upper() if sys_cell.value else ''
-                        normalized_system = re.sub(r"[^A-Z0-9]", "", system)
-                        key = (year, make, model, normalized_system)
-                        index[key] = r
+                    year  = str(ws.cell(row=r, column=1).value).strip().upper() if ws.cell(row=r, column=1).value else ''
+                    make  = str(ws.cell(row=r, column=2).value).strip().upper() if ws.cell(row=r, column=2).value else ''
+                    model = str(ws.cell(row=r, column=3).value).strip().upper() if ws.cell(row=r, column=3).value else ''
+    
+                    # Pull the system value using the same logic as normal mode
+                    row_cells = tuple(ws.iter_rows(min_row=r, max_row=r, max_col=22))[0]
+                    _, system_norm = self._system_val_for_row(row_cells, repair_mode=repair_mode)
+    
+                    key = (year, make, model, system_norm)
+                    index[key] = r
                 return index  # Skip normal filtering entirely in cleanup mode
     
-        # 🔹 Normal full-mode indexing logic
-        for row in ws.iter_rows(min_row=2, max_col=8):
-            year = str(row[0].value).strip().upper() if row[0].value else ''
-            make = str(row[1].value).strip().upper() if row[1].value else ''
-            model = str(row[2].value).strip().upper() if row[2].value else ''
+        # 🔹 Normal full-mode indexing logic (consistent system column mapping)
+        for row in ws.iter_rows(min_row=2, max_col=22):
+            # skip completely empty rows
+            if not any(c.value for c in row):
+                continue
     
-            if repair_mode:
-                if self.excel_mode == "new":
-                    sys_cell = row[19]  # Column T
-                elif self.sharepoint_make.lower() == "toyota":
-                    sys_cell = row[4]   # Column E
-                else:
-                    sys_cell = row[3]   # Column D
-                system = str(sys_cell.value).strip().upper() if sys_cell.value else ''
-            else:
-                if self.excel_mode == "new" and len(row) > 21: # ADAS Mode
-                    system = str(row[21].value).strip().upper() if row[21].value else ''
-                else:
-                    system = str(row[4].value).strip().upper() if len(row) > 4 and row[4].value else ''
+            year  = (str(row[0].value).strip().upper() if row[0].value else '')
+            make  = (str(row[1].value).strip().upper() if row[1].value else '')
+            model = (str(row[2].value).strip().upper() if row[2].value else '')
     
-            normalized_system = re.sub(r"[^A-Z0-9]", "", system)
-            key = (year, make, model, normalized_system)
+            _, system_norm = self._system_val_for_row(row, repair_mode=repair_mode)
+    
+            key = (year, make, model, system_norm)
             index[key] = row[0].row
     
         return index
+    
 
 #####################################################################################################################################################
 
