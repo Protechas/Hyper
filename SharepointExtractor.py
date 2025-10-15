@@ -73,9 +73,11 @@ def _extract_system_from_filename(file_name: str) -> str:
     This avoids treating model qualifiers like [EV]/[HEV] as systems.
     """
     name = (file_name or "").upper()
-
+    if re.search(r'(?i)\bg[\s\-]?force\b', name):
+        return "G-FORCE"
     # Known acronyms — expandable, includes 1/2 suffix forms you’ve used
     KNOWN = {
+        # ADAS (existing)
         "ACC","ACC1","ACC2","ACC3",
         "AEB","AEB1","AEB2","AEB3",
         "AHL",
@@ -87,7 +89,39 @@ def _extract_system_from_filename(file_name: str) -> str:
         "NV",
         "SVC","SVC1","SVC2","SVC3",
         "WAMC",
+
+        # Repair SI (added)
+        "YAW",
+        "G-Force","GFORCE",         # both dashed and plain
+        "SWS",
+        "HUD",
+        "SRS D&E","SRSDE",          # keep spaced/ampersand + normalized
+        "SCI",
+        "SRR",
+        "TPMS",
+        "SBI",
+        "EBDE",                     # catches "EBDE (1)/(2)"
+        "HDE",                      # catches "HDE (1)/(2)"
+        "LGR",
+        "PSI",
+        "WRL",
+        "PCM",
+        "TRANS",
+        "AIR",
+        "ABS",
+        "BCM",
+        "SAS",
+        "HLI",
+        "ESC",
+        "SRS",
+        "KEY",
+        "FOB",
+        "HVAC",                     # catches "HVAC (1)/(2)"
+        "COOL",
+        "HEAD",                     # catches "HEAD (1)/(2)"
+        "OCS","OCS1","OCS2","OCS3","OCS4",
     }
+
 
     # --- 1) Prefer (...) tokens ---
     paren_tokens = re.findall(r"\(([^\)]+)\)", name)
@@ -121,6 +155,7 @@ def _extract_system_from_filename(file_name: str) -> str:
 
     # No system detected
     return ""
+
 
 
 def _system_val_for_row(self, row, repair_mode: bool):
