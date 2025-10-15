@@ -129,7 +129,7 @@ def _system_val_for_row(self, row, repair_mode: bool):
     Uses the correct columns for OG vs NEW and Repair vs ADAS.
     NOTE: 'row[i]' here is 0-based indexing (row[0] == Column A).
     """
-    # Decide which source column to read the system from
+    # Decide which source column to read the Protech Generic system name from
     if repair_mode:
         # Repair SI
         if self.excel_mode == "new":
@@ -2049,6 +2049,9 @@ class SharepointExtractor:
         Y  = (year  or '').strip().upper()
         M  = (make  or '').strip().upper()
         MR = (model or '').strip().upper()  # RAW upper (your index uses this)
+        # If the SharePoint filename says "4C Coupe", pretend the model is just "4C"
+        if re.search(r'\b4C\s*COUPE\b', (file_name or '').upper()):
+            MR = "4C"
         sys_raw   = _extract_system_from_filename(file_name)
         if not (Y and M and sys_raw):
             return None, file_name
