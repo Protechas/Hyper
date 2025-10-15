@@ -63,24 +63,65 @@ def _norm_system_loose(s: str) -> str:
     return re.sub(r'[^A-Z]', '', (s or '').upper())
 
 def _extract_system_from_filename(file_name: str) -> str:
-    name = (file_name or '').upper()
-    # prefer () or []
-    for m in re.findall(r'[\(\[]([^\)\]]+)[\)\]]', name):
-        tok = m.strip().upper()
-        if tok:
-            return tok
-    # then last token
-    parts = name.split()
-    if parts:
-        tok = parts[-1].strip().upper()
-        if tok:
-            return tok
-    # finally scan known acronyms
-    for k in ["ACC","AEB","AHL","APA","BSW","BUC","LKA","LW","NV","SVC","WAMC",
-              "ACC1","APA1","ACC2","APA2"]:
+    """
+    Extract the ADAS system acronym from a SharePoint filename.
+    Priority:
+      1) Parentheses (…) content that is a known ADAS acronym (STRICT PREFERENCE)
+      2) Any known acronym anywhere in the string
+      3) Brackets […] content (only if no parentheses match) and only if known
+      4) Last token (only if known)
+    This avoids treating model qualifiers like [EV]/[HEV] as systems.
+    """
+    name = (file_name or "").upper()
+
+    # Known acronyms — expandable, includes 1/2 suffix forms you’ve used
+    KNOWN = {
+        "ACC","ACC1","ACC2","ACC3",
+        "AEB","AEB1","AEB2","AEB3",
+        "AHL",
+        "APA","APA1","APA2","APA3",
+        "BSW","BSW1","BSW2","BSW3",
+        "BUC",
+        "LKA","LKA1","LKA2","LKA3",
+        "LW",
+        "NV",
+        "SVC","SVC1","SVC2","SVC3",
+        "WAMC",
+    }
+
+    # --- 1) Prefer (...) tokens ---
+    paren_tokens = re.findall(r"\(([^\)]+)\)", name)
+    for tok in paren_tokens:
+        t = tok.strip().upper()
+        # Normalize light punctuation/spacing for matching
+        t_plain = re.sub(r"[^A-Z0-9\-]", "", t)  # keep dash to catch BSM-RCTW
+        if t in KNOWN or t_plain in KNOWN:
+            return tok.strip().upper()  # return raw token; caller normalizes for the index
+
+    # --- 2) Scan entire string for any known acronym ---
+    for k in sorted(KNOWN, key=len, reverse=True):  # longer first (e.g., BSM-RCTW)
         if k in name:
             return k
+
+    # --- 3) Consider [...] tokens only if NOTHING found yet, and only if known ---
+    bracket_tokens = re.findall(r"\[([^\]]+)\]", name)
+    for tok in bracket_tokens:
+        t = tok.strip().upper()
+        t_plain = re.sub(r"[^A-Z0-9\-]", "", t)
+        if t in KNOWN or t_plain in KNOWN:
+            return tok.strip().upper()
+
+    # --- 4) Last token, but only if it’s known ---
+    parts = name.split()
+    if parts:
+        last = parts[-1].strip().upper()
+        last_plain = re.sub(r"[^A-Z0-9\-]", "", last)
+        if last in KNOWN or last_plain in KNOWN:
+            return last
+
+    # No system detected
     return ""
+
 
 def _system_val_for_row(self, row, repair_mode: bool):
     """
@@ -1992,46 +2033,43 @@ class SharepointExtractor:
     
     def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
         """
-        Strict on:  Year + Make + System (system normalized like your index)
+        Strict on:  Year + Make + System
         Model:      exact(raw) → regex(raw) → fuzzy(raw)
-        Flags:      self._last_match_approx = True on regex/fuzzy (so writer colors red)
+        System:     if exact (with digits) fails, try a letters-only fallback
+        Flags:      self._last_match_approx = True on any relaxed (system/model) match
         """
-        # reset per-lookup flag
         self._last_match_approx = False
     
-        # ensure we have the same index you already build
         if row_index is None:
             try:
                 row_index = self.__build_row_index__(ws, repair_mode=repair_mode)
             except TypeError:
                 row_index = self.__build_row_index__(ws)
     
-        # normalize keys consistent with your index
-        Y  = (year  or "").strip().upper()
-        M  = (make  or "").strip().upper()
-        MR = (model or "").strip().upper()      # RAW UPPER (your index uses this for model)
-        sys_raw = _extract_system_from_filename(file_name)
-    
+        Y  = (year  or '').strip().upper()
+        M  = (make  or '').strip().upper()
+        MR = (model or '').strip().upper()  # RAW upper (your index uses this)
+        sys_raw   = _extract_system_from_filename(file_name)
         if not (Y and M and sys_raw):
             return None, file_name
     
-        # system normalized EXACTLY like your index; plus a loose fallback
-        SN_index = _norm_system_index(sys_raw)   # e.g., "ACC 1" -> "ACC1"
-        SN_loose = _norm_system_loose(sys_raw)   # rare sheets that drop digits (letters-only)
+        # system keys
+        SN_index = _norm_system_index(sys_raw)  # keep digits; e.g., "APA 2" -> "APA2"
+        SN_loose = _norm_system_loose(sys_raw)  # letters only; e.g., "APA2" -> "APA"
     
         # 1) EXACT by raw model + index-style system
         key = (Y, M, MR, SN_index)
         if key in row_index:
             return ws.cell(row=row_index[key], column=self.HYPERLINK_COLUMN_INDEX), None
     
-        # 1b) EXACT with loose system (treat as approx because key was relaxed)
+        # 1b) EXACT with "loose" system (rare sheets that store letters-only)
         if SN_loose and SN_loose != SN_index:
             key_loose = (Y, M, MR, SN_loose)
             if key_loose in row_index:
                 self._last_match_approx = True
                 return ws.cell(row=row_index[key_loose], column=self.HYPERLINK_COLUMN_INDEX), None
     
-        # 2) REGEX on RAW model (still strict Year/Make/System)
+        # 2) REGEX on RAW model (strict Y/M/System in {SN_index, SN_loose})
         rgx = _model_regex_from_excel(model)
         for (yr, mk, mdl_raw, sys_norm), r in row_index.items():
             if yr == Y and mk == M and sys_norm in (SN_index, SN_loose):
@@ -2039,20 +2077,63 @@ class SharepointExtractor:
                     self._last_match_approx = True
                     return ws.cell(row=r, column=self.HYPERLINK_COLUMN_INDEX), None
     
-        # 3) FUZZY on RAW model (still strict Year/Make/System)
+        # 3) FUZZY on RAW model (strict Y/M/System in {SN_index, SN_loose})
         best_row, best_score = None, 0.0
         for (yr, mk, mdl_raw, sys_norm), r in row_index.items():
             if yr == Y and mk == M and sys_norm in (SN_index, SN_loose):
                 sc = _similar(mdl_raw, MR)
                 if sc > best_score:
                     best_score, best_row = sc, r
-    
         if best_row and best_score >= 0.72:
             self._last_match_approx = True
             return ws.cell(row=best_row, column=self.HYPERLINK_COLUMN_INDEX), None
     
+        # === ★ NEW: letters-only SYSTEM fallback across all variants (APA1/APA2 → APA) ===
+        # If we got here, there was no row with the exact system key present.
+        # Try any row where the system collapses to the same letters (e.g., APA1 vs APA2),
+        # and choose the row by model exact → regex → fuzzy.
+        if SN_loose:
+            exact_row = None
+            regex_row = None
+            best_row2, best_score2 = None, 0.0
+    
+            for (yr, mk, mdl_raw, sys_norm), r in row_index.items():
+                if yr != Y or mk != M:
+                    continue
+                # collapse the indexed system to letters-only and compare
+                if _norm_system_loose(sys_norm) != SN_loose:
+                    continue
+    
+                # model exact?
+                if mdl_raw == MR:
+                    exact_row = r
+                    break
+    
+                # model regex?
+                if rgx.search(_strip_qualifiers(mdl_raw)):
+                    if regex_row is None:
+                        regex_row = r
+                    continue
+    
+                # model fuzzy
+                sc = _similar(mdl_raw, MR)
+                if sc > best_score2:
+                    best_score2, best_row2 = sc, r
+    
+            if exact_row is not None:
+                self._last_match_approx = True   # relaxed by system
+                return ws.cell(row=exact_row, column=self.HYPERLINK_COLUMN_INDEX), None
+            if regex_row is not None:
+                self._last_match_approx = True
+                return ws.cell(row=regex_row, column=self.HYPERLINK_COLUMN_INDEX), None
+            if best_row2 and best_score2 >= 0.72:
+                self._last_match_approx = True
+                return ws.cell(row=best_row2, column=self.HYPERLINK_COLUMN_INDEX), None
+        # === ★ END NEW ===
+    
         # nothing found
         return None, file_name
+
     
     
 
