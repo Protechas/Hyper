@@ -44,6 +44,76 @@ def _strip_qualifiers(s: str) -> str:
     s = re.sub(r'\s+', ' ', s)
     return s.strip().upper()
 
+# ★ Replace your helper with this version (covers 5500/5500HD and 6500/6500HD) adds to bottom of sheet, unless there is a exact match, its overwriting things that shouldent be
+
+# ★ Replace/extend the helper we added earlier to include more force-bottom combos
+def _is_force_bottom_combo(year: str, make: str, model: str) -> bool:
+    """
+    Force-bottom rule for specific Year/Make/Model combos.
+    Only allow EXACT row matches; otherwise caller should place at the bottom.
+
+    Currently covered:
+      - 2025 Land Rover Range Rover Evoque
+      - 2023 Lexus RX450h (handles RX 450h, rx450h, etc.)
+      - 2017 Lexus NX300  (handles 'Lexuss' typo)
+      - 2024 Mazda MX-30  (handles MX30/MX-30)
+    """
+    Y = (str(year) or "").strip()
+
+    # normalize make (tolerate 'Lexuss' typo)
+    MK = (make or "").upper().strip()
+    if MK == "LEXUSS":
+        MK = "LEXUS"
+
+    # normalize model: drop qualifiers ([HEV]/(Hybrid)), spaces, and hyphens
+    mdl_core = _strip_qualifiers(model)                 # e.g., "Range Rover Evoque [HEV]" -> "RANGE ROVER EVOQUE"
+    mdl_token = re.sub(r"[^A-Z0-9]", "", mdl_core)      # e.g., "RANGE ROVER EVOQUE" -> "RANGEROVEREVOQUE", "MX-30" -> "MX30"
+
+    force_set = {
+        ("2025", "LAND ROVER", "RANGEROVEREVOQUE"),
+        ("2023", "LEXUS",      "RX450H"),
+        ("2017", "LEXUS",      "NX300"),
+        ("2024", "MAZDA",      "MX30"),
+    }
+    return (Y, MK, mdl_token) in force_set
+
+
+# ★ Add this helper near your other helpers (do NOT remove anything)
+def _is_force_bottom_combo(year: str, make: str, model: str) -> bool:
+    """
+    Force-bottom rule for specific Year/Make/Model combos.
+    For 2025 Land Rover Range Rover Evoque: only allow EXACT match; otherwise place at bottom.
+    Accepts model variants with qualifiers like [HEV]/[PHEV].
+    """
+    Y = (str(year) or "").strip()
+    MK = (make or "").upper().strip()
+    # normalize model by stripping qualifiers and whitespace/hyphens
+    mdl_core = _strip_qualifiers(model)
+    return (Y == "2025"
+            and MK == "LAND ROVER"
+            and mdl_core == "RANGE ROVER EVOQUE")
+
+
+
+# ★ Add once near your helpers
+def _system_missing_text(txt: str) -> bool:
+    """
+    True when the sheet's System cell isn't a usable ADAS acronym.
+    Covers: blank, 'Sys N/A', 'Sys N/A - Place', 'Mapping', 'Mapping Needed', etc.
+    """
+    t = (txt or "").strip().upper()
+    if not t:
+        return True
+    # common variants
+    if "SYS" in t and "N/A" in t:
+        return True
+    if "MAPPING" in t:
+        return True
+    if "PLACE" in t and "SYS" in t:
+        return True
+    return False
+
+
 def _model_regex_from_excel(model_text: str):
     core = _strip_qualifiers(model_text)
     core = re.sub(r'\s+', r'\\s*', re.escape(core))  # allow optional spaces
@@ -2066,6 +2136,7 @@ class SharepointExtractor:
 
 
     
+    # ★ Paste this UPDATED version over your existing function (only additions marked ★ NEW)
     def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
         """
         Strict on:  Year + Make + System
@@ -2084,10 +2155,15 @@ class SharepointExtractor:
         Y  = (year  or '').strip().upper()
         M  = (make  or '').strip().upper()
         MR = (model or '').strip().upper()  # RAW upper (your index uses this)
+    
         # If the SharePoint filename says "4C Coupe", pretend the model is just "4C"
         if re.search(r'\b4C\s*COUPE\b', (file_name or '').upper()):
             MR = "4C"
-        sys_raw   = _extract_system_from_filename(file_name)
+        # If the SharePoint filename shows "CR-Z", simulate Excel model "CR-Z [HEV]"
+        elif re.search(r'\bCR[-\s]?Z\b', (file_name or '').upper()) and "HEV" not in MR:
+            MR = "CR-Z [HEV]"
+              
+        sys_raw = _extract_system_from_filename(file_name)
         if not (Y and M and sys_raw):
             return None, file_name
     
@@ -2107,6 +2183,15 @@ class SharepointExtractor:
                 self._last_match_approx = True
                 return ws.cell(row=row_index[key_loose], column=self.HYPERLINK_COLUMN_INDEX), None
     
+        # ★ NEW: Special-case guard — if model is a force-bottom model, DISABLE regex/fuzzy and force bottom
+        if _is_force_bottom_model(MR):
+            return None, file_name
+        
+            # ★ NEW: force-bottom for 2025 Land Rover Range Rover Evoque unless exact hit
+        if _is_force_bottom_combo(Y, M, MR):
+            return None, file_name
+
+    
         # 2) REGEX on RAW model (strict Y/M/System in {SN_index, SN_loose})
         rgx = _model_regex_from_excel(model)
         for (yr, mk, mdl_raw, sys_norm), r in row_index.items():
@@ -2125,6 +2210,43 @@ class SharepointExtractor:
         if best_row and best_score >= 0.72:
             self._last_match_approx = True
             return ws.cell(row=best_row, column=self.HYPERLINK_COLUMN_INDEX), None
+    
+        # ======================= ★ NEW: INSERTED BLOCK =======================
+        # Model-first rescue when sheet System is missing (e.g., "Sys N/A - Place")
+        # If no row matched by (Y,M,System), prefer the exact Model row even if its System cell is blank/"Sys N/A".
+        def _system_missing(txt: str) -> bool:
+            # ★ NEW: delegate to shared helper so 'Mapping' etc. are treated as missing
+            return _system_missing_text(txt)
+        
+    
+        for row in ws.iter_rows(min_row=2, max_col=22):
+            if not any(c.value for c in row):
+                continue
+    
+            yr  = (str(row[0].value) or "").strip().upper()
+            mk  = (str(row[1].value) or "").strip().upper()
+            mdl = (str(row[2].value) or "").strip().upper()
+    
+            if yr == Y and mk == M and mdl == MR:
+                # pick the same System column your index uses
+                if self.repair_mode:
+                    if self.excel_mode == "new":
+                        sys_cell = row[19] if len(row) > 19 else None   # T (0-based)
+                    elif str(self.sharepoint_make).lower() == "toyota":
+                        sys_cell = row[4]  if len(row) > 4  else None   # E
+                    else:
+                        sys_cell = row[3]  if len(row) > 3  else None   # D
+                else:
+                    if self.excel_mode == "new":
+                        sys_cell = row[20] if len(row) > 20 else None   # U (0-based)
+                    else:
+                        sys_cell = row[4]  if len(row) > 4  else None   # E
+    
+                sys_txt = str(sys_cell.value).strip().upper() if (sys_cell and sys_cell.value) else ""
+                if _system_missing(sys_txt):
+                    self._last_match_approx = True   # we’re relaxing the System requirement
+                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+        # ===================== ★ END INSERTED BLOCK =====================
     
         # === ★ NEW: letters-only SYSTEM fallback across all variants (APA1/APA2 → APA) ===
         # If we got here, there was no row with the exact system key present.
@@ -2171,7 +2293,9 @@ class SharepointExtractor:
     
         # nothing found
         return None, file_name
-
+    
+    
+    
     
     
 
@@ -2212,19 +2336,24 @@ class SharepointExtractor:
                 return index  # Skip normal filtering entirely in cleanup mode
     
         # 🔹 Normal full-mode indexing logic (consistent system column mapping)
+
         for row in ws.iter_rows(min_row=2, max_col=22):
-            # skip completely empty rows
             if not any(c.value for c in row):
                 continue
-    
+        
             year  = (str(row[0].value).strip().upper() if row[0].value else '')
             make  = (str(row[1].value).strip().upper() if row[1].value else '')
             model = (str(row[2].value).strip().upper() if row[2].value else '')
-    
-            _, system_norm = self._system_val_for_row(row, repair_mode=repair_mode)
-    
+        
+            sys_text, system_norm = self._system_val_for_row(row, repair_mode=repair_mode)
+        
+            # ★ NEW: don't index rows with missing/placeholder System text
+            if _system_missing_text(sys_text):
+                continue
+        
             key = (year, make, model, system_norm)
             index[key] = row[0].row
+        
     
         return index
     
