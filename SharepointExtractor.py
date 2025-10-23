@@ -46,53 +46,126 @@ def _strip_qualifiers(s: str) -> str:
 
 # ★ Replace your helper with this version (covers 5500/5500HD and 6500/6500HD) adds to bottom of sheet, unless there is a exact match, its overwriting things that shouldent be
 
-# ★ Replace/extend the helper we added earlier to include more force-bottom combos
-def _is_force_bottom_combo(year: str, make: str, model: str) -> bool:
+# ── add near your helpers ─────────────────────────────────────────────────────
+def _adas_name_norms(txt: str):
+    t = (txt or "").upper()
+    letters_only = re.sub(r"[^A-Z]", "", t)      # "ACC (4)" -> "ACC"
+    alnum       = re.sub(r"[^A-Z0-9]", "", t)    # "ACC (4)" -> "ACC4"
+    return letters_only, alnum
+
+def _adas_name_col_index(repair_mode: bool, excel_mode: str):
+    # ADAS sheets (OG & NEW): "SME Generic System Name" is Column S (0-based 18) in your screenshots.
+    # Return None in Repair mode.
+    if repair_mode:
+        return None
+    return 18
+
+
+
+def _is_force_bottom_model(model: str) -> bool:
     """
-    Force-bottom rule for specific Year/Make/Model combos.
-    Only allow EXACT row matches; otherwise caller should place at the bottom.
-
-    Currently covered:
-      - 2025 Land Rover Range Rover Evoque
-      - 2023 Lexus RX450h (handles RX 450h, rx450h, etc.)
-      - 2017 Lexus NX300  (handles 'Lexuss' typo)
-      - 2024 Mazda MX-30  (handles MX30/MX-30)
+    Models that MUST NOT regex/fuzzy-match into other trims.
+    Covers:
+      - Chevrolet: Silverado 4500 / 4500HD / 5500 / 5500HD / 6500 / 6500HD
+      - Ford: F-450 / F450, F-550 / F550, E-450 / E450
     """
-    Y = (str(year) or "").strip()
+    m = (model or "").upper()
+    return bool(re.search(
+        r"\b(?:SILVERADO\s*(?:4500|5500|6500)(?:\s*HD)?|F[-\s]?450|F[-\s]?550|E[-\s]?450)\b",
+        m
+    ))
 
-    # normalize make (tolerate 'Lexuss' typo)
-    MK = (make or "").upper().strip()
-    if MK == "LEXUSS":
-        MK = "LEXUS"
-
-    # normalize model: drop qualifiers ([HEV]/(Hybrid)), spaces, and hyphens
-    mdl_core = _strip_qualifiers(model)                 # e.g., "Range Rover Evoque [HEV]" -> "RANGE ROVER EVOQUE"
-    mdl_token = re.sub(r"[^A-Z0-9]", "", mdl_core)      # e.g., "RANGE ROVER EVOQUE" -> "RANGEROVEREVOQUE", "MX-30" -> "MX30"
-
-    force_set = {
-        ("2025", "LAND ROVER", "RANGEROVEREVOQUE"),
-        ("2023", "LEXUS",      "RX450H"),
-        ("2017", "LEXUS",      "NX300"),
-        ("2024", "MAZDA",      "MX30"),
-    }
-    return (Y, MK, mdl_token) in force_set
-
-
-# ★ Add this helper near your other helpers (do NOT remove anything)
-def _is_force_bottom_combo(year: str, make: str, model: str) -> bool:
+# ★ Replace existing helper with this superset
+def _is_force_bottom_combo(year, make, model) -> bool:
     """
-    Force-bottom rule for specific Year/Make/Model combos.
-    For 2025 Land Rover Range Rover Evoque: only allow EXACT match; otherwise place at bottom.
-    Accepts model variants with qualifiers like [HEV]/[PHEV].
+    Return True for combos that must NOT regex/fuzzy-match.
+    Force-bottom unless there is an exact (Year+Make+Model+System) match.
     """
-    Y = (str(year) or "").strip()
-    MK = (make or "").upper().strip()
-    # normalize model by stripping qualifiers and whitespace/hyphens
-    mdl_core = _strip_qualifiers(model)
-    return (Y == "2025"
-            and MK == "LAND ROVER"
-            and mdl_core == "RANGE ROVER EVOQUE")
+    y = (str(year) or "").strip()
+    m = (make or "").upper()
+    # drop [HEV]/(PHEV)/[EV] etc., normalize spaces, uppercase
+    mdl_core = re.sub(r"\s+", " ", _strip_qualifiers(model)).upper()
+    mdl_core_nopunct = re.sub(r"[^A-Z0-9 ]", "", mdl_core)  # for tokens like "ID.7" → "ID7"
 
+    # ── existing rules you've already added ───────────────────────────────────
+    if y == "2025" and m == "LAND ROVER" and mdl_core.startswith("RANGE ROVER EVOQUE"):
+        return True
+    if y == "2023" and m == "LEXUS" and mdl_core.startswith("RX450H"):
+        return True
+    if y == "2017" and m == "LEXUS" and mdl_core.startswith("NX300"):
+        return True
+    if y in {"2023", "2024"} and m == "CADILLAC" and mdl_core.startswith("ESCALADE ESV"):
+        return True
+    if y in {"2023", "2024"} and m == "AUDI" and mdl_core.startswith("SQ3"):
+        return True
+    if y == "2015" and m == "FIAT" and mdl_core.startswith("500X"):
+        return True
+    if y == "2025" and m == "GMC" and mdl_core.startswith("HUMMER EV"):
+        return True
+    if y == "2017" and m == "HONDA" and mdl_core.startswith("CLARITY"):
+        return True
+    if y == "2021" and m == "JAGUAR" and mdl_core.startswith("I PACE"):
+        return True
+
+    # ── NEW rules you requested ───────────────────────────────────────────────
+    # 2025 Audi Q8 e-Tron [EV]
+    if y == "2025" and m == "AUDI" and (mdl_core.startswith("Q8 E TRON") or mdl_core.startswith("Q8 E-TRON")):
+        return True
+
+    # 2023/2024 Audi RS e-Tron [EV]
+    if y in {"2023", "2024"} and m == "AUDI" and (mdl_core.startswith("RS E TRON") or mdl_core.startswith("RS E-TRON")):
+        return True
+
+    # 2024 Porsche Cayenne Coupe 9YA / 9YB
+    if y == "2024" and m in {"PORSCHE", "PORCSHE"} and (
+        mdl_core.startswith("CAYENNE COUPE 9YA") or
+        mdl_core.startswith("CAYENNE COUPE 9YB")
+    ):
+        return True
+
+    # 2023 Porsche Cayenne 9YA / 9YB
+    if y == "2023" and m == "PORSCHE" and (
+        mdl_core.startswith("CAYENNE 9YA") or
+        mdl_core.startswith("CAYENNE 9YB")
+    ):
+        return True
+
+    # 2022 Porsche Cayenne 9YA / 9YB
+    if y == "2022" and m == "PORSCHE" and (
+        mdl_core.startswith("CAYENNE 9YA") or
+        mdl_core.startswith("CAYENNE 9YB")
+    ):
+        return True
+
+    # 2025 Volkswagen ID.7 [EV]  (normalize "ID.7" → "ID7")
+    if y == "2025" and m == "VOLKSWAGEN" and (
+        mdl_core_nopunct.startswith("ID7") or mdl_core.startswith("ID 7")
+    ):
+        return True
+
+    return False
+
+
+
+# ★ NEW: model-family guards to prevent NX300h ↔ ES300 hops, etc.
+def _alpha_prefix(s: str) -> str:
+    t = re.sub(r'[^A-Z0-9]', '', (s or '').upper())
+    m = re.match(r'([A-Z]+)', t)
+    return m.group(1) if m else ''
+
+def _model_number_block(s: str) -> str:
+    t = re.sub(r'[^A-Z0-9]', '', (s or '').upper())
+    m = re.search(r'(\d{2,4})', t)
+    return m.group(1) if m else ''
+
+def _cross_family_conflict(a: str, b: str) -> bool:
+    """
+    True when models share the same number block (e.g., 300) but have different alpha prefixes (NX vs ES).
+    Blocks regex/fuzzy/letters-only placements across families; exact matches still allowed.
+    """
+    ap, bp = _alpha_prefix(a), _alpha_prefix(b)
+    an, bn = _model_number_block(a), _model_number_block(b)
+    return bool(an and bn and an == bn and ap and bp and ap != bp)
 
 
 # ★ Add once near your helpers
@@ -2012,7 +2085,7 @@ class SharepointExtractor:
         return sys_text, sys_norm
     
 
-    # ★ REPLACE your __update_excel__ with this (adds row verifier; keeps your color logic)
+    # ★ REPLACE your __update_excel__ with this (adds the acronym verifier; keeps everything else)
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
         # Skip filtering if in Repair mode
         if not self.repair_mode:
@@ -2057,6 +2130,54 @@ class SharepointExtractor:
                 self._last_match_approx = True
         except Exception as _e:
             print(f"⚠️ Row verifier error for {doc_name}: {_e}")
+    
+        # --- ★ ADAS acronym verifier: retarget to the correct per-system row to avoid overwrites ---
+        try:
+            if not self.repair_mode and cell:
+                # Build the target acronym from the filename’s system
+                sys_raw2 = _extract_system_from_filename(doc_name)
+                if sys_raw2:
+                    sn_index = re.sub(r"[^A-Z0-9]", "", (sys_raw2 or "").upper())   # e.g., 'ACC (4)' → 'ACC4'
+                    sn_letters = re.sub(r"[^A-Z]", "", sn_index)                    # 'ACC4' → 'ACC'
+    
+                    name_idx = _adas_name_col_index(self.repair_mode, getattr(self, "excel_mode", "og"))
+                    ok = False
+    
+                    if name_idx is not None:
+                        # Does the current row already have the right acronym?
+                        try:
+                            # openpyxl is 1-based; name_idx is 0-based
+                            cur_name_cell = ws.cell(row=cell.row, column=name_idx + 1)
+                            cur_letters, cur_alnum = _adas_name_norms(cur_name_cell.value if cur_name_cell else "")
+                            if (cur_alnum == sn_index) or (cur_letters == sn_letters):
+                                ok = True
+                        except Exception:
+                            ok = False
+    
+                        if not ok:
+                            # Search among same Year/Make/Model for the row whose 'Name' matches the target acronym
+                            Y2  = (year or "").strip().upper()
+                            M2  = (self.sharepoint_make or "").strip().upper()
+                            MR2 = (model or "").strip().upper()
+    
+                            for row in ws.iter_rows(min_row=2, max_col=max(22, name_idx + 1)):
+                                if not any(c.value for c in row):
+                                    continue
+                                yr  = (str(row[0].value) or "").strip().upper()
+                                mk  = (str(row[1].value) or "").strip().upper()
+                                mdl = (str(row[2].value) or "").strip().upper()
+                                if yr != Y2 or mk != M2 or mdl != MR2:
+                                    continue
+    
+                                name_cell2 = row[name_idx] if len(row) > name_idx else None  # 0-based index
+                                letters2, alnum2 = _adas_name_norms(name_cell2.value if name_cell2 else "")
+                                if (alnum2 == sn_index) or (letters2 == sn_letters):
+                                    print(f"🔁 Acronym verifier: retarget {doc_name} from row {cell.row} → {row[0].row}")
+                                    cell = ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX)
+                                    break
+        except Exception as _e:
+            print(f"⚠️ Acronym verifier error for {doc_name}: {_e}")
+        # --- ★ END acronym verifier ---
     
         # Create a unique key ...
         if self.repair_mode:
@@ -2133,10 +2254,8 @@ class SharepointExtractor:
         adas_last_row[key] = cell.row
         print(f"Hyperlink for {doc_name} added at {cell.coordinate} "
               f"[{'approx' if getattr(self, '_last_match_approx', False) else 'exact'}]")
-
-
     
-    # ★ Paste this UPDATED version over your existing function (only additions marked ★ NEW)
+
     def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
         """
         Strict on:  Year + Make + System
@@ -2162,7 +2281,18 @@ class SharepointExtractor:
         # If the SharePoint filename shows "CR-Z", simulate Excel model "CR-Z [HEV]"
         elif re.search(r'\bCR[-\s]?Z\b', (file_name or '').upper()) and "HEV" not in MR:
             MR = "CR-Z [HEV]"
-              
+    
+        # ★ NEW: Jeep Grand Cherokee body code shim — pick up [WK]/[WL] even if it appears after the system
+        # ★ Jeep Grand Cherokee body code shim (standalone token or in []/() anywhere in filename)
+        # Actual:   2022 Jeep Grand Cherokee (ACC 2) WK
+        # Simulate: 2022 Jeep Grand Cherokee WK (ACC 2)
+        m = re.search(r'(?:\(|\[)?\s*(WK|WL)\s*(?:\)|\])?', (file_name or '').upper())
+        if m:
+            code = m.group(1)  # 'WK' or 'WL'
+            # ensure MR ends with the body code as a plain suffix (no brackets)
+            MR_core = re.sub(r'\s+\b(?:WK|WL)\b\s*$', '', MR)   # drop any existing WK/WL suffix
+            MR = f"{MR_core} {code}".strip()
+        
         sys_raw = _extract_system_from_filename(file_name)
         if not (Y and M and sys_raw):
             return None, file_name
@@ -2183,19 +2313,19 @@ class SharepointExtractor:
                 self._last_match_approx = True
                 return ws.cell(row=row_index[key_loose], column=self.HYPERLINK_COLUMN_INDEX), None
     
-        # ★ NEW: Special-case guard — if model is a force-bottom model, DISABLE regex/fuzzy and force bottom
-        if _is_force_bottom_model(MR):
+        # ★ Guard rails (only-exact allowed for these)
+        if _is_force_bottom_model(MR):          # Silverado 4500/5500/6500(+HD), F-450/F-550, E-450, etc.
             return None, file_name
-        
-            # ★ NEW: force-bottom for 2025 Land Rover Range Rover Evoque unless exact hit
-        if _is_force_bottom_combo(Y, M, MR):
+        if _is_force_bottom_combo(Y, M, MR):    # your force-bottom combos (Evoque, RX450h, etc.)
             return None, file_name
-
     
         # 2) REGEX on RAW model (strict Y/M/System in {SN_index, SN_loose})
         rgx = _model_regex_from_excel(model)
         for (yr, mk, mdl_raw, sys_norm), r in row_index.items():
             if yr == Y and mk == M and sys_norm in (SN_index, SN_loose):
+                # block NX300h ↔ ES300 style cross-family hops
+                if _cross_family_conflict(mdl_raw, MR):
+                    continue
                 if rgx.search(_strip_qualifiers(mdl_raw)):
                     self._last_match_approx = True
                     return ws.cell(row=r, column=self.HYPERLINK_COLUMN_INDEX), None
@@ -2204,54 +2334,86 @@ class SharepointExtractor:
         best_row, best_score = None, 0.0
         for (yr, mk, mdl_raw, sys_norm), r in row_index.items():
             if yr == Y and mk == M and sys_norm in (SN_index, SN_loose):
+                # block cross-family hops
+                if _cross_family_conflict(mdl_raw, MR):
+                    continue
                 sc = _similar(mdl_raw, MR)
                 if sc > best_score:
                     best_score, best_row = sc, r
         if best_row and best_score >= 0.72:
             self._last_match_approx = True
             return ws.cell(row=best_row, column=self.HYPERLINK_COLUMN_INDEX), None
+
     
-        # ======================= ★ NEW: INSERTED BLOCK =======================
-        # Model-first rescue when sheet System is missing (e.g., "Sys N/A - Place")
-        # If no row matched by (Y,M,System), prefer the exact Model row even if its System cell is blank/"Sys N/A".
+        # ======================= ★ Model-first rescue when sheet System is missing =======================
+
         def _system_missing(txt: str) -> bool:
-            # ★ NEW: delegate to shared helper so 'Mapping' etc. are treated as missing
             return _system_missing_text(txt)
         
-    
+        # Pre-compute normalized targets from the filename system
+        sn_letters = re.sub(r"[^A-Z]", "", SN_index)   # e.g., 'ACC2' -> 'ACC'
+        sn_alnum   = SN_index                          # e.g., 'ACC2'
+        
+        name_col_idx = _adas_name_col_index(self.repair_mode, getattr(self, "excel_mode", "og"))
+        
+        candidate_by_model = []
         for row in ws.iter_rows(min_row=2, max_col=22):
             if not any(c.value for c in row):
                 continue
-    
+        
             yr  = (str(row[0].value) or "").strip().upper()
             mk  = (str(row[1].value) or "").strip().upper()
             mdl = (str(row[2].value) or "").strip().upper()
-    
-            if yr == Y and mk == M and mdl == MR:
-                # pick the same System column your index uses
-                if self.repair_mode:
-                    if self.excel_mode == "new":
-                        sys_cell = row[19] if len(row) > 19 else None   # T (0-based)
-                    elif str(self.sharepoint_make).lower() == "toyota":
-                        sys_cell = row[4]  if len(row) > 4  else None   # E
-                    else:
-                        sys_cell = row[3]  if len(row) > 3  else None   # D
+            if yr != Y or mk != M or mdl != MR:
+                continue
+        
+            # pick the same System column your index uses
+            if self.repair_mode:
+                if self.excel_mode == "new":
+                    sys_cell = row[19] if len(row) > 19 else None   # T
+                elif str(self.sharepoint_make).lower() == "toyota":
+                    sys_cell = row[4]  if len(row) > 4  else None   # E
                 else:
-                    if self.excel_mode == "new":
-                        sys_cell = row[20] if len(row) > 20 else None   # U (0-based)
-                    else:
-                        sys_cell = row[4]  if len(row) > 4  else None   # E
+                    sys_cell = row[3]  if len(row) > 3  else None   # D
+            else:
+                if self.excel_mode == "new":
+                    sys_cell = row[20] if len(row) > 20 else None   # U
+                else:
+                    sys_cell = row[4]  if len(row) > 4  else None   # E
+        
+            sys_txt = str(sys_cell.value).strip().upper() if (sys_cell and sys_cell.value) else ""
+            if not _system_missing(sys_txt):
+                # If the System cell isn't missing, earlier logic should have matched; skip.
+                continue
+        
+            # ★ Correct 'Name' column (Column S) for OG/NEW ADAS
+            name_txt = ""
+            if name_col_idx is not None and len(row) > name_col_idx and row[name_col_idx].value:
+                name_txt = str(row[name_col_idx].value).strip().upper()
+        
+            name_letters, name_alnum = _adas_name_norms(name_txt)
+        
+            # Prefer rows whose 'Name' matches the file system
+            # Examples:
+            #   file 'ACC 2' → SN_index='ACC2' → match name_alnum == 'ACC2'
+            #   file 'ACC'   → match name_letters == 'ACC'
+            if name_alnum and name_alnum == sn_alnum:
+                self._last_match_approx = True
+                return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+            if name_letters and name_letters == sn_letters:
+                self._last_match_approx = True
+                return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
+        
+            # keep as fallback candidate (exact model, missing system but no acronym match)
+            candidate_by_model.append(row[0].row)
+        
+        # If we found any exact-model candidates with missing System but no acronym match, use the first.
+        if candidate_by_model:
+            self._last_match_approx = True
+            return ws.cell(row=candidate_by_model[0], column=self.HYPERLINK_COLUMN_INDEX), None
+        # ===================== ★ END model-first rescue =======================
     
-                sys_txt = str(sys_cell.value).strip().upper() if (sys_cell and sys_cell.value) else ""
-                if _system_missing(sys_txt):
-                    self._last_match_approx = True   # we’re relaxing the System requirement
-                    return ws.cell(row=row[0].row, column=self.HYPERLINK_COLUMN_INDEX), None
-        # ===================== ★ END INSERTED BLOCK =====================
-    
-        # === ★ NEW: letters-only SYSTEM fallback across all variants (APA1/APA2 → APA) ===
-        # If we got here, there was no row with the exact system key present.
-        # Try any row where the system collapses to the same letters (e.g., APA1 vs APA2),
-        # and choose the row by model exact → regex → fuzzy.
+        # === letters-only SYSTEM fallback across all variants (APA1/APA2 → APA) ===
         if SN_loose:
             exact_row = None
             regex_row = None
@@ -2262,6 +2424,10 @@ class SharepointExtractor:
                     continue
                 # collapse the indexed system to letters-only and compare
                 if _norm_system_loose(sys_norm) != SN_loose:
+                    continue
+    
+                # ★ NEW: block cross-family hops
+                if _cross_family_conflict(mdl_raw, MR):
                     continue
     
                 # model exact?
@@ -2289,15 +2455,10 @@ class SharepointExtractor:
             if best_row2 and best_score2 >= 0.72:
                 self._last_match_approx = True
                 return ws.cell(row=best_row2, column=self.HYPERLINK_COLUMN_INDEX), None
-        # === ★ END NEW ===
     
         # nothing found
         return None, file_name
-    
-    
-    
-    
-    
+
 
     # ★ REPLACE your __build_row_index__ with this
     def __build_row_index__(self, ws, repair_mode=False):
