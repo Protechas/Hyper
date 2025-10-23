@@ -75,7 +75,6 @@ def _is_force_bottom_model(model: str) -> bool:
         m
     ))
 
-# ★ Replace existing helper with this superset
 def _is_force_bottom_combo(year, make, model) -> bool:
     """
     Return True for combos that must NOT regex/fuzzy-match.
@@ -83,11 +82,10 @@ def _is_force_bottom_combo(year, make, model) -> bool:
     """
     y = (str(year) or "").strip()
     m = (make or "").upper()
-    # drop [HEV]/(PHEV)/[EV] etc., normalize spaces, uppercase
     mdl_core = re.sub(r"\s+", " ", _strip_qualifiers(model)).upper()
-    mdl_core_nopunct = re.sub(r"[^A-Z0-9 ]", "", mdl_core)  # for tokens like "ID.7" → "ID7"
+    mdl_core_nopunct = re.sub(r"[^A-Z0-9 ]", "", mdl_core)
 
-    # ── existing rules you've already added ───────────────────────────────────
+    # Existing rules
     if y == "2025" and m == "LAND ROVER" and mdl_core.startswith("RANGE ROVER EVOQUE"):
         return True
     if y == "2023" and m == "LEXUS" and mdl_core.startswith("RX450H"):
@@ -107,43 +105,43 @@ def _is_force_bottom_combo(year, make, model) -> bool:
     if y == "2021" and m == "JAGUAR" and mdl_core.startswith("I PACE"):
         return True
 
-    # ── NEW rules you requested ───────────────────────────────────────────────
-    # 2025 Audi Q8 e-Tron [EV]
+    # Audi e-tron family
     if y == "2025" and m == "AUDI" and (mdl_core.startswith("Q8 E TRON") or mdl_core.startswith("Q8 E-TRON")):
         return True
-
-    # 2023/2024 Audi RS e-Tron [EV]
     if y in {"2023", "2024"} and m == "AUDI" and (mdl_core.startswith("RS E TRON") or mdl_core.startswith("RS E-TRON")):
         return True
 
-    # 2024 Porsche Cayenne Coupe 9YA / 9YB
+    # Porsche Cayenne Coupe (2024)
     if y == "2024" and m in {"PORSCHE", "PORCSHE"} and (
         mdl_core.startswith("CAYENNE COUPE 9YA") or
         mdl_core.startswith("CAYENNE COUPE 9YB")
     ):
         return True
 
-    # 2023 Porsche Cayenne 9YA / 9YB
+    # Porsche Cayenne (2023, 2022)
     if y == "2023" and m == "PORSCHE" and (
         mdl_core.startswith("CAYENNE 9YA") or
         mdl_core.startswith("CAYENNE 9YB")
     ):
         return True
-
-    # 2022 Porsche Cayenne 9YA / 9YB
     if y == "2022" and m == "PORSCHE" and (
         mdl_core.startswith("CAYENNE 9YA") or
         mdl_core.startswith("CAYENNE 9YB")
     ):
         return True
 
-    # 2025 Volkswagen ID.7 [EV]  (normalize "ID.7" → "ID7")
+    # ★ NEW: Porsche Cayenne (2024) — non-coupe 9YA
+    if y == "2024" and m == "PORSCHE" and mdl_core.startswith("CAYENNE 9YA"):
+        return True
+
+    # Volkswagen ID.7
     if y == "2025" and m == "VOLKSWAGEN" and (
         mdl_core_nopunct.startswith("ID7") or mdl_core.startswith("ID 7")
     ):
         return True
 
     return False
+
 
 
 
@@ -2531,7 +2529,7 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = True
+    debug_run = False
     
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
