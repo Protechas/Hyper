@@ -1748,6 +1748,9 @@ class SeleniumAutomationApp(QWidget):
             self.report_stats = {}
         if not hasattr(self, "_report_year_totals"):
             self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
+        # Track freshest epoch per make (when idx==1 finalizes)
+        if not hasattr(self, "_report_last_mk_ts"):
+            self._report_last_mk_ts = {}  # { "Acura": datetime, ... }
     
         # Find a log file if none provided
         if not log_path:
@@ -1790,17 +1793,9 @@ class SeleniumAutomationApp(QWidget):
         def _yr_for(idx, total):
             if total == 3 and 1 <= idx <= 3:
                 return ["2012–2016", "2017–2021", "2022–2026"][idx - 1]
-            # Fallbacks if you ever run 2 links or 1 link
             if total == 2 and 1 <= idx <= 2:
                 return ["2012–2020", "2021–2026"][idx - 1]
             return ""
-    
-        def _hms(seconds):
-            seconds = int(round(seconds))
-            h = seconds // 3600
-            m = (seconds % 3600) // 60
-            s = seconds % 60
-            return f"{h}:{m:02d}:{s:02d}"
     
         def _int(s):
             return int(str(s).replace(",", "").strip())
@@ -1814,10 +1809,8 @@ class SeleniumAutomationApp(QWidget):
     
         # State while scanning
         any_hit = False
-        # Active segment per make: { make: {"start": ts, "end": ts|None, "last_files": int|0} }
-        seg = {}
-        # Which link indices already finalized per make (dedupe)
-        finalized = {}
+        seg = {}         # { make: {"start": ts, "end": ts|None, "last_files": int|0} }
+        finalized = {}   # per-run de-dupe by idx (reset on every RE_CFG for that make)
     
         with open(log_path, "r", encoding="utf-8", errors="ignore") as fh:
             for raw in fh:
@@ -1832,17 +1825,15 @@ class SeleniumAutomationApp(QWidget):
                     mk = canon_make(m.group(1))
                     any_hit = True
                     seg[mk] = {"start": ts, "end": None, "last_files": 0}
-                    finalized.setdefault(mk, set())
-                    # ensure bucket
+                    finalized[mk] = set()  # reset per-run idx dedupe for this make
                     self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
                     continue
     
                 # Track last files count
                 m = RE_FIDX.search(s)
                 if m:
-                    folders, files = m.groups()
+                    _, files = m.groups()
                     files = _int(files)
-                    # attach to *some* active seg — choose the only one with start and no end
                     for mk, st in seg.items():
                         if st.get("start") and not st.get("end"):
                             st["last_files"] = files
@@ -1865,46 +1856,47 @@ class SeleniumAutomationApp(QWidget):
                     if not mk:
                         continue
                     any_hit = True
-                    # Make sure we have a segment
                     if mk not in seg or not seg[mk].get("start"):
-                        # Start isn't recorded (edge case) — skip
                         continue
-                    # Only finalize each index once
                     if idx in finalized.setdefault(mk, set()):
                         continue
     
                     start_ts = seg[mk].get("start")
-                    end_ts   = seg[mk].get("end")
-                    if not end_ts:
-                        # if we missed the 'complete' line, fallback to this line's timestamp
-                        end_ts = ts if ts else start_ts
-    
+                    end_ts   = seg[mk].get("end") or ts or start_ts
                     duration = (end_ts - start_ts).total_seconds() if (start_ts and end_ts) else 0
                     files    = int(seg[mk].get("last_files", 0))
                     yr       = _yr_for(idx, total)
     
-                    # Record per-link
-                    self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
-                    sig = (yr, int(round(duration)), files)
-                    existing = {(l["range"], l["time"], l["files"]) for l in self.report_stats[mk]["links"]}
-                    if sig not in existing:
-                        self.report_stats[mk]["links"].append({"range": yr, "time": int(round(duration)), "files": files})
-                        if yr in self._report_year_totals:
-                            self._report_year_totals[yr] += files
+                    # Epoch decision: only when idx==1 (first link) do we treat this as a new run and overwrite
+                    seg_ts  = end_ts or start_ts
+                    last_ts = self._report_last_mk_ts.get(mk)
+                    if idx == 1 and seg_ts and (last_ts is None or seg_ts > last_ts):
+                        # Newer epoch for this make → wipe and start fresh
+                        self._report_last_mk_ts[mk] = seg_ts
+                        self.report_stats[mk] = {"total_time": 0, "total_files": 0, "links": []}
     
-                    # Mark finalized; clear active segment so next "Configured" starts a fresh one
+                    # Latest-wins per year-range: replace existing range entry, else append
+                    self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
+                    links = self.report_stats[mk]["links"]
+                    replaced = False
+                    for i, l in enumerate(links):
+                        if l.get("range") == yr:
+                            links[i] = {"range": yr, "time": int(round(duration)), "files": files}
+                            replaced = True
+                            break
+                    if not replaced:
+                        links.append({"range": yr, "time": int(round(duration)), "files": files})
+    
                     finalized[mk].add(idx)
-                    seg[mk] = {"start": None, "end": None, "last_files": 0}
+                    # keep segment active; idx 2/3 will use the same seg
                     continue
     
-                # Optional: if the log ever prints a combined total line
+                # Optional combined total line (kept but harmless when present)
                 m = RE_TOT.search(s)
                 if m:
                     rt_str, files_str = m.groups()
                     secs = sum(int(x) * f for x, f in zip(rt_str.split(":")[-3:], (3600, 60, 1)))
                     files = _int(files_str)
-                    # Bind to most recent make with an active or recently closed segment
-                    # (Heuristic: take the last key in seg with a start/end seen)
                     if seg:
                         mk = list(seg.keys())[-1]
                         self.report_stats.setdefault(mk, {"total_time": 0, "total_files": 0, "links": []})
@@ -1912,7 +1904,7 @@ class SeleniumAutomationApp(QWidget):
                         self.report_stats[mk]["total_files"] = max(self.report_stats[mk]["total_files"], files)
                     continue
     
-        # Backfill per-make totals from links if needed; otherwise also ensure totals are at least the sum of links
+        # Backfill per-make totals from links (latest-wins already applied per range)
         for mk, data in self.report_stats.items():
             link_files = sum(l["files"] for l in data.get("links", []))
             link_secs  = sum(l["time"]  for l in data.get("links", []))
@@ -1925,7 +1917,15 @@ class SeleniumAutomationApp(QWidget):
             else:
                 data["total_time"] = max(data["total_time"], link_secs)
     
+        # Recompute year totals fresh from report_stats to avoid double-counting
+        self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
+        for mk, data in self.report_stats.items():
+            for l in data.get("links", []):
+                if l["range"] in self._report_year_totals:
+                    self._report_year_totals[l["range"]] += int(l.get("files", 0))
+    
         return any_hit
+    
 
 
 
