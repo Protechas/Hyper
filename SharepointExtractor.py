@@ -60,6 +60,22 @@ def _adas_name_col_index(repair_mode: bool, excel_mode: str):
         return None
     return 18
 
+def __add_yellow_text_marker(self, worksheet, year, make, model, system, file_name):
+    """
+    Apply a dark yellow font color for NO-doc hyperlinks (file names starting with 'No ...').
+    """
+    from openpyxl.styles import Font, Color
+    for row_key, row_num in self.row_index.items():
+        yr, mk, mdl, sys = row_key
+        if str(yr) == str(year) and mk == make and mdl == model and sys == system:
+            hyperlink_col = self.HYPERLINK_COLUMN_INDEX or 12
+            cell = worksheet.cell(row=row_num, column=hyperlink_col)
+            if cell and cell.hyperlink:
+                cell.font = Font(color="9B870C", underline="single")  # dark yellow
+            elif cell:
+                cell.font = Font(color="9B870C")
+            print(f"🟡 Marked NO-doc hyperlink in yellow at {cell.coordinate} → {file_name}")
+            break    
 
 
 def _is_force_bottom_model(model: str) -> bool:
@@ -324,7 +340,7 @@ def _system_val_for_row(self, row, repair_mode: bool):
             sys_cell = row[20] if len(row) > 20 and row[20].value else None
         else:
             # OG ADAS: Column E (0-based 4)
-            sys_cell = row[4] if len(row) > 4 and row[4].value else None
+            sys_cell = row[18] if len(row) > 18 and row[18].value else None
 
     sys_text = (str(sys_cell.value).strip().upper() if sys_cell else "")
     sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACTLY like your __build_row_index__
@@ -1134,6 +1150,7 @@ class SharepointExtractor:
     def __simulate_entry_from_no_entry__(self, entry_name: str, real_link: str, heirarchy: str, sibling_files: list) -> 'SharepointExtractor.SharepointEntry':
         """
         Replaces 'No XYZ...' file with a simulated one using year/make/model from known good entries.
+        Also tags the returned entry so downstream writers can style it dark yellow.
         """
         # Try to extract acronym (inside parentheses or inferred from known acronyms)
         acronym_match = re.search(r'\((.*?)\)', entry_name)
@@ -1173,14 +1190,20 @@ class SharepointExtractor:
             model = " ".join(tokens)
             if model:
                 new_name = f"{year} {self.sharepoint_make} {model} ({acronym})"
-                return SharepointExtractor.SharepointEntry(
+                se = SharepointExtractor.SharepointEntry(
                     name=new_name,
                     heirarchy=heirarchy,
                     link=real_link,
                     type=SharepointExtractor.EntryTypes.FILE_ENTRY
                 )
+                # 🔖 Mark this simulated entry as originating from a "No ..." document
+                setattr(se, "is_no_doc", True)
+                # (Optional) keep the original "No ..." filename for debugging/auditing
+                setattr(se, "original_no_doc_name", entry_name)
+                return se
     
         return None
+
 
     def populate_excel_file(self, file_entries: list) -> None:
         """
@@ -1325,11 +1348,17 @@ class SharepointExtractor:
                         file_name = f"{yr} {self.sharepoint_make} {mdl} ({sys})"
                         file_entry.entry_name = file_name
                         print(f"   ↳ Renaming NO-doc for proper placement: {file_name}")
+            
+                        # 🔖 mark the item so __update_excel__ knows to color it yellow
+                        setattr(file_entry, "is_no_doc", True)
+                        self._last_is_no_doc = True
+            
                         if hasattr(self, "__add_red_text_marker"):
                             self.__add_red_text_marker(
                                 model_worksheet, yr, self.sharepoint_make, mdl, sys, original_no_doc_name
                             )
                         break
+            
     
             # Synonym normalization
             for desc, acr in self.REPAIR_SYNONYMS.items():
@@ -1391,7 +1420,8 @@ class SharepointExtractor:
                 #if self.cleanup_mode:
                     #print(f"Fixed hyperlink for: {file_entry.entry_name}")
                 #continue
-    
+            self._last_is_no_doc = bool(getattr(file_entry, "is_no_doc", False)) or file_name.lower().startswith("no ")
+
             self.__update_excel__(
                 model_worksheet,
                 file_year,
@@ -2076,14 +2106,14 @@ class SharepointExtractor:
                 sys_cell = row[20] if len(row) > 20 and row[20].value else None
             else:
                 # OG ADAS: Column E (0-based 4)
-                sys_cell = row[4] if len(row) > 4 and row[4].value else None
+                sys_cell = row[18] if len(row) > 18 and row[18].value else None
     
         sys_text = (str(sys_cell.value).strip().upper() if sys_cell else "")
         sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACT match with your __build_row_index__
         return sys_text, sys_norm
     
 
-    # ★ REPLACE your __update_excel__ with this (adds the acronym verifier; keeps everything else)
+    # ★ REPLACE your __update_excel__ with this (adds NO-doc yellow + keeps your acronym verifier & logic)
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
         # Skip filtering if in Repair mode
         if not self.repair_mode:
@@ -2220,7 +2250,10 @@ class SharepointExtractor:
             error_cell.value = doc_name.splitlines()[0]
             error_cell.font = Font(color="FF0000")
     
-        # ✅ Always set visible text
+        # ─────────────────────────────────────────────────────────────────────────
+        # ✅ Always set visible text + unified color/underline rules
+        # Precedence: NO-doc (yellow) > approx/debug (red) > exact (blue)
+        # ─────────────────────────────────────────────────────────────────────────
         if document_url:
             cell.hyperlink = document_url
             cell.value = document_url
@@ -2228,16 +2261,27 @@ class SharepointExtractor:
             approx = bool(getattr(self, "_last_match_approx", False))
             debug_writing = bool(getattr(self, "debug_mode", False)) and bool(getattr(self, "write_in_debug", True))
     
-            # neutralize "Hyperlink" style (blue) before we set our color
-            if approx or debug_writing:
-                try:
-                    cell.style = "Normal"
-                except Exception:
-                    pass
-                cell.font = Font(color="FF0000", underline='single')  # RED on regex/fuzzy or debug-write
+            # Detect NO-doc safely from doc_name (e.g., "No BUC Document ...")
+            try:
+                is_no_doc = doc_name.strip().lower().startswith("no ")
+            except Exception:
+                is_no_doc = False
+    
+            # Neutralize Excel default Hyperlink style first
+            try:
+                cell.style = "Normal"
+            except Exception:
+                pass
+            
+            # 🔶 NO-doc (yellow) > approx/debug (red) > exact (blue)
+            is_no_doc = bool(getattr(self, "_last_is_no_doc", False))
+            if is_no_doc:
+                cell.font = Font(color="9B870C", underline='single')   # dark yellow
+            elif approx or debug_writing:
+                cell.font = Font(color="FF0000", underline='single')   # red
             else:
-                # exact → keep blue
-                cell.font = Font(color="0000FF", underline='single')
+                cell.font = Font(color="0000FF", underline='single')   # blue
+            
     
         else:
             cell.hyperlink = None
@@ -2252,6 +2296,10 @@ class SharepointExtractor:
         adas_last_row[key] = cell.row
         print(f"Hyperlink for {doc_name} added at {cell.coordinate} "
               f"[{'approx' if getattr(self, '_last_match_approx', False) else 'exact'}]")
+            
+        # reset the NO-doc flag so it doesn’t bleed into the next write
+        self._last_is_no_doc = False
+
     
 
     def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
@@ -2377,7 +2425,7 @@ class SharepointExtractor:
                 if self.excel_mode == "new":
                     sys_cell = row[20] if len(row) > 20 else None   # U
                 else:
-                    sys_cell = row[4]  if len(row) > 4  else None   # E
+                    sys_cell = row[18]  if len(row) > 18  else None   # S
         
             sys_txt = str(sys_cell.value).strip().upper() if (sys_cell and sys_cell.value) else ""
             if not _system_missing(sys_txt):
@@ -2456,8 +2504,6 @@ class SharepointExtractor:
     
         # nothing found
         return None, file_name
-
-
     # ★ REPLACE your __build_row_index__ with this
     def __build_row_index__(self, ws, repair_mode=False):
         index = {}
@@ -2529,7 +2575,7 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
+    debug_run = True
     
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 

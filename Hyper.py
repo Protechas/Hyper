@@ -813,7 +813,7 @@ class SeleniumAutomationApp(QWidget):
         years_selection_layout.addWidget(years_label)
         
         # Mirror the ADAS pattern: a list + a place to store the created QCheckBox widgets
-        year_items = ["2012–2016 Years", "2017–2021 Years", "2022–2026 Years"]
+        year_items = ["2012–2016 Years", "2017–2021 Years", "2022–2026 Years", "2027–2031 Years"]
         self.year_checkboxes = []  # analogous to self.adas_checkboxes
         
         # Create the three year checkboxes just like ADAS does its acronyms
@@ -827,14 +827,16 @@ class SeleniumAutomationApp(QWidget):
         self.year_2012_2016 = self.year_checkboxes[0]
         self.year_2017_2021 = self.year_checkboxes[1]
         self.year_2022_2026 = self.year_checkboxes[2]
+        self.year_2027_2031 = self.year_checkboxes[3] 
         
         # Also provide the *_checkbox aliases some code paths expect
         self.year_2012_2016_checkbox = self.year_2012_2016
         self.year_2017_2021_checkbox = self.year_2017_2021
         self.year_2022_2026_checkbox = self.year_2022_2026
+        self.year_2027_2031_checkbox = self.year_2027_2031
         
         # Convenience list (kept for any existing loops)
-        self._year_checkboxes = [self.year_2012_2016, self.year_2017_2021, self.year_2022_2026]
+        self._year_checkboxes = [self.year_2012_2016, self.year_2017_2021, self.year_2022_2026, self.year_2027_2031]
         
         # ⬆️ keep content pinned to the top
         years_selection_layout.addStretch(1)
@@ -974,7 +976,7 @@ class SeleniumAutomationApp(QWidget):
         excel_mode_layout = QHBoxLayout()
         excel_mode_layout.setSpacing(8)
         
-        label_og   = QLabel("OG")
+        label_og   = QLabel("SME")
         label_new  = QLabel("New")
         for lbl in (label_og, label_new):
             lbl.setStyleSheet("font-size:14px; padding:5px;")
@@ -1138,8 +1140,14 @@ class SeleniumAutomationApp(QWidget):
         self.resize(600, 400)
 
     def select_all_year_ranges(self):
-        for cb in getattr(self, "_year_checkboxes", []):
-            cb.setChecked(True)
+        """Toggle all year range checkboxes on/off."""
+        # Check if *all* are currently checked
+        all_checked = all(cb.isChecked() for cb in self._year_checkboxes)
+        
+        # If all are checked, uncheck all; otherwise, check all
+        for cb in self._year_checkboxes:
+            cb.setChecked(not all_checked)
+
     
     def get_selected_year_ranges(self):
         ranges = []
@@ -1149,7 +1157,10 @@ class SeleniumAutomationApp(QWidget):
             ranges.append((2017, 2021))
         if getattr(self, "year_2022_2026", None) and self.year_2022_2026.isChecked():
             ranges.append((2022, 2026))
+        if getattr(self, "year_2027_2031", None) and self.year_2027_2031.isChecked():   # ← NEW
+            ranges.append((2027, 2031))
         return ranges
+        
     
     def _filter_links_by_selected_years(self, links):
         """
@@ -1183,7 +1194,7 @@ class SeleniumAutomationApp(QWidget):
     
         # Fallback: map checkboxes to 0/1/2 positions
         wanted_idx = []
-        mapping = {(2012, 2016): 0, (2017, 2021): 1, (2022, 2026): 2}
+        mapping = {(2012, 2016): 0, (2017, 2021): 1, (2022, 2026): 2, (2027, 2031): 3}
         for rng in selected:
             if rng in mapping:
                 wanted_idx.append(mapping[rng])
@@ -1206,7 +1217,7 @@ class SeleniumAutomationApp(QWidget):
         if not hasattr(self, "report_stats"):
             self.report_stats = {}
         if not hasattr(self, "_report_year_totals"):
-            self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0}
+            self._report_year_totals = {"2012–2016": 0, "2017–2021": 0, "2022–2026": 0,  "2027–2031":0}
     
         # Build a canonical manufacturer map for quick detection
         manu_name_map = {}
@@ -1256,23 +1267,43 @@ class SeleniumAutomationApp(QWidget):
             return link_hint, idx, total
         
         def _ordinal_to_range_label(ord_num: int) -> str:
-            """1→2012–2016, 2→2017–2021, 3→2022–2026; else ''."""
-            mapping = {1: "2012–2016", 2: "2017–2021", 3: "2022–2026"}
+            """1→2012–2016, 2→2017–2021, 3→2022–2026, 4→2027–2031; else ''."""
+            mapping = {
+                1: "2012–2016",
+                2: "2017–2021",
+                3: "2022–2026",
+                4: "2027–2031",  # NEW
+            }
             return mapping.get(ord_num, "")
+
             
         # NEW: index→range fallback (matches your report buckets)
         def _index_range_label(idx: int | None, total: int) -> str:
+            """
+            Map a 0-based link index to a year-range label using the number of links available.
+            - total >= 4 : 0→2012–2016, 1→2017–2021, 2→2022–2026, 3→2027–2031
+            - total == 3 : 0→2012–2016, 1→2017–2021, 2→2022–2026
+            - total == 2 : 0→2012–2020, 1→2021–2026 (existing special-case)
+            """
             if idx is None or total <= 0:
                 return ""
-            if total >= 3:
+        
+            if total >= 4:
+                mapping = {0: "2012–2016", 1: "2017–2021", 2: "2022–2026", 3: "2027–2031"}  # NEW
+                return mapping.get(idx, "")
+        
+            if total == 3:
                 mapping = {0: "2012–2016", 1: "2017–2021", 2: "2022–2026"}
                 return mapping.get(idx, "")
+        
             if total == 2:
                 # sensible fallback if a make only has 2 links
                 mapping = {0: "2012–2020", 1: "2021–2026"}
                 return mapping.get(idx, "")
+        
             return ""
-    
+        
+            
         # NOTE: assumes you added this class helper earlier
         # def _extract_year_range_from_link(self, link: str) -> str: ...
     
@@ -2620,10 +2651,10 @@ class SeleniumAutomationApp(QWidget):
         # Kick it off
         self.run_all_links_batch() if self._cleanup_mode else self.run_next_sub_link()
 
-    def _extract_year_range_label(self, link: str, index: int | None = None) -> str:
+    def _extract_year_range_label(link: str, index: int | None = None) -> str:
         """
         Pull a '(YYYY - YYYY)' or '(YYYY–YYYY)' suffix out of the link text.
-        Falls back to index mapping (0/1/2) → 2012–2016 / 2017–2021 / 2022–2026.
+        Falls back to index mapping (0/1/2/3) → 2012–2016 / 2017–2021 / 2022–2026 / 2027–2031.
         Returns an empty string if unknown.
         """
         import re
@@ -2637,14 +2668,14 @@ class SeleniumAutomationApp(QWidget):
         if m:
             return f"{m.group(1)}–{m.group(2)}"
     
-        # index fallback (0-based)
-        mapping = {0: "2012–2016", 1: "2017–2021", 2: "2022–2026"}
+        # index fallback (0-based) — now includes the 4th range
+        mapping = {0: "2012–2016", 1: "2017–2021", 2: "2022–2026", 3: "2027–2031"}  # NEW
         if index is not None and index in mapping:
             return mapping[index]
     
         return ""
     
-
+    
     def _links_for_manufacturer_preview(self, manufacturer: str):
         """Return the exact list of SharePoint links this run will use for `manufacturer`.
         Mirrors the logic in process_next_manufacturer(), including cleanup-mode filtering."""
