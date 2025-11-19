@@ -713,6 +713,65 @@ class SharepointExtractor:
             Defaults to false.
         """
 
+        # ── Header utils (header-only; no fallbacks) ─────────────────────────────────
+        def _norm_hdr(self, s: str) -> str:
+            # Normalize header text: trim, uppercase, collapse inner spaces
+            import re
+            return re.sub(r"\s+", " ", str(s).strip().upper())
+    
+        # ── Header-only helpers ─────────────────────────────────────────────
+        def _header_colmap_(self, ws):
+            """Return 1-based indices for required headers; no fallbacks."""
+            import re
+            def norm(s): return re.sub(r"\s+", " ", str(s).strip().upper())
+        
+            header_cells = next(ws.iter_rows(min_row=1, max_row=1))
+            headers = {}
+            for i, c in enumerate(header_cells):
+                if c.value is None: 
+                    continue
+                headers[norm(c.value)] = i + 1  # 1-based
+        
+            def pick(*names):
+                for n in names:
+                    key = norm(n)
+                    if key in headers:
+                        return headers[key]
+                return None
+        
+            colmap = {
+                "year":   pick("Year"),
+                "make":   pick("Make"),
+                "model":  pick("Model"),
+                "system": pick(  # ADAS + Repair
+                    "SME Generic System Name",
+                    "Protech Generic System Name",
+                    "Generic System Name",
+                    "System Name",
+                    "System",
+                ),
+                "hyperlink": pick(  # includes “Service Information”
+                    "Hyperlink", "Link", "URL",
+                    "Service Information", "Service Information (URL)",
+                    "SI", "SI Link", "SI URL",
+                ),
+            }
+            missing = [k for k in ("year","make","model","system") if not colmap.get(k)]
+            if missing:
+                raise ValueError(f"Missing required header(s): {', '.join(missing)}")
+            return colmap
+        
+        def _cell_val_upper(self, row_tuple, one_based_idx):
+            if not one_based_idx:
+                return ""
+            i = one_based_idx - 1
+            if i < 0 or i >= len(row_tuple):
+                return ""
+            v = row_tuple[i].value
+            return (str(v).strip().upper() if v is not None else "")
+
+
+
         self.mode = sys.argv[4] if len(sys.argv) > 4 else "adas"
         self.repair_mode = self.mode == "repair"
         self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
@@ -1232,7 +1291,14 @@ class SharepointExtractor:
                     if cell.hyperlink.target != cell.value.strip():
                         print(f"🔧 Fixing hyperlink at {cell.coordinate}")
                         cell.hyperlink = cell.value.strip()
-    
+            
+        # 🧭 Header-only: detect column indices from the sheet
+        self.colmap = self._header_colmap_(model_worksheet)
+        
+        # Ensure the hyperlink column exists (create "Service Information" if missing)
+        self._ensure_hyperlink_column(model_worksheet, "Service Information Hyperlink")
+                
+
         # Index rows once per call
         self.row_index = self.__build_row_index__(model_worksheet, self.repair_mode)
     
@@ -2081,6 +2147,64 @@ class SharepointExtractor:
                     return True
         return False
  
+
+    # ── Header utils (header-only; no fallbacks) ─────────────────────────────────
+    def _norm_hdr(self, s: str) -> str:
+        # Normalize header text: trim, uppercase, collapse inner spaces
+        import re
+        return re.sub(r"\s+", " ", str(s).strip().upper())
+
+    # ── Header-only helpers ─────────────────────────────────────────────
+    def _header_colmap_(self, ws):
+        """Return 1-based indices for required headers; no fallbacks."""
+        import re
+        def norm(s): return re.sub(r"\s+", " ", str(s).strip().upper())
+    
+        header_cells = next(ws.iter_rows(min_row=1, max_row=1))
+        headers = {}
+        for i, c in enumerate(header_cells):
+            if c.value is None: 
+                continue
+            headers[norm(c.value)] = i + 1  # 1-based
+    
+        def pick(*names):
+            for n in names:
+                key = norm(n)
+                if key in headers:
+                    return headers[key]
+            return None
+    
+        colmap = {
+            "year":   pick("Year"),
+            "make":   pick("Make"),
+            "model":  pick("Model"),
+            "system": pick(  # ADAS + Repair
+                "SME Generic System Name",
+                "Protech Generic System Name",
+                "Generic System Name",
+                "System Name",
+                "System",
+            ),
+            "hyperlink": pick(  # includes “Service Information”
+                "Hyperlink", "Link", "URL",
+                "Service Information", "Service Information Hyperlink",
+                "SI", "SI Link", "SI URL",
+            ),
+        }
+        missing = [k for k in ("year","make","model","system") if not colmap.get(k)]
+        if missing:
+            raise ValueError(f"Missing required header(s): {', '.join(missing)}")
+        return colmap
+    
+    def _cell_val_upper(self, row_tuple, one_based_idx):
+        if not one_based_idx:
+            return ""
+        i = one_based_idx - 1
+        if i < 0 or i >= len(row_tuple):
+            return ""
+        v = row_tuple[i].value
+        return (str(v).strip().upper() if v is not None else "")
+
     # ★ Add this helper once inside your class (above the two methods below)
     def _system_val_for_row(self, row, repair_mode: bool):
         """
@@ -2112,7 +2236,6 @@ class SharepointExtractor:
         sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACT match with your __build_row_index__
         return sys_text, sys_norm
     
-
     # ★ REPLACE your __update_excel__ with this (adds NO-doc yellow + keeps your acronym verifier & logic)
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
         # Skip filtering if in Repair mode
@@ -2504,63 +2627,129 @@ class SharepointExtractor:
     
         # nothing found
         return None, file_name
-    # ★ REPLACE your __build_row_index__ with this
+    
+    def _ensure_hyperlink_column(self, ws, *preferred_headers):
+        """
+        Ensure a hyperlink column exists by header only (no fallbacks).
+        Tries all provided header names (case/space-insensitive). If none found,
+        creates a new column using the FIRST preferred header name.
+        Usage:
+            self._ensure_hyperlink_column(ws, "Service Information", "Service Information Hyperlink")
+        """
+        import re
+    
+        def norm(s: str) -> str:
+            return re.sub(r"\s+", " ", str(s).strip().upper())
+    
+        # Default preferred names if caller didn't pass any
+        if not preferred_headers:
+            preferred_headers = (
+                "Service Information",
+                "Service Information Hyperlink",
+                "Service Information (URL)",
+                "Hyperlink",
+                "Link",
+                "URL",
+                "SI",
+                "SI Link",
+                "SI URL",
+            )
+    
+        # Make sure we have a fresh header map
+        self.colmap = getattr(self, "colmap", None) or self._header_colmap(ws)
+    
+        # 1) Try to find any of the preferred headers that already exist
+        for name in preferred_headers:
+            col = self.colmap.get("hyperlink")
+            # If _header_colmap already recognized a generic "hyperlink" and it's present, use it
+            # Otherwise, explicitly look up the exact normalized name in row 1:
+            if col:
+                self.HYPERLINK_COLUMN_INDEX = col
+                return col
+    
+            # direct scan for this specific header text in row 1
+            header_row = next(ws.iter_rows(min_row=1, max_row=1))
+            for i, cell in enumerate(header_row, start=1):
+                if cell.value and norm(cell.value) == norm(name):
+                    self.colmap["hyperlink"] = i
+                    self.HYPERLINK_COLUMN_INDEX = i
+                    return i
+    
+        # 2) None found — create the FIRST preferred header
+        create_name = preferred_headers[0]
+        new_col = ws.max_column + 1
+        ws.cell(row=1, column=new_col).value = create_name
+        self.colmap["hyperlink"] = new_col
+        self.HYPERLINK_COLUMN_INDEX = new_col
+        return new_col
+
+    
+
     def __build_row_index__(self, ws, repair_mode=False):
+        """
+        Header-only row index:
+          key = (YEAR, MAKE, MODEL, SYSTEM_NORM) -> row_number
+        No mode fallbacks, no column letters. Uses self.colmap.
+        """
+        # Ensure header map exists (header-only)
+        colmap = getattr(self, "colmap", None)
+        if not colmap:
+            colmap = self._header_colmap(ws)
+            self.colmap = colmap
+    
+        Yc, Mc, Mdc, Sc = colmap["year"], colmap["make"], colmap["model"], colmap["system"]
+        Hc = colmap.get("hyperlink")  # may be None
+    
         index = {}
     
-        # 🆕 Cleanup Mode Override: index all rows with hyperlinks
+        # Cleanup mode: index only rows that already have a hyperlink in the detected column
         if getattr(self, "cleanup_mode", False):
-            # Determine hyperlink column for this mode (1-based)
-            if repair_mode and self.excel_mode == "og":
-                hyperlink_col = 8   # H
-            elif not repair_mode and self.excel_mode == "og":
-                hyperlink_col = 12  # L
-            elif not repair_mode and self.excel_mode == "new":
-                hyperlink_col = 11  # K
-            else:
-                hyperlink_col = None
+            if not Hc:
+                return index  # no hyperlink column -> nothing to do in cleanup mode
+            for r in range(2, ws.max_row + 1):
+                cell = ws.cell(row=r, column=Hc)
+                looks_link = bool(cell.hyperlink) or (
+                    cell.value and str(cell.value).strip().lower().startswith("http")
+                )
+                if not looks_link:
+                    continue
     
-            if hyperlink_col:
-                for r in range(2, ws.max_row + 1):
-                    cell = ws.cell(row=r, column=hyperlink_col)
-                    # If cell has a hyperlink object or its value looks like a URL, index it
-                    looks_link = bool(cell.hyperlink) or (cell.value and str(cell.value).strip().lower().startswith("http"))
-                    if not looks_link:
-                        continue
+                row_cells = tuple(ws.iter_rows(min_row=r, max_row=r, max_col=ws.max_column))[0]
+                year  = self._cell_val_upper(row_cells, Yc)
+                make  = self._cell_val_upper(row_cells, Mc)
+                model = self._cell_val_upper(row_cells, Mdc)
     
-                    year  = str(ws.cell(row=r, column=1).value).strip().upper() if ws.cell(row=r, column=1).value else ''
-                    make  = str(ws.cell(row=r, column=2).value).strip().upper() if ws.cell(row=r, column=2).value else ''
-                    model = str(ws.cell(row=r, column=3).value).strip().upper() if ws.cell(row=r, column=3).value else ''
+                sys_text = self._cell_val_upper(row_cells, Sc)
+                import re
+                system_norm = re.sub(r"[^A-Z0-9]", "", sys_text)
     
-                    # Pull the system value using the same logic as normal mode
-                    row_cells = tuple(ws.iter_rows(min_row=r, max_row=r, max_col=22))[0]
-                    _, system_norm = self._system_val_for_row(row_cells, repair_mode=repair_mode)
+                key = (year, make, model, system_norm)
+                index[key] = r
+            return index
     
-                    key = (year, make, model, system_norm)
-                    index[key] = r
-                return index  # Skip normal filtering entirely in cleanup mode
-    
-        # 🔹 Normal full-mode indexing logic (consistent system column mapping)
-
-        for row in ws.iter_rows(min_row=2, max_col=22):
+        # Normal full index: header-only
+        for row in ws.iter_rows(min_row=2, max_col=ws.max_column):
             if not any(c.value for c in row):
                 continue
-        
-            year  = (str(row[0].value).strip().upper() if row[0].value else '')
-            make  = (str(row[1].value).strip().upper() if row[1].value else '')
-            model = (str(row[2].value).strip().upper() if row[2].value else '')
-        
-            sys_text, system_norm = self._system_val_for_row(row, repair_mode=repair_mode)
-        
-            # ★ NEW: don't index rows with missing/placeholder System text
-            if _system_missing_text(sys_text):
+    
+            year  = self._cell_val_upper(row, Yc)
+            make  = self._cell_val_upper(row, Mc)
+            model = self._cell_val_upper(row, Mdc)
+    
+            sys_text = self._cell_val_upper(row, Sc)
+            if _system_missing_text(sys_text):  # keep your existing guard
                 continue
-        
+    
+            import re
+            system_norm = re.sub(r"[^A-Z0-9]", "", sys_text)
+    
             key = (year, make, model, system_norm)
             index[key] = row[0].row
-        
     
         return index
+    
+        
+    
     
 
 #####################################################################################################################################################
@@ -2575,7 +2764,7 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = True
+    debug_run = False
     
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 

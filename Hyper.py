@@ -504,14 +504,14 @@ class SeleniumAutomationApp(QWidget):
                              ########################################################     Repair SI Links     ########################################################
         self.repair_links = {
             "Acura": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EihKJ1TNSRdNpsQv8r32FFsB3jkwS6DfqW4Mcff4NrOr6A?e=qVTz2q",# Documents (2012 - 2016)
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ek3lsuYY8cZEsJwsES_Q1KwBhX3TTKcKhB5C5mdXUNReDQ?e=GEE8Mv",# Documents (2017 - 2021)
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei1SfDwSRlpKpSWMZ__bhdsB4VoeqkmzqFUDdb0anGPnbw?e=VJC52s" # Documents (2022 - 2026)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EihKJ1TNSRdNpsQv8r32FFsB3jkwS6DfqW4Mcff4NrOr6A?e=qVTz2q (2012 - 2016)",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ek3lsuYY8cZEsJwsES_Q1KwBhX3TTKcKhB5C5mdXUNReDQ?e=GEE8Mv (2017 - 2021)",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Ei1SfDwSRlpKpSWMZ__bhdsB4VoeqkmzqFUDdb0anGPnbw?e=VJC52s (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Alfa Romeo": [
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/ErOke5xzYSdJuxzA1RXrlTwBCJxKIitAemYutpEimASATg?e=hWdGVy",# Documents (2012 - 2016)
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Er2MZy2hndVHowEc489Cwr0ByJuhjHVrSWBmHhBHsimnZA?e=H3sAVX",# Documents (2017 - 2021)
-                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Et84MN80bJ9On_e2O19o4SkBh7gcFCWl0r9z__aOrDX1Og?e=0VYApY" # Documents (2022 - 2026)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EpvFWGXv3OxPjjcMd0R04yYBrTKxJGtCsLHzCtrEwtEDcg?e=x8pBMS (2012 - 2016)",# Documents (2012 - 2016)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/EsJDtk8Y4ENCrsxhi5WIqGsBHmPOc3w6Nt_IBlZku_G8EQ?e=mm14mg (2017 - 2021)",# Documents (2017 - 2021)
+                "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/Emy9X9R3Ug9AlQB0D8C50KgBcinQhqi6FHjNMScIm8ZVuw?e=8VnXv2 (2022 - 2026)" # Documents (2022 - 2026)
             ],
             "Audi": [
                 "https://sharepoint.com/.../Audi (2012 - 2016)",
@@ -2892,7 +2892,24 @@ class SeleniumAutomationApp(QWidget):
             return f"{m.group(1)}–{m.group(2)}"
         return ""
 
-            
+    # ────────────────────────────────────────────────
+    # 🧭 Header Column Utility
+    # ────────────────────────────────────────────────
+    def _header_col_index(self, ws, *names):
+        """
+        Find a header by name(s) in row 1 and return its 1-based column index.
+        Example:
+            idx = self._header_col_index(ws, "Hyperlink", "Link", "URL")
+        Returns None if no match found.
+        """
+        header = next(ws.iter_rows(min_row=1, max_row=1))
+        hmap = { (str(c.value).strip().upper() if c.value else ""): i + 1
+                 for i, c in enumerate(header) }
+        for n in names:
+            if n.upper() in hmap:
+                return hmap[n.upper()]
+        return None
+                
     def on_sub_link_finished(self, manufacturer, success):
         if not self.is_running:
             return
