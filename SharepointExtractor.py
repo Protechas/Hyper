@@ -1310,24 +1310,42 @@ class SharepointExtractor:
     
         if do_phase1_scan:
             print("🧹 Clean up Mode: Scanning for broken hyperlinks (Phase 1)...")
-    
+
             # init once per scan
             self.broken_entries = []
-    
-            # Dynamically set column indexes from mode
-            if self.repair_mode and self.excel_mode == "og":
-                system_col, hyperlink_col = 4, 8
-            elif not self.repair_mode and self.excel_mode == "og":
-                system_col, hyperlink_col = 5, 12
-            elif not self.repair_mode and self.excel_mode == "new":
-                system_col, hyperlink_col = 21, 11
-            else:
-                print("⚠️ Unsupported mode/Excel combination in cleanup mode")
+
+            # ─────────────────────────────────────────────
+            # Header-only column detection for cleanup
+            # Ignore OG/NEW; always use Service Information column
+            # ─────────────────────────────────────────────
+            try:
+                # Reuse existing header map if present, otherwise build it
+                colmap = getattr(self, "colmap", None)
+                if not colmap:
+                    colmap = self._header_colmap(model_worksheet)
+                    self.colmap = colmap
+
+                # REQUIRED: system column (SME/Protech Generic System Name etc.)
+                system_col = colmap["system"]
+
+                # Hyperlink / Service Information column
+                hyperlink_col = colmap.get("hyperlink")
+                if not hyperlink_col:
+                    # Fallback: ensure/create a Service Information column
+                    # (uses your existing helper if you added it)
+                    hyperlink_col = self._ensure_hyperlink_column(
+                        model_worksheet,
+                        "Service Information",
+                        "Service Information Hyperlink"
+                    )
+            except Exception as e:
+                print(f"⚠️ Failed to detect Service Information/System columns in cleanup mode: {e}")
                 model_workbook.save(self.excel_file_path)
                 model_workbook.close()
                 return
-    
+
             filename_col = 1  # Adjust if your file names are stored elsewhere
+
     
             # total rows for progress bar
             self.total_rows_to_check = sum(
@@ -2236,12 +2254,22 @@ class SharepointExtractor:
         sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACT match with your __build_row_index__
         return sys_text, sys_norm
     
-    # ★ REPLACE your __update_excel__ with this (adds NO-doc yellow + keeps your acronym verifier & logic)
+    # ★ REPLACE your __update_excel__ with this (adds header-only hyperlink column ensure,
+    #   overwrites OG 'Placeholder', keeps acronym verifier & NO-doc color logic)
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
         # Skip filtering if in Repair mode
         if not self.repair_mode:
             if self.selected_adas and not any(adas in doc_name.upper() for adas in self.selected_adas):
                 return
+    
+        # Ensure we have the correct hyperlink column by HEADER ONLY
+        try:
+            if not getattr(self, "HYPERLINK_COLUMN_INDEX", None):
+                # accept both names; create "Service Information" if none exist
+                self._ensure_hyperlink_column(ws, "Service Information", "Service Information Hyperlink")
+        except Exception:
+            # best effort: still try to proceed — downstream write will raise if missing
+            pass
     
         # Try to find the correct Excel row for this system
         if doc_name in self.SPECIFIC_HYPERLINKS:
@@ -2376,35 +2404,89 @@ class SharepointExtractor:
         # ─────────────────────────────────────────────────────────────────────────
         # ✅ Always set visible text + unified color/underline rules
         # Precedence: NO-doc (yellow) > approx/debug (red) > exact (blue)
+        # Also: overwrite OG 'Placeholder' or empty text with friendly link text
         # ─────────────────────────────────────────────────────────────────────────
         if document_url:
-            cell.hyperlink = document_url
-            cell.value = document_url
-    
-            approx = bool(getattr(self, "_last_match_approx", False))
-            debug_writing = bool(getattr(self, "debug_mode", False)) and bool(getattr(self, "write_in_debug", True))
-    
-            # Detect NO-doc safely from doc_name (e.g., "No BUC Document ...")
-            try:
-                is_no_doc = doc_name.strip().lower().startswith("no ")
-            except Exception:
-                is_no_doc = False
+            # Friendly display text (used only in debug mode)
+            def _mk_link_text(y, mk, mdl, dn):
+                try:
+                    # keep your preferred phrasing; avoids double-parens if dn has them
+                    return f"Link For: {str(y).strip()} {str(mk).title().strip()} {str(mdl).title().strip()} ({dn}).pdf"
+                except Exception:
+                    return f"Link For: {dn}.pdf"
     
             # Neutralize Excel default Hyperlink style first
             try:
                 cell.style = "Normal"
             except Exception:
                 pass
-            
+    
+            # Always write the hyperlink target
+            cell.hyperlink = document_url
+    
+            approx = bool(getattr(self, "_last_match_approx", False))
+            debug_writing = bool(getattr(self, "debug_mode", False)) and bool(getattr(self, "write_in_debug", True))
+    
+            # Detect NO-doc: combine filename check and the flag your other code sets
+            try:
+                is_no_doc_name = doc_name.strip().lower().startswith("no ")
+            except Exception:
+                is_no_doc_name = False
+            is_no_doc_flag = bool(getattr(self, "_last_is_no_doc", False))
+            is_no_doc = is_no_doc_flag or is_no_doc_name
+    
+            import os
+            base_name = os.path.splitext(doc_name)[0].strip() if doc_name else ""
+    
+            # Decide what TEXT to show in the hyperlink cell
+            # ------------------------------------------------
+            #  🔹 DEBUG OFF  → always show the URL itself
+            #  🔹 DEBUG ON   → show pretty "Link For: ..." text (or filename)
+            # ------------------------------------------------
+            if not debug_writing:
+                # DEBUG MODE OFF → ALWAYS URL TEXT
+                cell.value = document_url
+            else:
+                # DEBUG MODE ON → keep your previous smart behavior
+                cur_text = (str(cell.value).strip() if cell.value is not None else "")
+                if (not cur_text) or (cur_text.lower() == "placeholder") or cur_text.lower().startswith("link for:") or cur_text.lower().startswith("http"):
+                    cell.value = _mk_link_text(
+                        year,
+                        self.sharepoint_make,
+                        model,
+                        _extract_system_from_filename(doc_name) or doc_name
+                    )
+                else:
+                    # If you want to always enforce the friendly text, uncomment:
+                    # cell.value = _mk_link_text(year, self.sharepoint_make, model, _extract_system_from_filename(doc_name) or doc_name)
+                    pass
+    
             # 🔶 NO-doc (yellow) > approx/debug (red) > exact (blue)
-            is_no_doc = bool(getattr(self, "_last_is_no_doc", False))
             if is_no_doc:
                 cell.font = Font(color="9B870C", underline='single')   # dark yellow
             elif approx or debug_writing:
                 cell.font = Font(color="FF0000", underline='single')   # red
             else:
                 cell.font = Font(color="0000FF", underline='single')   # blue
-            
+    
+            # ────────────────────────────────────────────────────────────────
+            # ★ LEFT PLACEHOLDER: place filename in the cell LEFT of the
+            #   hyperlink if that cell is empty or 'Placeholder'
+            #   (left cell only; does NOT touch hyperlink text)
+            # ────────────────────────────────────────────────────────────────
+            try:
+                hyperlink_col = getattr(self, "HYPERLINK_COLUMN_INDEX", None) or cell.column
+                left_col = hyperlink_col - 1
+                if left_col >= 1:
+                    left_cell = ws.cell(row=cell.row, column=left_col)
+                    left_val = (str(left_cell.value).strip().lower() if left_cell.value else "")
+                    if left_val == "" or left_val == "placeholder":
+                        if base_name:
+                            left_cell.value = base_name
+                            # match your error-style red for placeholders on the left
+                            left_cell.font = Font(color="FF0000")
+            except Exception as _e:
+                print(f"⚠️ Placeholder-left error for {doc_name}: {_e}")
     
         else:
             cell.hyperlink = None
@@ -2419,9 +2501,13 @@ class SharepointExtractor:
         adas_last_row[key] = cell.row
         print(f"Hyperlink for {doc_name} added at {cell.coordinate} "
               f"[{'approx' if getattr(self, '_last_match_approx', False) else 'exact'}]")
-            
+    
         # reset the NO-doc flag so it doesn’t bleed into the next write
         self._last_is_no_doc = False
+
+
+
+
 
     
 
@@ -2689,9 +2775,9 @@ class SharepointExtractor:
         """
         Header-only row index:
           key = (YEAR, MAKE, MODEL, SYSTEM_NORM) -> row_number
-        No mode fallbacks, no column letters. Uses self.colmap.
+        Uses self.colmap; skips placeholder rows; no OG/NEW fallbacks.
         """
-        # Ensure header map exists (header-only)
+        # Ensure header map exists
         colmap = getattr(self, "colmap", None)
         if not colmap:
             colmap = self._header_colmap(ws)
@@ -2702,15 +2788,17 @@ class SharepointExtractor:
     
         index = {}
     
-        # Cleanup mode: index only rows that already have a hyperlink in the detected column
+        # 🧹 CLEANUP MODE
         if getattr(self, "cleanup_mode", False):
             if not Hc:
-                return index  # no hyperlink column -> nothing to do in cleanup mode
+                return index  # nothing to do if hyperlink col missing
             for r in range(2, ws.max_row + 1):
                 cell = ws.cell(row=r, column=Hc)
-                looks_link = bool(cell.hyperlink) or (
-                    cell.value and str(cell.value).strip().lower().startswith("http")
-                )
+                val = str(cell.value).strip().lower() if cell.value else ""
+                # skip placeholders or blank lines
+                if not val or val == "placeholder":
+                    continue
+                looks_link = bool(cell.hyperlink) or val.startswith("http")
                 if not looks_link:
                     continue
     
@@ -2727,17 +2815,23 @@ class SharepointExtractor:
                 index[key] = r
             return index
     
-        # Normal full index: header-only
+        # 🔹 NORMAL MODE
         for row in ws.iter_rows(min_row=2, max_col=ws.max_column):
             if not any(c.value for c in row):
                 continue
+    
+            # skip placeholder rows if hyperlink col present
+            if Hc:
+                hv = str(row[Hc - 1].value).strip().lower() if row[Hc - 1].value else ""
+                if hv == "placeholder":
+                    continue
     
             year  = self._cell_val_upper(row, Yc)
             make  = self._cell_val_upper(row, Mc)
             model = self._cell_val_upper(row, Mdc)
     
             sys_text = self._cell_val_upper(row, Sc)
-            if _system_missing_text(sys_text):  # keep your existing guard
+            if _system_missing_text(sys_text):
                 continue
     
             import re
@@ -2747,7 +2841,7 @@ class SharepointExtractor:
             index[key] = row[0].row
     
         return index
-    
+
         
     
     
