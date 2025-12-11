@@ -2270,6 +2270,9 @@ class SharepointExtractor:
         except Exception:
             # best effort: still try to proceed — downstream write will raise if missing
             pass
+
+        # track whether this write created a brand-new row (fallback/bottom)
+        new_row_created = False
     
         # Try to find the correct Excel row for this system
         if doc_name in self.SPECIFIC_HYPERLINKS:
@@ -2386,6 +2389,13 @@ class SharepointExtractor:
                 else:
                     adas_last_row[key] = row
                 cell = ws.cell(row=row, column=self.HYPERLINK_COLUMN_INDEX)
+                new_row_created = True
+
+            # this write used a brand-new row, not a match
+            self._last_was_new_row = True
+
+            # force "approx" on fallback placements so they go red
+            self._last_match_approx = True
     
             # force "approx" on fallback placements so they go red
             self._last_match_approx = True
@@ -2410,44 +2420,34 @@ class SharepointExtractor:
             # Friendly display text (used only in debug mode)
             def _mk_link_text(y, mk, mdl, dn):
                 try:
-                    # keep your preferred phrasing; avoids double-parens if dn has them
                     return f"Link For: {str(y).strip()} {str(mk).title().strip()} {str(mdl).title().strip()} ({dn}).pdf"
                 except Exception:
                     return f"Link For: {dn}.pdf"
-    
-            # Neutralize Excel default Hyperlink style first
+
             try:
                 cell.style = "Normal"
             except Exception:
                 pass
-    
-            # Always write the hyperlink target
+
             cell.hyperlink = document_url
-    
+
             approx = bool(getattr(self, "_last_match_approx", False))
             debug_writing = bool(getattr(self, "debug_mode", False)) and bool(getattr(self, "write_in_debug", True))
-    
-            # Detect NO-doc: combine filename check and the flag your other code sets
+
             try:
                 is_no_doc_name = doc_name.strip().lower().startswith("no ")
             except Exception:
                 is_no_doc_name = False
             is_no_doc_flag = bool(getattr(self, "_last_is_no_doc", False))
             is_no_doc = is_no_doc_flag or is_no_doc_name
-    
+
             import os
             base_name = os.path.splitext(doc_name)[0].strip() if doc_name else ""
-    
-            # Decide what TEXT to show in the hyperlink cell
-            # ------------------------------------------------
-            #  🔹 DEBUG OFF  → always show the URL itself
-            #  🔹 DEBUG ON   → show pretty "Link For: ..." text (or filename)
-            # ------------------------------------------------
+
+            # TEXT for hyperlink cell
             if not debug_writing:
-                # DEBUG MODE OFF → ALWAYS URL TEXT
                 cell.value = document_url
             else:
-                # DEBUG MODE ON → keep your previous smart behavior
                 cur_text = (str(cell.value).strip() if cell.value is not None else "")
                 if (not cur_text) or (cur_text.lower() == "placeholder") or cur_text.lower().startswith("link for:") or cur_text.lower().startswith("http"):
                     cell.value = _mk_link_text(
@@ -2456,35 +2456,30 @@ class SharepointExtractor:
                         model,
                         _extract_system_from_filename(doc_name) or doc_name
                     )
-                else:
-                    # If you want to always enforce the friendly text, uncomment:
-                    # cell.value = _mk_link_text(year, self.sharepoint_make, model, _extract_system_from_filename(doc_name) or doc_name)
-                    pass
-    
-            # 🔶 NO-doc (yellow) > approx/debug (red) > exact (blue)
+
+            # Colors
             if is_no_doc:
                 cell.font = Font(color="9B870C", underline='single')   # dark yellow
             elif approx or debug_writing:
                 cell.font = Font(color="FF0000", underline='single')   # red
             else:
                 cell.font = Font(color="0000FF", underline='single')   # blue
-    
+
             # ────────────────────────────────────────────────────────────────
-            # ★ LEFT PLACEHOLDER: place filename in the cell LEFT of the
-            #   hyperlink if that cell is empty or 'Placeholder'
-            #   (left cell only; does NOT touch hyperlink text)
+            # ★ LEFT PLACEHOLDER: ONLY for brand-new rows (fallback/bottom)
+            #   If link was placed by exact or fuzzy match, DO NOT touch left cell.
             # ────────────────────────────────────────────────────────────────
             try:
-                hyperlink_col = getattr(self, "HYPERLINK_COLUMN_INDEX", None) or cell.column
-                left_col = hyperlink_col - 1
-                if left_col >= 1:
-                    left_cell = ws.cell(row=cell.row, column=left_col)
-                    left_val = (str(left_cell.value).strip().lower() if left_cell.value else "")
-                    if left_val == "" or left_val == "placeholder":
-                        if base_name:
-                            left_cell.value = base_name
-                            # match your error-style red for placeholders on the left
-                            left_cell.font = Font(color="FF0000")
+                if new_row_created:
+                    hyperlink_col = getattr(self, "HYPERLINK_COLUMN_INDEX", None) or cell.column
+                    left_col = hyperlink_col - 1
+                    if left_col >= 1:
+                        left_cell = ws.cell(row=cell.row, column=left_col)
+                        left_val = (str(left_cell.value).strip().lower() if left_cell.value else "")
+                        if left_val == "" or left_val == "placeholder":
+                            if base_name:
+                                left_cell.value = base_name
+                                left_cell.font = Font(color="FF0000")
             except Exception as _e:
                 print(f"⚠️ Placeholder-left error for {doc_name}: {_e}")
     
@@ -2858,7 +2853,7 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
+    debug_run = True
     
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 

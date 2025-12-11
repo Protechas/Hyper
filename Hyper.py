@@ -973,23 +973,23 @@ class SeleniumAutomationApp(QWidget):
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
         # Excel Format Toggle Layout (OG / New)
-        excel_mode_layout = QHBoxLayout()
-        excel_mode_layout.setSpacing(8)
-        
-        label_og   = QLabel("SME")
-        label_new  = QLabel("New")
-        for lbl in (label_og, label_new):
-            lbl.setStyleSheet("font-size:14px; padding:5px;")
-        
-        self.excel_mode_switch = ModeSwitch(self)
-        self.excel_mode_switch.setChecked(True)  # Start in New mode
-        
-        excel_mode_layout.addWidget(label_og)
-        excel_mode_layout.addWidget(self.excel_mode_switch)
-        excel_mode_layout.addWidget(label_new)
-        excel_mode_layout.addStretch()
-        
-        layout.addLayout(excel_mode_layout)
+        #excel_mode_layout = QHBoxLayout()
+        #excel_mode_layout.setSpacing(8)
+        #
+        #label_og   = QLabel("SME")
+        #label_new  = QLabel("New")
+        #for lbl in (label_og, label_new):
+        #    lbl.setStyleSheet("font-size:14px; padding:5px;")
+        #
+        #self.excel_mode_switch = ModeSwitch(self)
+        #self.excel_mode_switch.setChecked(True)  # Start in New mode
+        #
+        #excel_mode_layout.addWidget(label_og)
+        #excel_mode_layout.addWidget(self.excel_mode_switch)
+        #excel_mode_layout.addWidget(label_new)
+        #excel_mode_layout.addStretch()
+        #
+        #layout.addLayout(excel_mode_layout)
 
         # Dark mode toggle
         theme_switch_section.addStretch()
@@ -1629,12 +1629,12 @@ class SeleniumAutomationApp(QWidget):
             self.select_all_adas_button.setChecked(False)
         # ✅ Disable Excel Format toggle if Repair SI is active
         # ✅ Disable Excel Format toggle and reset to OG when Repair SI is active
-        if self.excel_mode_switch:
-            if is_repair:
-                self.excel_mode_switch.setChecked(False)   # ← Reset to OG
-                self.excel_mode_switch.setEnabled(False)   # ← Gray out
-            else:
-                self.excel_mode_switch.setEnabled(True)
+        #if self.excel_mode_switch:
+        #    if is_repair:
+        #        self.excel_mode_switch.setChecked(False)   # ← Reset to OG
+        #        self.excel_mode_switch.setEnabled(False)   # ← Gray out
+        #    else:
+        #        self.excel_mode_switch.setEnabled(True)
 
     # Function to select/unselect all manufacturers
     def select_all_manufacturers(self):
@@ -1994,7 +1994,7 @@ class SeleniumAutomationApp(QWidget):
             )
     
         excel_format   = "Repair SI" if self.mode_switch.isChecked() else "ADAS SI"
-        version_format = "NEW" if self.excel_mode_switch.isChecked() else "OG"
+        #version_format = "NEW" if self.excel_mode_switch.isChecked() else "OG"
     
         # Format the selected year ranges like "2012–2016, 2017–2021"
         ranges = self.get_selected_year_ranges() if hasattr(self, "get_selected_year_ranges") else []
@@ -2011,8 +2011,8 @@ class SeleniumAutomationApp(QWidget):
             + ", ".join(selected_systems) + "\n\n"
             "Excel Format:\n"
             f"{excel_format}\n\n"
-            "Version Format:\n"
-            f"{version_format}"
+            #"Version Format:\n"
+            #f"{version_format}"
             + cleanup_note + "\n\nContinue?"
         )
         
@@ -2529,14 +2529,14 @@ class SeleniumAutomationApp(QWidget):
             if self.cleanup_checkbox.isChecked():
                 try:
                     if hasattr(self, "extractor") and hasattr(self.extractor, "broken_entries"):
-                        if self.extractor.repair_mode and self.extractor.excel_mode == "og":
-                            hyperlink_col = 8
-                        elif not self.extractor.repair_mode and self.extractor.excel_mode == "og":
-                            hyperlink_col = 12
-                        elif not self.extractor.repair_mode and self.extractor.excel_mode == "new":
-                            hyperlink_col = 11
-                        else:
-                            hyperlink_col = None
+                        #if self.extractor.repair_mode and self.extractor.excel_mode == "og":
+                        #    hyperlink_col = 8
+                        #elif not self.extractor.repair_mode and self.extractor.excel_mode == "og":
+                        #    hyperlink_col = 12
+                        #elif not self.extractor.repair_mode and self.extractor.excel_mode == "new":
+                        #    hyperlink_col = 11
+                        #else:
+                        #    hyperlink_col = None
     
                         if hyperlink_col:
                             print("🧹 Finalizing cleanup — removing unresolved broken links...")
@@ -2754,7 +2754,7 @@ class SeleniumAutomationApp(QWidget):
         self._initial_folder_count = None  # 🆕 Reset baseline for "Folders Remain"
     
         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
-        excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
+        #excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
     
         current_link = self._multi_links[self._multi_link_index]
         args = [
@@ -2765,7 +2765,7 @@ class SeleniumAutomationApp(QWidget):
             ",".join(self.selected_systems),
             self.mode_flag,
             "cleanup" if self.cleanup_checkbox.isChecked() else "full",
-            excel_mode
+            #excel_mode
         ]
     
         self._cleanup_mode = self.cleanup_checkbox.isChecked()
@@ -2792,7 +2792,7 @@ class SeleniumAutomationApp(QWidget):
         self._initial_folder_count = None
 
         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
-        excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
+        #excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
 
         # Join all links for this manufacturer into a single argument
         all_links_arg = "||".join(self._multi_links)
@@ -2805,7 +2805,7 @@ class SeleniumAutomationApp(QWidget):
             ",".join(self.selected_systems) if hasattr(self, "selected_systems") else "",
             self.mode_flag,
             "cleanup",
-            excel_mode
+            #excel_mode
         ]
 
         # Batch mode marker so we can adjust hyperlink progress semantics
