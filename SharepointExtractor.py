@@ -774,10 +774,42 @@ class SharepointExtractor:
 
         self.mode = sys.argv[4] if len(sys.argv) > 4 else "adas"
         self.repair_mode = self.mode == "repair"
-        self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
-        self.cleanup_mode = sys.argv[5] == "cleanup" if len(sys.argv) > 5 else False
-        self.excel_mode = sys.argv[6] if len(sys.argv) > 6 else "og"
+        self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 and sys.argv[3] else []
+        self.cleanup_mode = (len(sys.argv) > 5 and sys.argv[5] == "cleanup")
+        self.excel_mode = sys.argv[6] if len(sys.argv) > 6 and sys.argv[6] else "og"
         self.broken_entries = []  # ← Store broken hyperlinks here for cleanup mode
+
+        # 🔹 Determine the target make (manufacturer)
+        # 1) Prefer an explicit make passed from Hyper as argv[7]
+        explicit_make = None
+        if len(sys.argv) > 7:
+            raw = str(sys.argv[7]).strip()
+            if raw:
+                explicit_make = raw
+
+        # 2) Otherwise infer from the Excel file name
+        inferred_make = None
+        known_makes = [
+            "Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac",
+            "Chevrolet", "Chrysler", "Dodge", "Fiat", "Ford", "Genesis", "GMC",
+            "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Land Rover",
+            "Lexus", "Lincoln", "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan",
+            "Porsche", "Ram", "Rolls Royce", "Subaru", "Tesla", "Toyota",
+            "Volkswagen", "Volvo",
+        ]
+        try:
+            excel_name_upper = os.path.basename(excel_file_path).upper()
+            for mk in known_makes:
+                if excel_name_upper.startswith(mk.upper()):
+                    inferred_make = mk
+                    break
+        except Exception:
+            inferred_make = None
+
+        # Final make used everywhere else in the extractor
+        self.sharepoint_make = explicit_make or inferred_make
+
+
         
         # Always set system_col and hyperlink index based on mode
         if self.repair_mode and self.excel_mode == "og":
@@ -837,22 +869,39 @@ class SharepointExtractor:
         )
         self.selenium_wait = WebDriverWait(self.selenium_driver, 10)
 
-        # Navigate to the main SharePoint page for Acura
+        # Navigate to the main SharePoint page (year-range root)
         print("Navigating to main SharePoint page link now...")
         self.selenium_driver.get(self.sharepoint_link)
  
         # Wait until the element with the specified XPath is found, or until 60 seconds have passed
-        try: WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__).until(EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)))
-        except: 
+        try:
+            WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__).until(
+                EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
+            )
+        except:
             print(f"The element was not found within {self.__MAX_WAIT_TIME__} seconds.")
             raise Exception(f"ERROR! Failed to find valid login state after {self.__MAX_WAIT_TIME__} seconds!")
         
-        # Find the make of the folder for the current sharepoint link and store it.
-        self.sharepoint_make = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1].get_attribute("innerText").strip()
-        print(f"Configured new SharepointExtractor for {self.sharepoint_make} correctly!")
+        # Read whatever the current SharePoint page title is (usually the year-range root)
+        # Read the current SharePoint page title (usually the year-range root)
+        root_title = (
+            self.selenium_driver
+            .find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1]
+            .get_attribute("innerText")
+            .strip()
+        )
+
+        # If we still don't have a make (no argv[7] and couldn't infer from Excel),
+        # fall back to using the page title like before.
+        if not self.sharepoint_make:
+            self.sharepoint_make = root_title
+
+        print(f"Configured new SharepointExtractor for {self.sharepoint_make} correctly! (root: {root_title})")
         
         if self.sharepoint_make.lower() == "toyota" and self.repair_mode:
            self.HYPERLINK_COLUMN_INDEX = 10  # Excel column J
+
+
               
     def __cleanup_across_all_links__(self) -> tuple[list, list]:
         """
@@ -1595,20 +1644,121 @@ class SharepointExtractor:
         if re.search(r'\.(pdf|docx?|xlsx?|pptx?)\b', name, re.IGNORECASE):
             return False
         return True
+
+    def __force_full_page_scroll__(self):
+        """
+        Scroll the OneDrive page to the bottom to force all folder rows
+        (e.g. Toyota / Volkswagen) to be loaded into the DOM, then back to top.
+        """
+        try:
+            # First get starting height
+            last_height = self.selenium_driver.execute_script(
+                "return document.body.scrollHeight"
+            )
+        except Exception:
+            return
+    
+        stable = 0
+        while stable < 3:
+            try:
+                # Scroll to bottom
+                self.selenium_driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            except Exception:
+                break
+    
+            time.sleep(0.7)  # give OneDrive time to load more rows
+    
+            try:
+                new_height = self.selenium_driver.execute_script(
+                    "return document.body.scrollHeight"
+                )
+            except Exception:
+                break
+    
+            if new_height == last_height:
+                stable += 1
+            else:
+                stable = 0
+                last_height = new_height
+    
+        # Optional: go back to top so our later row logic behaves as before
+        try:
+            self.selenium_driver.execute_script("window.scrollTo(0, 0);")
+            time.sleep(0.5)
+        except Exception:
+            pass
   
     def __get_row_name__(self, row_element: WebElement) -> str:
         """
         Read only the *first line* of the aria-label or innerText,
-        so we never pull in date/author on subsequent prints.
+        so we never pull in date/author lines.
+        No scrolling or extra sleeps here for speed – the container
+        is fully scrolled beforehand.
         """
         raw = row_element.get_attribute("aria-label")
         if raw and raw.strip():
-            # only the actual name, before any newline/date/author lines
             return raw.strip().splitlines()[0]
+    
+        text = (row_element.text or "").strip()
+        if text:
+            return text.splitlines()[0]
+    
+        return ""
+    
 
-        # Fallback to the visible text, again only first line
-        text = row_element.text.strip()
-        return text.splitlines()[0]
+    def __scroll_folder_container_to_bottom__(self):
+        """
+        Quickly scrolls the actual OneDrive folder container to force
+        all folder rows to load, then returns to the top.
+        """
+        # Locate the scrollable container (by class first, then fallback)
+        try:
+            container = self.selenium_driver.find_element(
+                By.CSS_SELECTOR,
+                "div.scrollableContainerRef_6ebaee8a"
+            )
+        except Exception:
+            try:
+                container = self.selenium_driver.find_element(
+                    By.CSS_SELECTOR,
+                    "div[data-automation-id='sp-grid']"
+                )
+            except Exception:
+                print("⚠️ Could not locate scrollable folder container.")
+                return
+    
+        try:
+            last_height = self.selenium_driver.execute_script(
+                "return arguments[0].scrollHeight;", container
+            )
+        except Exception:
+            return
+    
+        # At most 5 quick scrolls; no long stability loops
+        for _ in range(5):
+            self.selenium_driver.execute_script(
+                "arguments[0].scrollTop = arguments[0].scrollHeight;", container
+            )
+            time.sleep(0.2)
+            try:
+                new_height = self.selenium_driver.execute_script(
+                    "return arguments[0].scrollHeight;", container
+                )
+            except Exception:
+                break
+            if new_height == last_height:
+                break
+            last_height = new_height
+    
+        # Back to top
+        try:
+            self.selenium_driver.execute_script(
+                "arguments[0].scrollTop = 0;", container
+            )
+        except Exception:
+            pass
+    
+    
 
     def __get_unencrypted_link__(self, row_element: WebElement) -> str:
         """
@@ -1953,7 +2103,7 @@ class SharepointExtractor:
         indexed_files = []
         indexed_folders = []
     
-        # Compile ADAS/Repair‐mode regex patterns
+        # Compile ADAS/Repair-mode regex patterns
         if self.repair_mode and self.selected_adas:
             adas_patterns = [re.compile(re.escape(rs), re.IGNORECASE) for rs in self.selected_adas]
         elif self.selected_adas:
@@ -1964,12 +2114,12 @@ class SharepointExtractor:
         else:
             adas_patterns = None
     
-        # ─── ROBUST WAIT FOR FOLDER ROWS ───
-        # 1) wait for the table container to appear
+        # ─── WAIT FOR TABLE APPEAR ───
         WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__).until(
             EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
         )
-        # 2) wait for any loading spinner to vanish
+    
+        # Optional: wait for loading spinner to vanish
         try:
             WebDriverWait(self.selenium_driver, 5).until(
                 EC.invisibility_of_element_located((By.CSS_SELECTOR, ".loading-spinner"))
@@ -1977,29 +2127,27 @@ class SharepointExtractor:
         except TimeoutException:
             pass
     
-        # 3) grab all table containers on the page
+        # 🔹 QUICK SCROLL of the actual scrollable container so Toyota / Volkswagen load
+        self.__scroll_folder_container_to_bottom__()
+
+        time.sleep(1)
+    
+        # Get the folder table(s)
         page_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)
     
+        # Make compare string
+        target_make = (self.sharepoint_make or "").strip().upper()
+    
         for page_element in page_elements:
-            # Poll the number of rows until it stabilizes
-            prev_count = -1
-            stable = 0
-            rows = []
-            while stable < 3:
-                rows = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
-                count = len(rows)
-                if count == prev_count:
-                    stable += 1
-                else:
-                    stable = 0
-                prev_count = count
-                time.sleep(0.5)
+    
+            # Grab rows once (we already forced full load via scroll)
+            rows = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
     
             if not rows:
                 print("No table rows found in folder; skipping...")
                 continue
     
-            # Get the folder title from the page header
+            # Read the page header title
             page_title = (
                 self.selenium_driver
                 .find_elements(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)[-1]
@@ -2007,49 +2155,63 @@ class SharepointExtractor:
                 .strip()
             )
     
-            # Now iterate the fully−loaded rows
+            page_title_upper = page_title.upper()
+    
+            # Detect year-range root (contains "PDF DOCUMENTS")
+            is_year_range_root = "PDF DOCUMENTS" in page_title_upper
+    
+            # Iterate rows
             for row_element in rows:
                 entry_name = self.__get_row_name__(row_element)
+                entry_name_upper = entry_name.strip().upper()
                 entry_hierarchy = self.__get_entry_heirarchy__(row_element)
     
-                    # — SPECIAL: if Repair mode & SAS is selected, grab the SAS folder itself —
-                if self.repair_mode and 'SAS' in [s.upper() for s in self.selected_adas] \
-                   and entry_name.strip().upper() == 'SAS':
-                    # row_link is the folder URL we came in on
+                # — SPECIAL: If SAS selected in Repair mode —
+                if (self.repair_mode and
+                    'SAS' in [s.upper() for s in self.selected_adas] and
+                    entry_name_upper == 'SAS'):
                     folder_url = row_link or self.selenium_driver.current_url
                     indexed_files.append(
                         SharepointExtractor.SharepointEntry(
-                            entry_name,
-                            entry_hierarchy,
-                            folder_url,
+                            entry_name, entry_hierarchy, folder_url,
                             SharepointExtractor.EntryTypes.FILE_ENTRY
                         )
                     )
                     continue
-
-                # Special handling for "No ..." entries
+    
+                # — Handle "No ..." pseudo entries —
                 if entry_name.lower().startswith("no"):
                     simulated_entry = self.__simulate_entry_from_no_entry__(
                         entry_name,
-                        self.__get_encrypted_link__(row_element),   # Get real SharePoint link
-                        self.__get_entry_heirarchy__(row_element),
+                        self.__get_encrypted_link__(row_element),
+                        entry_hierarchy,
                         indexed_files
                     )
                     if simulated_entry:
                         indexed_files.append(simulated_entry)
-                    continue  # Do not add the original "No ..." item
-                                
-                # skip unwanted terms
+                    continue
+    
+                # — Skip unwanted terms —
                 ignore_terms = ["old", "part", "replacement", "data", "statement", "stament"]
                 if any(term in entry_name.lower() for term in ignore_terms):
                     continue
     
+                # ──────────────── FOLDER ENTRY ────────────────
                 if self.__is_row_folder__(row_element):
+    
+                    # 🔹 DYNAMIC MAKE FILTERING AT YEAR RANGE ROOT
+                    if not getattr(self, "cleanup_mode", False) and is_year_range_root:
+                        if target_make and target_make not in entry_name_upper:
+                            continue  # Not the make we want
+    
+                    # Skip folders inside the make folder that are not years
                     if page_title == self.sharepoint_make and not re.search(r"\d{4}", entry_name):
                         continue
     
+                    # Now get the folder link
                     folder_link = self.__get_unencrypted_link__(row_element)
-                    # special deep-folder check
+    
+                    # — SPECIAL MODULE FOLDER CHECK —
                     if re.search("|".join(self.__DEFINED_MODULE_NAMES__), entry_name):
                         self.selenium_driver.switch_to.new_window(WindowTypes.TAB)
                         self.selenium_driver.get(folder_link)
@@ -2059,7 +2221,7 @@ class SharepointExtractor:
                             )
                             sub_rows = sub_table.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
                             sub_names = [self.__get_row_name__(r) for r in sub_rows]
-                        except:
+                        except Exception:
                             sub_names = []
                         self.selenium_driver.close()
                         self.selenium_driver.switch_to.window(self.selenium_driver.window_handles[0])
@@ -2068,9 +2230,7 @@ class SharepointExtractor:
                             folder_link = self.__get_encrypted_link__(row_element)
                             indexed_files.append(
                                 SharepointExtractor.SharepointEntry(
-                                    entry_name,
-                                    entry_hierarchy,
-                                    folder_link,
+                                    entry_name, entry_hierarchy, folder_link,
                                     SharepointExtractor.EntryTypes.FOLDER_ENTRTY
                                 )
                             )
@@ -2078,9 +2238,7 @@ class SharepointExtractor:
     
                     indexed_folders.append(
                         SharepointExtractor.SharepointEntry(
-                            entry_name,
-                            entry_hierarchy,
-                            folder_link,
+                            entry_name, entry_hierarchy, folder_link,
                             SharepointExtractor.EntryTypes.FOLDER_ENTRTY
                         )
                     )
@@ -2091,7 +2249,7 @@ class SharepointExtractor:
                     if self.repair_mode:
                         module_matches = re.findall(r'\((.*?)\)', entry_name)
                         found_match = False
-                    
+    
                         if module_matches:
                             for module in module_matches:
                                 module = module.strip().upper()
@@ -2103,17 +2261,17 @@ class SharepointExtractor:
                             last_word = name_without_ext.split()[-1].strip().upper()
                             if last_word in [s.upper() for s in self.selected_adas]:
                                 found_match = True
-                    
+    
                         if not found_match:
                             print(f"Skipping {entry_name} — No matching system found in {self.selected_adas}")
                             continue
-
+    
                     else:
                         if not any(p.search(entry_name) for p in adas_patterns):
                             continue
                 # === 🔍 FILTERING ENDS HERE ===
     
-                    # — SPECIAL: if file mentions MDPS, hyperlink the parent folder instead —
+                # — SPECIAL: if file mentions MDPS, hyperlink the parent folder instead —
                 if not self.__is_row_folder__(row_element) \
                    and any(phrase in entry_name.upper() for phrase in ['EXCEPT MDPS', 'MDPS ONLY']):
                     folder_url = row_link or self.selenium_driver.current_url
@@ -2126,8 +2284,7 @@ class SharepointExtractor:
                         )
                     )
                     continue
-
-
+    
                 file_link = self.__get_encrypted_link__(row_element)
                 indexed_files.append(
                     SharepointExtractor.SharepointEntry(
@@ -2139,6 +2296,7 @@ class SharepointExtractor:
                 )
     
         return [indexed_folders, indexed_files]
+
      
     def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
         normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").replace("[", "").replace("]", "").replace("WL", "").replace("Multipurpose", "Multipurpose Camera").replace("-PL-PW072NLB", " Side Blind Zone Alert").replace("forward Collision Warning/Lane Departure Warning (FCW/LDW)", "FCW/LDW").strip().upper()
