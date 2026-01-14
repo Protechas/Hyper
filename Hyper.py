@@ -423,6 +423,13 @@ class SeleniumAutomationApp(QWidget):
     
         # "Select All (Manufacturers)" and "Select All (ADAS Systems)" button layout
         select_all_buttons_layout = QHBoxLayout()
+        # ---- FORCE BUTTON ROW TO MATCH COLUMN LAYOUT ----
+        select_all_buttons_layout.setSpacing(10)
+        select_all_buttons_layout.setStretch(0, 1)  # Manufacturers
+        select_all_buttons_layout.setStretch(1, 1)  # Year Ranges
+        select_all_buttons_layout.setStretch(2, 1)  # ADAS Systems
+        select_all_buttons_layout.setStretch(3, 1)  # Repair Systems
+        
         self.select_all_manufacturers_button = CustomButton('Select All (Manufacturers)', '#e3b505', self)
         self.select_all_manufacturers_button.clicked.connect(self.select_all_manufacturers)
         select_all_buttons_layout.addWidget(self.select_all_manufacturers_button)
@@ -445,6 +452,14 @@ class SeleniumAutomationApp(QWidget):
     
         # Manufacturer and ADAS selection layout
         manufacturer_selection_layout = QHBoxLayout()
+
+        # ---- FORCE CONTENT ROW TO MATCH BUTTON ROW ----
+        manufacturer_selection_layout.setSpacing(10)
+        manufacturer_selection_layout.setStretch(0, 1)  # Manufacturers column
+        manufacturer_selection_layout.setStretch(1, 1)  # Year Ranges column
+        manufacturer_selection_layout.setStretch(2, 1)  # ADAS column
+        manufacturer_selection_layout.setStretch(3, 1)  # Repair column
+        
     
         # Manufacturer tree widget with checkboxes
         manufacturer_list_layout = QVBoxLayout()
@@ -495,10 +510,16 @@ class SeleniumAutomationApp(QWidget):
         self.year_checkboxes = []  # analogous to self.adas_checkboxes
         
         # Create the three year checkboxes just like ADAS does its acronyms
+        # Center the whole column's content (label is already centered)
+        years_selection_layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        
         for text in year_items:
             cb = QCheckBox(text, self)
             self.year_checkboxes.append(cb)
-            years_selection_layout.addWidget(cb)
+        
+            # ✅ Center each checkbox under the Year button
+            years_selection_layout.addWidget(cb, alignment=Qt.AlignHCenter)
+
         
         # Keep direct handles for compatibility with existing logic
         # (old names used across your codebase)
@@ -578,11 +599,23 @@ class SeleniumAutomationApp(QWidget):
 
         self.repair_checkboxes = []
 
+        # Keep ADAS content pinned top + centered as a group
+        adas_selection_layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        
+        # --- Create first (don't add yet) so we can normalize widths ---
         for adas in adas_acronyms:
             checkbox = QCheckBox(adas, self)
             checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
             self.adas_checkboxes.append(checkbox)
-            adas_selection_layout.addWidget(checkbox)
+        
+        # ✅ Make all ADAS checkboxes the same width (based on the widest one)
+        max_w = max(cb.sizeHint().width() for cb in self.adas_checkboxes)
+        for cb in self.adas_checkboxes:
+            cb.setFixedWidth(max_w)
+        
+        # --- Now add them centered (they will align perfectly) ---
+        for cb in self.adas_checkboxes:
+            adas_selection_layout.addWidget(cb, alignment=Qt.AlignHCenter)
     
         manufacturer_selection_layout.addLayout(adas_selection_layout)
         layout.addLayout(manufacturer_selection_layout)

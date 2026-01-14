@@ -901,6 +901,60 @@ class SharepointExtractor:
         if self.sharepoint_make.lower() == "toyota" and self.repair_mode:
            self.HYPERLINK_COLUMN_INDEX = 10  # Excel column J
 
+    def __ensure_make_root_for_cleanup__(self, desired_make: str) -> None:
+        """
+        Cleanup Mode stale-safe helper:
+        - If current page already shows YEAR folders, do nothing.
+        - If current page shows MAKE folders (year-range root), click into the desired MAKE.
+        This version avoids holding Selenium elements long enough to go stale by immediately
+        converting rows into plain strings (name/href).
+        """
+        import re, time
+        from selenium.common.exceptions import StaleElementReferenceException
+    
+        if not desired_make:
+            return
+    
+        mk = desired_make.strip().upper()
+    
+        def _snapshot_folder_links():
+            # Pull fresh rows and immediately convert to (name, href) tuples (plain strings).
+            folders, _ = self.__get_folder_rows__()
+            snap = []
+            for f in folders:
+                try:
+                    name = (f.entry_name or "").strip()
+                    href = (f.entry_link or "").strip()
+                    if name and href:
+                        snap.append((name, href))
+                except StaleElementReferenceException:
+                    # If any single row is stale, skip it; we can retry overall
+                    continue
+                except Exception:
+                    continue
+            return snap
+    
+        # Try a couple times in case SharePoint re-renders
+        for _ in range(3):
+            snap = _snapshot_folder_links()
+    
+            # Already inside MAKE? (top-level = years)
+            if any(re.fullmatch(r"20\d{2}", name.strip()) for name, _ in snap):
+                return
+    
+            # Otherwise top-level is likely makes — find desired make
+            target = next((href for name, href in snap if name.strip().upper() == mk), None)
+            if not target:
+                target = next((href for name, href in snap if mk in name.strip().upper()), None)
+    
+            if target:
+                self.selenium_driver.get(target)
+                time.sleep(0.9)
+                return
+    
+            # If nothing matched, small delay then re-snapshot
+            time.sleep(0.6)
+    
 
               
     def __cleanup_across_all_links__(self) -> tuple[list, list]:
@@ -938,44 +992,56 @@ class SharepointExtractor:
             except Exception as e:
                 print(f"⚠️ Could not navigate to link: {root_link} → {e}")
                 continue
-    
-            # List year folders once for this root
+        
+            # ✅ NEW: if this root_link is a YEAR-RANGE root (top-level = MAKES),
+            # enter the correct MAKE folder so top-level becomes YEARS
+            try:
+                first_mk = None
+                for _, (_, mk, _, _) in self.broken_entries:
+                    first_mk = mk
+                    break
+                self.__ensure_make_root_for_cleanup__(first_mk or getattr(self, "sharepoint_make", ""))
+            except Exception as e:
+                print(f"⚠️ Cleanup make-root alignment failed: {e}")
+        
+            # List year folders once for this root (now guaranteed to be at MAKE root)
             try:
                 year_folders, _ = self.__get_folder_rows__()
             except Exception as e:
                 print(f"⚠️ Could not read top-level year folders for link: {e}")
                 continue
-    
+        
             for yr, models in grouped.items():
                 target_year = next((f for f in year_folders if yr == f.entry_name.strip()), None)
                 if not target_year:
                     continue
-    
+        
                 # Enter year folder once
                 self.selenium_driver.get(target_year.entry_link)
                 time.sleep(0.8)
-    
+        
                 # List model folders once for this year
                 try:
                     model_folders, _ = self.__get_folder_rows__()
                 except Exception as e:
                     print(f"⚠️ Could not read model folders under '{yr}': {e}")
                     continue
-    
+        
                 for mdl, sys_list in models.items():
                     target_model = next((f for f in model_folders if mdl.upper() == f.entry_name.strip().upper()), None)
                     if not target_model:
                         continue
-    
+        
                     # 👇 NEW: announce each attempt BEFORE navigating into the model folder/files
                     for sys_name in list(sys_list):
                         if (yr, mdl, sys_name) in resolved:
                             continue
                         print(f"🔗 Attempting to gather link for {yr} {self.sharepoint_make} {mdl} ({sys_name})")
-    
+        
                     # Enter model folder once (navigation happens AFTER the attempt logs)
                     self.selenium_driver.get(target_model.entry_link)
                     time.sleep(0.8)
+        
     
                     # Grab file rows once
                     try:
@@ -1103,6 +1169,16 @@ class SharepointExtractor:
                     # STEP 1: reset to root folder
                     self.selenium_driver.get(self.sharepoint_link)
                     time.sleep(2.0)
+
+                    # NEW: if sharepoint_link is a year-range root, enter the MAKE folder first
+                    from selenium.common.exceptions import StaleElementReferenceException
+                    try:
+                        self.__ensure_make_root_for_cleanup__(mk)
+                    except StaleElementReferenceException:
+                        # One retry after a short pause
+                        time.sleep(1.0)
+                        self.__ensure_make_root_for_cleanup__(mk)
+
     
                     # STEP 2: find year folder
                     year_folders, _ = self.__get_folder_rows__()
