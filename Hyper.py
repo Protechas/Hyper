@@ -326,9 +326,9 @@ class SeleniumAutomationApp(QWidget):
             #    ADAS S.I. PDF Documents (2012 - 2016) Processing
             #    ADAS S.I. PDF Documents (2017 - 2021) Processing
             #    ADAS S.I. PDF Documents (2022 - 2026) Processing
-            "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/IgD7Mkj1diEpT5HUcGb_i2OyAbc8DoHMGjACH1zBUcsOZCw?e=PIWJJs (2012 - 2016)",
-            "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/IgAw008KfwyARo6Q3nm-Db8zAb9oJ-edqXWyViI9DIL3yKo?e=ikm5Dl (2017 - 2021)",
-            "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/IgDabn0orgMXQ6KtlbhoGWYyAWGgKXMIfosw4mcHBH4bDek?e=t0HoNz (2022 - 2026)",
+            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgBDj7-ChL5nRLxaMCtZP9c-AXGf88uEGYBj5Xu7-_byXhE?e=b629MR (2012 - 2016)",
+            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCCwQgxKQ4sSYNIXTgfADBaAYxWkDXXqG8U0MlDrij4-yc?e=2vu1mJ (2017 - 2021)",
+            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgBov56SdaliQLEBBNHRwm16AV6bfX8e2otw1mir_IEpA88?e=EfgSsh (2022 - 2026)",
         ]
         
         # 2) List of all manufacturers Hyper supports (you can copy the exact

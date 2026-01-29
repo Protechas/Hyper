@@ -366,9 +366,20 @@ class SharepointExtractor:
     __DEBUG_RUN__ = False
 
     # Locators used to find objects on the sharepoint folder pages
-    __ONEDRIVE_PAGE_NAME_LOCATOR__ = "//li[@data-automationid='breadcrumb-listitem']//div[@data-automationid='breadcrumb-crumb']"
-    __ONEDRIVE_TABLE_LOCATOR__ = "//div[@data-automationid='list-page']"
-    __ONEDRIVE_TABLE_ROW_LOCATOR__ = "./div[@role='row' and starts-with(@data-automationid, 'row-')]"
+    # ✅ Breadcrumb / page name (last crumb)
+    __ONEDRIVE_PAGE_NAME_LOCATOR__ = "(//*[@data-automationid='breadcrumb-crumb'])[last()]"
+    
+    # ✅ List “page” container (virtualized list page)
+    # (Your original is OK, this just adds a couple safe fallbacks.)
+    __ONEDRIVE_TABLE_LOCATOR__ = "//*[@data-automationid='list-page' or @data-automationid='DetailsList' or contains(@id,'virtualized-list')][contains(@id,'page-') or @data-automationid]"
+    
+    # ✅ Rows under the list page
+    # Key fix: use .//* instead of ./div so it still works if rows aren’t direct children.
+    __ONEDRIVE_TABLE_ROW_LOCATOR__ = ".//*[@role='row' and starts-with(@data-automationid, 'row-')]"
+    
+    # ✅ (Optional but recommended) Row “name” / filename cell inside a row
+    __ONEDRIVE_ROW_NAME_LOCATOR__ = ".//*[@data-automationid='field-LinkFilename']//*[@data-id='heroField']"
+    
 
     # Collections of system names used for finding correct files and row locations
     __DEFINED_MODULE_NAMES__ = [
@@ -1909,9 +1920,26 @@ class SharepointExtractor:
                     Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER
                 ).perform()
                 time.sleep(1.25)
-                ActionChains(self.selenium_driver).send_keys(
-                    Keys.TAB, Keys.ARROW_DOWN, Keys.TAB, Keys.TAB, Keys.ENTER
-                ).perform()
+
+                # This Function is for in the 2nd part, ensuring its a view link only
+                actions = ActionChains(self.selenium_driver)
+                
+                actions.send_keys(Keys.TAB).perform()
+                
+                actions.send_keys(Keys.ARROW_DOWN).perform()
+                time.sleep(0.15)
+                
+                actions.send_keys(Keys.ARROW_DOWN).perform()  # ← permission selector
+                time.sleep(0.25)  # 👈 critical pause so SharePoint finishes rendering
+                
+                actions.send_keys(Keys.ENTER).perform()
+                time.sleep(0.15)
+                
+                actions.send_keys(Keys.TAB, Keys.TAB).perform()
+                
+                actions.send_keys(Keys.ENTER).perform()
+                #########################
+
                 time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
                 time.sleep(1.25)
@@ -2220,7 +2248,7 @@ class SharepointExtractor:
             rows = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
     
             if not rows:
-                print("No table rows found in folder; skipping...")
+                #print("No table rows found in folder; skipping...")
                 continue
     
             # Read the page header title
@@ -3087,7 +3115,7 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = True
+    debug_run = False
     
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
