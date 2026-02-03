@@ -77,7 +77,6 @@ def __add_yellow_text_marker(self, worksheet, year, make, model, system, file_na
             print(f"🟡 Marked NO-doc hyperlink in yellow at {cell.coordinate} → {file_name}")
             break    
 
-
 def _is_force_bottom_model(model: str) -> bool:
     """
     Models that MUST NOT regex/fuzzy-match into other trims.
@@ -158,9 +157,6 @@ def _is_force_bottom_combo(year, make, model) -> bool:
 
     return False
 
-
-
-
 # ★ NEW: model-family guards to prevent NX300h ↔ ES300 hops, etc.
 def _alpha_prefix(s: str) -> str:
     t = re.sub(r'[^A-Z0-9]', '', (s or '').upper())
@@ -181,7 +177,6 @@ def _cross_family_conflict(a: str, b: str) -> bool:
     an, bn = _model_number_block(a), _model_number_block(b)
     return bool(an and bn and an == bn and ap and bp and ap != bp)
 
-
 # ★ Add once near your helpers
 def _system_missing_text(txt: str) -> bool:
     """
@@ -199,7 +194,6 @@ def _system_missing_text(txt: str) -> bool:
     if "PLACE" in t and "SYS" in t:
         return True
     return False
-
 
 def _model_regex_from_excel(model_text: str):
     core = _strip_qualifiers(model_text)
@@ -279,7 +273,6 @@ def _extract_system_from_filename(file_name: str) -> str:
         "OCS","OCS1","OCS2","OCS3","OCS4",
     }
 
-
     # --- 1) Prefer (...) tokens ---
     paren_tokens = re.findall(r"\(([^\)]+)\)", name)
     for tok in paren_tokens:
@@ -313,8 +306,6 @@ def _extract_system_from_filename(file_name: str) -> str:
     # No system detected
     return ""
 
-
-
 def _system_val_for_row(self, row, repair_mode: bool):
     """
     Return (system_text, system_norm_for_index) for a given openpyxl 'row' (tuple of cells).
@@ -345,8 +336,6 @@ def _system_val_for_row(self, row, repair_mode: bool):
     sys_text = (str(sys_cell.value).strip().upper() if sys_cell else "")
     sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACTLY like your __build_row_index__
     return sys_text, sys_norm
-
-
 
 class SharepointExtractor: 
     """
@@ -781,8 +770,6 @@ class SharepointExtractor:
             v = row_tuple[i].value
             return (str(v).strip().upper() if v is not None else "")
 
-
-
         self.mode = sys.argv[4] if len(sys.argv) > 4 else "adas"
         self.repair_mode = self.mode == "repair"
         self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 and sys.argv[3] else []
@@ -819,9 +806,7 @@ class SharepointExtractor:
 
         # Final make used everywhere else in the extractor
         self.sharepoint_make = explicit_make or inferred_make
-
-
-        
+  
         # Always set system_col and hyperlink index based on mode
         if self.repair_mode and self.excel_mode == "og":
             self.system_col, self.HYPERLINK_COLUMN_INDEX = 4, 8
@@ -965,8 +950,6 @@ class SharepointExtractor:
     
             # If nothing matched, small delay then re-snapshot
             time.sleep(0.6)
-    
-
               
     def __cleanup_across_all_links__(self) -> tuple[list, list]:
         """
@@ -1399,7 +1382,6 @@ class SharepointExtractor:
     
         return None
 
-
     def populate_excel_file(self, file_entries: list) -> None:
         """
         Populates the excel file for the current make and stores all hyperlinks built in correct 
@@ -1791,8 +1773,7 @@ class SharepointExtractor:
             return text.splitlines()[0]
     
         return ""
-    
-
+   
     def __scroll_folder_container_to_bottom__(self):
         """
         Quickly scrolls the actual OneDrive folder container to force
@@ -1845,8 +1826,6 @@ class SharepointExtractor:
         except Exception:
             pass
     
-    
-
     def __get_unencrypted_link__(self, row_element: WebElement) -> str:
         """
         Build the “AllItems.aspx?id=…” URL for this row, but:
@@ -2400,8 +2379,7 @@ class SharepointExtractor:
                 )
     
         return [indexed_folders, indexed_files]
-
-     
+ 
     def __update_excel_with_whitelist__(self, ws, entry_name, document_url):
         normalized_entry_name = entry_name.replace("(", "").replace(")", "").replace("-", "/").replace("[", "").replace("]", "").replace("WL", "").replace("Multipurpose", "Multipurpose Camera").replace("-PL-PW072NLB", " Side Blind Zone Alert").replace("forward Collision Warning/Lane Departure Warning (FCW/LDW)", "FCW/LDW").strip().upper()
         for row in ws.iter_rows(min_row=2, min_col=3, max_col=3):
@@ -2427,7 +2405,6 @@ class SharepointExtractor:
                     return True
         return False
  
-
     # ── Header utils (header-only; no fallbacks) ─────────────────────────────────
     def _norm_hdr(self, s: str) -> str:
         # Normalize header text: trim, uppercase, collapse inner spaces
@@ -2516,7 +2493,6 @@ class SharepointExtractor:
         sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACT match with your __build_row_index__
         return sys_text, sys_norm
     
-    # ★ REPLACE your __update_excel__ with this (adds header-only hyperlink column ensure,
     #   overwrites OG 'Placeholder', keeps acronym verifier & NO-doc color logic)
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
         # Skip filtering if in Repair mode
@@ -2762,12 +2738,6 @@ class SharepointExtractor:
         # reset the NO-doc flag so it doesn’t bleed into the next write
         self._last_is_no_doc = False
 
-
-
-
-
-    
-
     def __find_row_in_excel__(self, ws, year, make, model, file_name, repair_mode=False, row_index=None):
         """
         Strict on:  Year + Make + System
@@ -2856,7 +2826,6 @@ class SharepointExtractor:
             self._last_match_approx = True
             return ws.cell(row=best_row, column=self.HYPERLINK_COLUMN_INDEX), None
 
-    
         # ======================= ★ Model-first rescue when sheet System is missing =======================
 
         def _system_missing(txt: str) -> bool:
@@ -3026,8 +2995,6 @@ class SharepointExtractor:
         self.HYPERLINK_COLUMN_INDEX = new_col
         return new_col
 
-    
-
     def __build_row_index__(self, ws, repair_mode=False):
         """
         Header-only row index:
@@ -3098,11 +3065,7 @@ class SharepointExtractor:
             index[key] = row[0].row
     
         return index
-
-        
-    
-    
-
+       
 #####################################################################################################################################################
 
 if __name__ == '__main__':   
@@ -3115,7 +3078,7 @@ if __name__ == '__main__':
 
     sharepoint_link = sys.argv[1]
     excel_file_path = sys.argv[2]
-    debug_run = False
+    debug_run = True
     
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 

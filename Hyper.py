@@ -362,7 +362,6 @@ class SeleniumAutomationApp(QWidget):
             make: list(repair_common_links) for make in all_manufacturers
         }
         
-
         # how many times to try each manufacturer before giving up
         self.max_attempts = 10
 
@@ -386,8 +385,7 @@ class SeleniumAutomationApp(QWidget):
         self.current_index = 0              # index into self.excel_paths / manufacturers_to_run
         self._next_timer = None             # single reusable timer for “check again in 10s”
         # ──────────────────────────────────────────────────────────────────────
-        
-      
+            
     def initUI(self):
         self.setWindowTitle('Hyper')
         self.setStyleSheet("background-color: #2e2e2e; color: white;")
@@ -519,8 +517,7 @@ class SeleniumAutomationApp(QWidget):
         
             # ✅ Center each checkbox under the Year button
             years_selection_layout.addWidget(cb, alignment=Qt.AlignHCenter)
-
-        
+      
         # Keep direct handles for compatibility with existing logic
         # (old names used across your codebase)
         self.year_2012_2016 = self.year_checkboxes[0]
@@ -542,9 +539,7 @@ class SeleniumAutomationApp(QWidget):
         
         # Add the Year Ranges column into the same parent layout as ADAS Systems
         manufacturer_selection_layout.addLayout(years_selection_layout)
-
-        
-        
+  
         # ADAS Acronyms section
         adas_selection_layout = QVBoxLayout()
         adas_label = QLabel("ADAS Systems")
@@ -858,8 +853,7 @@ class SeleniumAutomationApp(QWidget):
         # If all are checked, uncheck all; otherwise, check all
         for cb in self._year_checkboxes:
             cb.setChecked(not all_checked)
-
-    
+   
     def get_selected_year_ranges(self):
         ranges = []
         if getattr(self, "year_2012_2016", None) and self.year_2012_2016.isChecked():
@@ -871,8 +865,7 @@ class SeleniumAutomationApp(QWidget):
         if getattr(self, "year_2027_2031", None) and self.year_2027_2031.isChecked():   # ← NEW
             ranges.append((2027, 2031))
         return ranges
-        
-    
+            
     def _filter_links_by_selected_years(self, links):
         """
         Filter manufacturer SharePoint links by the Year Ranges checkboxes.
@@ -914,8 +907,6 @@ class SeleniumAutomationApp(QWidget):
             return links  # nothing mapped → don't surprise the user
     
         return [links[i] for i in sorted(set(wanted_idx)) if 0 <= i < len(links)]
-
-    
 
     def handle_extractor_output(self, line: str):
         """
@@ -986,8 +977,7 @@ class SeleniumAutomationApp(QWidget):
                 4: "2027–2031",  # NEW
             }
             return mapping.get(ord_num, "")
-
-            
+        
         # NEW: index→range fallback (matches your report buckets)
         def _index_range_label(idx: int | None, total: int) -> str:
             """
@@ -1013,7 +1003,6 @@ class SeleniumAutomationApp(QWidget):
                 return mapping.get(idx, "")
         
             return ""
-        
             
         # NOTE: assumes you added this class helper earlier
         # def _extract_year_range_from_link(self, link: str) -> str: ...
@@ -1151,7 +1140,6 @@ class SeleniumAutomationApp(QWidget):
                 # keep your existing context line
                 self._report_current_make = mk
 
-    
             else:
                 # 4b) Per-link — generic fallback (year-range + a time + a files number)
                 m_year = RE_YEAR.search(s)
@@ -1249,9 +1237,6 @@ class SeleniumAutomationApp(QWidget):
         if echo_lines:
             self.terminal.append_output("\n".join(echo_lines) + ("\n" if orig_ended_nl else ""))
 
-
-
-   
     def mark_manual_stop(self):
         """
         Reflect a manual stop in labels and progress bars (works for Cleanup + Regular).
@@ -1313,8 +1298,7 @@ class SeleniumAutomationApp(QWidget):
     
             # Force red fill to appear even if value == 0
             self._force_zero_red(bar, enable=stopped, full=True)
-
-          
+       
     def on_si_mode_toggled(self, state):
         """Enable one list & button, disable—and clear—the other."""
         is_repair = (state == Qt.Checked)
@@ -1668,9 +1652,6 @@ class SeleniumAutomationApp(QWidget):
     
         return any_hit
     
-
-
-
     def start_automation(self):
         # 1) gather selected manufacturers
         selected_manufacturers = []
@@ -2053,7 +2034,6 @@ class SeleniumAutomationApp(QWidget):
             if getattr(self, "terminal", None):
                 self.terminal.append_output(err)
 
-
     def _parse_and_update_report(self, line: str) -> None:
         """
         Parse a single log line to update progress bars and the dynamic report.
@@ -2218,7 +2198,6 @@ class SeleniumAutomationApp(QWidget):
         if data.get("total_files", 0) == 0 and data.get("links"):
             data["total_files"] = sum(int(l.get("files", 0)) for l in data["links"])
 
-
     def process_next_manufacturer(self):
         import re
     
@@ -2256,6 +2235,7 @@ class SeleniumAutomationApp(QWidget):
                             ws = wb['Model Version']
                             removed_count = 0
                             for row, (yr, mk, mdl, sys) in self.extractor.broken_entries:
+                                hyperlink_col = None
                                 cell = ws.cell(row=row, column=hyperlink_col)
                                 link_to_test = (
                                     cell.hyperlink.target if cell.hyperlink
@@ -2705,10 +2685,7 @@ class SeleniumAutomationApp(QWidget):
         else:
             # Try the next sub-link
             self.run_all_links_batch() if self.cleanup_checkbox.isChecked() else self.run_next_sub_link()
-
-
-
-    
+ 
     def update_manufacturer_progress_bar(self):
         total_links = getattr(self, "_hyperlinks_total_links", 1)
         done_links = getattr(self, "_hyperlinks_done_links", 0)
@@ -2951,7 +2928,6 @@ class SeleniumAutomationApp(QWidget):
             # Release the guard so future *distinct* completions can run
             self._finish_guard = False
 
-
     def select_all(self):
         select_all_checked = True
         for i in range(self.manufacturer_tree.topLevelItemCount()):
@@ -3087,8 +3063,7 @@ class SeleniumAutomationApp(QWidget):
                 self._force_zero_red(bar, enable=True)
             else:
                 self._force_zero_red(bar, enable=False)
-    
-       
+      
     def on_start_stop(self):
         # — START path —
         if not self.is_running:
