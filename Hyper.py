@@ -328,7 +328,7 @@ class SeleniumAutomationApp(QWidget):
             #    ADAS S.I. PDF Documents (2022 - 2026) Processing
             "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgBDj7-ChL5nRLxaMCtZP9c-AXGf88uEGYBj5Xu7-_byXhE?e=b629MR (2012 - 2016)",
             "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCCwQgxKQ4sSYNIXTgfADBaAYxWkDXXqG8U0MlDrij4-yc?e=2vu1mJ (2017 - 2021)",
-            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgBov56SdaliQLEBBNHRwm16AV6bfX8e2otw1mir_IEpA88?e=EfgSsh (2022 - 2026)",
+            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCBJWvKZ8whS4L_VN_27gXvAeqaQ6jnQapnO___qSHBD_w?e=nBoOxp (2022 - 2026)",
         ]
         
         # 2) List of all manufacturers Hyper supports (you can copy the exact
@@ -678,6 +678,42 @@ class SeleniumAutomationApp(QWidget):
         # after creating self.si_mode_toggle …
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
+        # ── Upload Type Toggle (OEM / All_Data) ──
+        self.upload_type_container = QWidget()
+        upload_type_layout = QHBoxLayout(self.upload_type_container)
+        upload_type_layout.setContentsMargins(0, 0, 0, 0)
+        upload_type_layout.setSpacing(8)
+        
+        self.label_oem = QLabel("OEM")
+        self.label_alldata = QLabel("All_Data")
+        for lbl in (self.label_oem, self.label_alldata):
+            lbl.setStyleSheet("font-size:14px; padding:5px;")
+        
+        # Reuse your existing switch look
+        self.upload_type_switch = ModeSwitch(self)
+        self.upload_type_switch.setChecked(True)  # True = OEM by default
+        
+        upload_type_layout.addWidget(self.label_oem)
+        upload_type_layout.addWidget(self.upload_type_switch)
+        upload_type_layout.addWidget(self.label_alldata)
+        upload_type_layout.addStretch()
+        
+        # Add directly under ADAS/Repair toggle row
+        layout.addWidget(self.upload_type_container)
+        
+        # Start disabled (greyed out). It will only enable when Upload Mode is checked.
+        self.upload_type_container.setEnabled(False)
+        
+        # Optional: make label bold match the toggle state
+        self.upload_type_switch.stateChanged.connect(self.on_upload_type_toggled)
+        self.on_upload_type_toggled(self.upload_type_switch.checkState())
+
+
+        # set initial enabled/disabled state based on default toggle
+        self.on_si_mode_toggled(self.mode_switch.checkState())
+
+        layout.addWidget(self.upload_type_container)
+
         # Excel Format Toggle Layout (OG / New)
         #excel_mode_layout = QHBoxLayout()
         #excel_mode_layout.setSpacing(8)
@@ -706,7 +742,22 @@ class SeleniumAutomationApp(QWidget):
         # ── Clean up Mode checkbox ──
         self.cleanup_checkbox = QCheckBox("Broken Hyperlink Mode", self)
         self.cleanup_checkbox.setStyleSheet("font-size: 14px; padding: 5px;")
-        layout.addWidget(self.cleanup_checkbox)    
+        
+        # NEW: Put Broken Hyperlink Mode + Upload Mode on the same row
+        cleanup_upload_row = QHBoxLayout()
+        cleanup_upload_row.addWidget(self.cleanup_checkbox)
+        
+        self.upload_mode_checkbox = QCheckBox("Upload Mode", self)
+        self.upload_mode_checkbox.setStyleSheet("font-size: 14px; padding: 5px;")
+        self.upload_mode_checkbox.setChecked(False)
+        cleanup_upload_row.addWidget(self.upload_mode_checkbox)
+        
+        cleanup_upload_row.addStretch()
+        layout.addLayout(cleanup_upload_row)
+        
+        # Wire Upload Mode -> enable/disable OEM/All_Data toggle row
+        self.upload_mode_checkbox.toggled.connect(self.on_upload_mode_toggled)
+         
     
         # ── Pause/Resume & Start/Stop Buttons ──
         self.pause_button = CustomButton('Pause Automation', '#e3a008', self)
@@ -838,9 +889,6 @@ class SeleniumAutomationApp(QWidget):
         
         # after adding all widgets and layouts…
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
-
-        # set initial enabled/disabled state based on default toggle
-        self.on_si_mode_toggled(self.mode_switch.checkState())
 
         self.setLayout(layout)
         self.resize(600, 400)
@@ -1331,6 +1379,30 @@ class SeleniumAutomationApp(QWidget):
         #    else:
         #        self.excel_mode_switch.setEnabled(True)
 
+    def on_upload_mode_toggled(self, checked: bool):
+        """
+        Upload Mode controls whether OEM/All_Data toggle is enabled.
+        Greyed out unless Upload Mode is checked.
+        """
+        if hasattr(self, "upload_type_container"):
+            self.upload_type_container.setEnabled(checked)
+    
+    
+    def on_upload_type_toggled(self, state):
+        """
+        Keeps the OEM / All_Data labels visually in sync with the switch.
+        Checked = OEM (default), Unchecked = All_Data
+        """
+        is_oem = (state == Qt.Checked)
+    
+        if hasattr(self, "label_oem") and hasattr(self, "label_alldata"):
+            if is_oem:
+                self.label_oem.setStyleSheet("font-size:14px; padding:5px; font-weight:bold;")
+                self.label_alldata.setStyleSheet("font-size:14px; padding:5px; font-weight:normal;")
+            else:
+                self.label_oem.setStyleSheet("font-size:14px; padding:5px; font-weight:normal;")
+                self.label_alldata.setStyleSheet("font-size:14px; padding:5px; font-weight:bold;")
+    
     # Function to select/unselect all manufacturers
     def select_all_manufacturers(self):
         select_all_checked = True
@@ -1653,6 +1725,10 @@ class SeleniumAutomationApp(QWidget):
         return any_hit
     
     def start_automation(self):
+        """Gather selections, confirm, and kick off the automation process."""
+
+        upload_mode = bool(getattr(self, "upload_mode_checkbox", None) and self.upload_mode_checkbox.isChecked())
+
         # 1) gather selected manufacturers
         selected_manufacturers = []
         for i in range(self.manufacturer_tree.topLevelItemCount()):
@@ -1667,11 +1743,12 @@ class SeleniumAutomationApp(QWidget):
             selected_systems = [cb.text() for cb in self.adas_checkboxes if cb.isChecked()]
     
         # 3) sanity check
-        if not (self.excel_paths and selected_manufacturers and selected_systems):
-            QMessageBox.warning(self, 'Warning',
-                "Please select Excel files, manufacturers, and at least one system.", QMessageBox.Ok)
-            return
-    
+        if not upload_mode:
+            if not (self.excel_paths and selected_manufacturers and selected_systems):
+                QMessageBox.warning(self, 'Warning',
+                    "Please select Excel files, manufacturers, and at least one system.", QMessageBox.Ok)
+                return
+           
         # 4) confirm and kick off
         excel_list = "\n".join(f"{i+1}. {os.path.basename(path)}" for i, path in enumerate(self.excel_paths))
         manu_list  = "\n".join(f"{i+1}. {m}" for i, m in enumerate(selected_manufacturers))
@@ -1684,6 +1761,13 @@ class SeleniumAutomationApp(QWidget):
                 "and find the broken links. Based off of those results, it will\n"
                 "find the matching links and repair them."
             )
+
+        upload_note = ""
+        if upload_mode:
+            upload_note = (
+                "\n\n⚠️ Upload Mode Activated:\n"
+                "Upload mode will ignore everything.\n\nContinue?"
+    )
     
         excel_format   = "Repair SI" if self.mode_switch.isChecked() else "ADAS SI"
         #version_format = "NEW" if self.excel_mode_switch.isChecked() else "OG"
@@ -1703,16 +1787,55 @@ class SeleniumAutomationApp(QWidget):
             + ", ".join(selected_systems) + "\n\n"
             "Excel Format:\n"
             f"{excel_format}\n\n"
-            #"Version Format:\n"
-            #f"{version_format}"
-            + cleanup_note + "\n\nContinue?"
+            + cleanup_note
+            + upload_note
         )
         
-    
+        
         if QMessageBox.question(self, 'Confirmation', confirm_message,
                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
             return
-    
+        # ---------------- UPLOAD MODE BRANCH ----------------
+        upload_mode = bool(getattr(self, "upload_mode_checkbox", None) and self.upload_mode_checkbox.isChecked())
+        if upload_mode:
+            # Prompt for SharePoint Site URL + Local path
+            dest_url, site_url = self.prompt_upload_urls()
+            if not dest_url or not site_url:
+                QMessageBox.warning(self, "Missing Info", "Upload cancelled: you did not provide required URL/path.")
+                return
+        
+            # Store for reference/debug
+            self.upload_local_path = dest_url      # local folder path (your "local drive URL")
+            self.upload_site_url = site_url        # SharePoint page to navigate to
+        
+            # Mark running + show terminal (reuse your existing UI behavior)
+            self.is_running = True
+            self.stop_requested = False
+            self._report_written = False
+        
+            # Swap Start -> Stop like you already do
+            layout = self.button_layout
+            layout.removeWidget(self.start_button)
+            self.start_button.deleteLater()
+            self.start_button = CustomButton("Stop Automation", "#e63946", self)
+            self.start_button.clicked.connect(self.on_start_stop)
+            layout.addWidget(self.start_button)
+        
+            self.pause_button.setEnabled(True)
+            self.pause_button.setText('Pause Automation')
+            self.pause_requested = False
+        
+            # Ensure terminal is up
+            if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
+                self.terminal = TerminalDialog(self)
+            self.terminal.show()
+            self.terminal.raise_()
+        
+            # Launch uploader thread
+            self.run_upload_mode(self.upload_site_url, self.upload_local_path)
+            return
+        # ---------------------------------------------------
+        
         # user clicked YES → mark running
         self.is_running     = True
         self.stop_requested = False
@@ -1860,6 +1983,98 @@ class SeleniumAutomationApp(QWidget):
         self.current_index = 0
         self._clear_queue_state()
         self.process_next_manufacturer()
+
+    ########################################### Class Addons go here ########################################### 
+
+    def prompt_upload_urls(self):
+        """
+        Prompts user for:
+          1) Destination URL (where uploads should go)
+          2) Site URL (SharePoint page Selenium should navigate to)
+        Returns: (dest_url, site_url) or (None, None) if canceled/invalid
+        """
+        from PyQt5.QtWidgets import (
+            QDialog, QVBoxLayout, QFormLayout, QLineEdit, QLabel, QDialogButtonBox
+        )
+    
+        dlg = QDialog(self)
+        dlg.setWindowTitle("SharePoint Upload URL(s)")
+        dlg.setModal(True)
+    
+        root = QVBoxLayout(dlg)
+    
+        title = QLabel("Please enter URL(s) for uploading files to SharePoint:")
+        root.addWidget(title)
+    
+        form = QFormLayout()
+    
+        dest_edit = QLineEdit(dlg)
+        dest_edit.setPlaceholderText("Paste destination folder/library URL here...")
+        form.addRow("Upload Destination URL:", dest_edit)
+    
+        site_edit = QLineEdit(dlg)
+        site_edit.setPlaceholderText("Paste SharePoint site/page URL Selenium should open...")
+        form.addRow("SharePoint Site URL:", site_edit)
+    
+        root.addLayout(form)
+    
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, parent=dlg)
+        root.addWidget(buttons)
+    
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+    
+        if dlg.exec_() != QDialog.Accepted:
+            return None, None
+    
+        dest_url = dest_edit.text().strip()
+        site_url = site_edit.text().strip()
+    
+        if not dest_url or not site_url:
+            return None, None
+    
+        return dest_url, site_url
+    
+    def run_upload_mode(self, sharepoint_site_url: str, local_path: str):
+        """
+        Upload Mode: launch SharepointExtractor in 'upload' run_mode.
+        Uses current WorkerThread args pattern.
+        """
+        script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
+    
+        # Use first excel path if available, else pass empty (extractor won't use it in upload mode)
+        excel_path = self.excel_paths[0] if getattr(self, "excel_paths", None) else ""
+    
+        # Mode flag still passed so SharepointExtractor can reuse existing driver/profile logic
+        mode_flag = "repair" if self.mode_switch.isChecked() else "adas"
+    
+        # OEM vs All_Data (optional) if you already created the switch
+        upload_type = "oem"
+        if hasattr(self, "upload_type_switch"):
+            upload_type = "oem" if self.upload_type_switch.isChecked() else "all_data"
+    
+        args = [
+            sys.executable,
+            script_path,
+            sharepoint_site_url,           # argv[1] sharepoint_link
+            excel_path,                    # argv[2] excel_file_path (not used in upload)
+            "",                            # argv[3] systems_csv (ignored)
+            mode_flag,                     # argv[4] adas/repair (kept for consistency)
+            "upload",                      # argv[5] run_mode
+            "",                            # argv[6] excel_mode (unused here, keep placeholder)
+            "",                            # argv[7] explicit_make (optional)
+            local_path,                    # argv[8] local folder path to upload
+            upload_type,                   # argv[9] oem/all_data
+        ]
+    
+        # Start thread like your normal flows
+        thread = WorkerThread(args, "UPLOAD_MODE", parent=self)
+        self.thread = thread
+        thread.output_signal.connect(self.handle_extractor_output)
+        thread.finished_signal.connect(self.on_upload_mode_finished)
+        thread.start()
+        self.threads.append(thread)
+    
 
     def _get_hyper_logs_dir(self) -> str:
         import os, logging
@@ -2927,6 +3142,40 @@ class SeleniumAutomationApp(QWidget):
         finally:
             # Release the guard so future *distinct* completions can run
             self._finish_guard = False
+
+    def on_upload_mode_finished(self, *args):
+        """
+        Upload Mode completion handler. Does NOT depend on manufacturer counters.
+        Safely resets UI back to idle state.
+        """
+        try:
+            # Stop state
+            self.is_running = False
+            self.stop_requested = False
+            self.pause_requested = False
+    
+            # Disable pause button like your normal end-of-run behavior
+            if hasattr(self, "pause_button"):
+                self.pause_button.setEnabled(False)
+                self.pause_button.setText("Pause Automation")
+    
+            # Swap Stop -> Start (match your existing styling)
+            if hasattr(self, "button_layout") and hasattr(self, "start_button"):
+                layout = self.button_layout
+                layout.removeWidget(self.start_button)
+                self.start_button.deleteLater()
+    
+                self.start_button = CustomButton("Start Automation", "#e3b505", self)
+                self.start_button.clicked.connect(self.on_start_stop)
+                layout.addWidget(self.start_button)
+    
+            # Optional: update any status label you have
+            if hasattr(self, "current_manufacturer_label"):
+                self.current_manufacturer_label.setText("Upload Mode complete")
+    
+        except Exception as e:
+            print(f"⚠️ Upload finished handler error: {e}")
+    
 
     def select_all(self):
         select_all_checked = True

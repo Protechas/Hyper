@@ -9,8 +9,10 @@ import openpyxl
 import subprocess
 import urllib.parse
 import tkinter as tk
+import pyautogui
 from enum import Enum
 import win32clipboard
+from difflib import SequenceMatcher
 from tkinter import messagebox
 from selenium import webdriver
 import chromedriver_autoinstaller
@@ -30,11 +32,11 @@ from selenium.webdriver.remote.webelement import WebElement
 import urllib.parse
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+
 
 #####################################################################################################################################################
 
-import re
-from difflib import SequenceMatcher
 
 def _strip_qualifiers(s: str) -> str:
     s = (s or '')
@@ -897,6 +899,321 @@ class SharepointExtractor:
         if self.sharepoint_make.lower() == "toyota" and self.repair_mode:
            self.HYPERLINK_COLUMN_INDEX = 10  # Excel column J
 
+           ###############################  Upload Files Code #############################################################################
+
+    def run_upload_flow(self, local_path: str, upload_type: str = "oem"):
+        import os
+        import time
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+    
+        print(f"📤 Upload Mode starting | type={upload_type}")
+        print(f"📁 Local path: {local_path}")
+    
+        # ----------------------------
+        # 0) Normalize / validate local path
+        # ----------------------------
+        lp = (local_path or "").strip().strip('"')
+    
+        # Support file:///C:/... pasted from Explorer
+        if lp.lower().startswith("file:///"):
+            lp = lp.replace("file:///", "").replace("/", "\\")
+    
+        if lp.lower().startswith(("http://", "https://")):
+            raise Exception("❌ This upload method requires a LOCAL folder/file path, not an http(s) URL.")
+    
+        if not os.path.exists(lp):
+            raise Exception(f"❌ Local path does not exist: {lp}")
+    
+        is_dir = os.path.isdir(lp)
+        folder_name = os.path.basename(os.path.normpath(lp)) if is_dir else ""
+    
+        wait = WebDriverWait(self.selenium_driver, 25)
+    
+        # ----------------------------
+        # Helpers: click Upload and menu items (KEEP candidates same)
+        # ----------------------------
+        def click_upload_button():
+            upload_btn_candidates = [
+                (By.XPATH, "//button[contains(., 'Create') or contains(., 'Upload')]"),
+                (By.XPATH, "//span[contains(., 'Create') or contains(., 'Upload')]/ancestor::button[1]"),
+                (By.XPATH, "//*[contains(@aria-label,'Create') or contains(@aria-label,'Upload')]/ancestor::button[1]"),
+            ]
+            for how, sel in upload_btn_candidates:
+                try:
+                    btn = wait.until(EC.element_to_be_clickable((how, sel)))
+                    btn.click()
+                    time.sleep(0.35)
+                    return True
+                except Exception:
+                    continue
+            return False
+    
+        def click_menu_item(label_contains: str):
+            menu_candidates = [
+                (By.XPATH, f"//*[(@role='menuitem' or @role='option') and contains(., '{label_contains}')]"),
+                (By.XPATH, f"//button[contains(., '{label_contains}')]"),
+                (By.XPATH, f"//span[contains(., '{label_contains}')]/ancestor::*[(@role='menuitem' or @role='option' or self::button)][1]"),
+            ]
+            for how, sel in menu_candidates:
+                try:
+                    el = WebDriverWait(self.selenium_driver, 8).until(EC.element_to_be_clickable((how, sel)))
+                    el.click()
+                    time.sleep(0.35)
+                    return True
+                except Exception:
+                    continue
+            return False
+    
+        # ----------------------------
+        # 1) If local path is a folder, create a SharePoint folder with same name and enter it
+        # ----------------------------
+        if is_dir:
+            print(f"📁 Detected folder upload. Will create SharePoint folder: {folder_name}")
+    
+            if not click_upload_button():
+                raise Exception("❌ Could not find the Create/Upload button on SharePoint page.")
+    
+            # IMPORTANT: In your UI, "Folder" under Create/Upload is typically "New folder" (create in SharePoint)
+            if not click_menu_item("Folder"):
+                # Some tenants call it "New folder"
+                click_menu_item("New folder")
+    
+            # Folder name textbox (multiple possible selectors)
+            name_box = None
+            name_candidates = [
+                (By.XPATH, "//input[@type='text' and (@aria-label='Name' or contains(@aria-label,'name') or contains(@placeholder,'name') or contains(@placeholder,'Name'))]"),
+                (By.XPATH, "//input[@type='text' and contains(@class,'ms-TextField-field')]"),
+                (By.XPATH, "//input[@type='text']"),
+            ]
+            for how, sel in name_candidates:
+                try:
+                    name_box = WebDriverWait(self.selenium_driver, 8).until(EC.element_to_be_clickable((how, sel)))
+                    break
+                except Exception:
+                    continue
+    
+            if not name_box:
+                raise Exception("❌ Could not find folder name input after clicking Folder.")
+    
+            # Enter folder name
+            name_box.clear()
+            name_box.send_keys(folder_name)
+            time.sleep(0.2)
+    
+            # Click Create button
+            create_btn = None
+            create_candidates = [
+                (By.XPATH, "//button[contains(., 'Create')]"),
+                (By.XPATH, "//*[(@role='button' or self::button) and contains(., 'Create')]"),
+            ]
+            for how, sel in create_candidates:
+                try:
+                    create_btn = WebDriverWait(self.selenium_driver, 8).until(EC.element_to_be_clickable((how, sel)))
+                    break
+                except Exception:
+                    continue
+    
+            if not create_btn:
+                raise Exception("❌ Could not find Create button for new folder dialog.")
+            
+            # Try Enter first (often submits the dialog reliably)
+            try:
+                name_box.send_keys("\n")
+                time.sleep(0.8)
+            except Exception:
+                pass
+            
+            # Wait for the dialog backdrop to go away (if it was submitted by Enter)
+            try:
+                WebDriverWait(self.selenium_driver, 8).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR, ".fui-DialogSurface__backdrop"))
+                )
+            except Exception:
+                # If still visible, we'll force the click via JS
+                pass
+            
+            # If dialog is still there, click Create using JS (avoids click interception)
+            try:
+                self.selenium_driver.execute_script("arguments[0].click();", create_btn)
+            except Exception:
+                # final fallback: normal click after short wait
+                time.sleep(0.5)
+                create_btn.click()
+            
+            time.sleep(1.2)
+            
+    
+            # Close the Create/Upload dropdown menu (it's blocking clicks)
+            try:
+                from selenium.webdriver.common.keys import Keys
+                from selenium.webdriver.common.action_chains import ActionChains
+                ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
+                time.sleep(0.4)
+            except Exception:
+                pass
+            
+            # Extra ESC fallback (sometimes the menu is stubborn)
+            try:
+                import pyautogui
+                pyautogui.press("esc")
+                time.sleep(0.2)
+            except Exception:
+                pass
+            
+            # Click into the newly created folder in the list
+            folder_row = None
+            folder_row_candidates = [
+                (By.XPATH, f"//a[normalize-space()='{folder_name}']"),
+                (By.XPATH, f"//span[normalize-space()='{folder_name}']/ancestor::a[1]"),
+                (By.XPATH, f"//span[normalize-space()='{folder_name}']/ancestor::*[@role='row'][1]//a"),
+                (By.XPATH, f"//*[@role='row']//*[normalize-space()='{folder_name}']"),
+            ]
+            
+            for how, sel in folder_row_candidates:
+                try:
+                    folder_row = WebDriverWait(self.selenium_driver, 15).until(
+                        EC.element_to_be_clickable((how, sel))
+                    )
+                    break
+                except Exception:
+                    continue
+            
+            if not folder_row:
+                raise Exception(f"❌ Folder '{folder_name}' was created but could not be clicked in the list.")
+            
+            # Try normal click first
+            try:
+                folder_row.click()
+            except Exception:
+                self.selenium_driver.execute_script("arguments[0].click();", folder_row)
+            
+            time.sleep(1.2)
+            
+    
+        # ----------------------------
+        # 2) Build upload list (files inside folder recursively OR single file)
+        # ----------------------------
+        files_to_upload = []
+        if os.path.isfile(lp):
+            files_to_upload = [os.path.abspath(lp)]
+        else:
+            for root, _, files in os.walk(lp):
+                for fname in files:
+                    fpath = os.path.abspath(os.path.join(root, fname))
+                    base = os.path.basename(fpath)
+                    if base.startswith("~$") or base.lower() in {"thumbs.db", "desktop.ini"}:
+                        continue
+                    if os.path.exists(fpath):
+                        files_to_upload.append(fpath)
+    
+        if not files_to_upload:
+            raise Exception(f"❌ '{folder_name or lp}' doesn’t have any files to upload (locally).")
+    
+        print(f"📦 Uploading {len(files_to_upload)} file(s)...")
+    
+        # ----------------------------
+        # 3) Click Upload → Files (reveals input[type=file])
+        # ----------------------------
+        if not click_upload_button():
+            raise Exception("❌ Could not find the Create/Upload button on SharePoint page (for upload).")
+        click_menu_item("Files")
+    
+        # ----------------------------
+        # 4) Find input[type=file] robustly
+        # ----------------------------
+        def find_file_inputs_anywhere(timeout=25):
+            end = time.time() + timeout
+            selectors = [
+                "input[type='file']",
+                "input[type=file]",
+                "input[type='file'][multiple]",
+                "input[accept][type='file']",
+            ]
+    
+            # direct DOM polling
+            while time.time() < end:
+                for sel in selectors:
+                    els = self.selenium_driver.find_elements(By.CSS_SELECTOR, sel)
+                    if els:
+                        return els
+                time.sleep(0.25)
+    
+            # iframes
+            frames = self.selenium_driver.find_elements(By.TAG_NAME, "iframe")
+            for fr in frames:
+                try:
+                    self.selenium_driver.switch_to.frame(fr)
+                    for sel in selectors:
+                        els = self.selenium_driver.find_elements(By.CSS_SELECTOR, sel)
+                        if els:
+                            self.selenium_driver.switch_to.default_content()
+                            return els
+                except Exception:
+                    pass
+                finally:
+                    try:
+                        self.selenium_driver.switch_to.default_content()
+                    except Exception:
+                        pass
+    
+            # JS fallback
+            try:
+                els = self.selenium_driver.execute_script(
+                    "return Array.from(document.querySelectorAll('input')).filter(i => i.type === 'file');"
+                )
+                if els:
+                    return els
+            except Exception:
+                pass
+    
+            return []
+    
+        inputs = find_file_inputs_anywhere(timeout=25)
+        if not inputs:
+            raise Exception("❌ Could not find any file upload input after clicking Upload → Files.")
+    
+        # Pick an enabled input; prefer multiple
+        file_input = None
+        for inp in inputs:
+            try:
+                if inp.get_attribute("disabled"):
+                    continue
+                if inp.get_attribute("multiple") is not None:
+                    file_input = inp
+                    break
+                if file_input is None:
+                    file_input = inp
+            except Exception:
+                continue
+    
+        if not file_input:
+            raise Exception("❌ Found input[type=file] elements but none were usable/enabled.")
+    
+        # ----------------------------
+        # 5) Upload in batches
+        # ----------------------------
+        CHUNK_SIZE = 120
+        for i in range(0, len(files_to_upload), CHUNK_SIZE):
+            batch = files_to_upload[i:i + CHUNK_SIZE]
+            print(f"📤 Uploading batch {(i // CHUNK_SIZE) + 1} ({len(batch)} files)...")
+            file_input.send_keys("\n".join(batch))
+            time.sleep(2.0)
+            time.sleep(min(30, max(6, len(batch) * 0.25)))
+    
+        # Close any open menu/popup
+        try:
+            import pyautogui
+            pyautogui.press("esc")
+        except Exception:
+            pass
+    
+        print("✅ Upload submitted. Waiting for SharePoint to settle...")
+        time.sleep(10)
+    
+ ##########################################################################################################################
+        
     def __ensure_make_root_for_cleanup__(self, desired_make: str) -> None:
         """
         Cleanup Mode stale-safe helper:
@@ -3076,16 +3393,28 @@ if __name__ == '__main__':
    # debug_run = True
 
 
-    sharepoint_link = sys.argv[1]
-    excel_file_path = sys.argv[2]
+    sharepoint_link = sys.argv[1] if len(sys.argv) > 1 else ""
+    excel_file_path = sys.argv[2] if len(sys.argv) > 2 else ""
+
+    run_mode = sys.argv[5] if len(sys.argv) > 5 else "full"   # "full" | "cleanup" | "upload"
+
+    # Upload args
+    local_path = sys.argv[8] if len(sys.argv) > 8 else ""
+    upload_type = sys.argv[9] if len(sys.argv) > 9 else "oem"
+
     debug_run = True
-    
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
     print("=" * 68)
 
+    if run_mode == "upload":
+        extractor.run_upload_flow(local_path=local_path, upload_type=upload_type)
+        print("=" * 68)
+        print("✅ Upload Mode complete!")
+        sys.exit(0)
+
+    # Existing behavior
     if extractor.cleanup_mode:
-        # Clean up mode: find broken links → re-index only those
         extractor.populate_excel_file([])
 
         if extractor.broken_entries:
@@ -3095,7 +3424,6 @@ if __name__ == '__main__':
             extractor.populate_excel_file(filtered_files)
 
     else:
-        # Normal mode: index entire folder and populate Excel
         folders, files = extractor.extract_contents()
         extractor.populate_excel_file(files)
 
