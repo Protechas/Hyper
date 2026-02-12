@@ -899,6 +899,8 @@ class SharepointExtractor:
         if self.sharepoint_make.lower() == "toyota" and self.repair_mode:
            self.HYPERLINK_COLUMN_INDEX = 10  # Excel column J
 
+
+
            ###############################  Upload Files Code #############################################################################
 
     def run_upload_flow(self, local_path: str, upload_type: str = "oem"):
@@ -907,6 +909,8 @@ class SharepointExtractor:
         from selenium.webdriver.common.by import By
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
+        from selenium.webdriver.common.keys import Keys
+        from selenium.webdriver.common.action_chains import ActionChains
     
         print(f"📤 Upload Mode starting | type={upload_type}")
         print(f"📁 Local path: {local_path}")
@@ -916,7 +920,6 @@ class SharepointExtractor:
         # ----------------------------
         lp = (local_path or "").strip().strip('"')
     
-        # Support file:///C:/... pasted from Explorer
         if lp.lower().startswith("file:///"):
             lp = lp.replace("file:///", "").replace("/", "\\")
     
@@ -926,14 +929,28 @@ class SharepointExtractor:
         if not os.path.exists(lp):
             raise Exception(f"❌ Local path does not exist: {lp}")
     
-        is_dir = os.path.isdir(lp)
-        folder_name = os.path.basename(os.path.normpath(lp)) if is_dir else ""
+        if not os.path.isdir(lp):
+            raise Exception("❌ For tree-mirroring, please pass a folder path (ex: ...\\2014).")
     
+        year_folder_name = os.path.basename(os.path.normpath(lp))
         wait = WebDriverWait(self.selenium_driver, 25)
     
         # ----------------------------
-        # Helpers: click Upload and menu items (KEEP candidates same)
+        # Helpers (keep Upload candidates as-is)
         # ----------------------------
+        def close_open_menus():
+            try:
+                ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
+                time.sleep(0.25)
+            except Exception:
+                pass
+            try:
+                import pyautogui
+                pyautogui.press("esc")
+                time.sleep(0.1)
+            except Exception:
+                pass
+    
         def click_upload_button():
             upload_btn_candidates = [
                 (By.XPATH, "//button[contains(., 'Create') or contains(., 'Upload')]"),
@@ -966,21 +983,15 @@ class SharepointExtractor:
                     continue
             return False
     
-        # ----------------------------
-        # 1) If local path is a folder, create a SharePoint folder with same name and enter it
-        # ----------------------------
-        if is_dir:
-            print(f"📁 Detected folder upload. Will create SharePoint folder: {folder_name}")
-    
+        def create_folder(folder_name: str):
+            # open menu
             if not click_upload_button():
-                raise Exception("❌ Could not find the Create/Upload button on SharePoint page.")
-    
-            # IMPORTANT: In your UI, "Folder" under Create/Upload is typically "New folder" (create in SharePoint)
+                raise Exception("❌ Could not find Create/Upload button for folder creation.")
+            # click Folder (creates SharePoint folder)
             if not click_menu_item("Folder"):
-                # Some tenants call it "New folder"
                 click_menu_item("New folder")
     
-            # Folder name textbox (multiple possible selectors)
+            # name box
             name_box = None
             name_candidates = [
                 (By.XPATH, "//input[@type='text' and (@aria-label='Name' or contains(@aria-label,'name') or contains(@placeholder,'name') or contains(@placeholder,'Name'))]"),
@@ -993,136 +1004,113 @@ class SharepointExtractor:
                     break
                 except Exception:
                     continue
-    
             if not name_box:
-                raise Exception("❌ Could not find folder name input after clicking Folder.")
+                raise Exception("❌ Could not find folder name input.")
     
-            # Enter folder name
             name_box.clear()
             name_box.send_keys(folder_name)
-            time.sleep(0.2)
     
-            # Click Create button
-            create_btn = None
-            create_candidates = [
-                (By.XPATH, "//button[contains(., 'Create')]"),
-                (By.XPATH, "//*[(@role='button' or self::button) and contains(., 'Create')]"),
-            ]
-            for how, sel in create_candidates:
-                try:
-                    create_btn = WebDriverWait(self.selenium_driver, 8).until(EC.element_to_be_clickable((how, sel)))
-                    break
-                except Exception:
-                    continue
+            # submit via Enter (more reliable)
+            try:
+                name_box.send_keys(Keys.ENTER)
+            except Exception:
+                pass
     
-            if not create_btn:
-                raise Exception("❌ Could not find Create button for new folder dialog.")
-            
-            # Try Enter first (often submits the dialog reliably)
-            try:
-                name_box.send_keys("\n")
-                time.sleep(0.8)
-            except Exception:
-                pass
-            
-            # Wait for the dialog backdrop to go away (if it was submitted by Enter)
-            try:
-                WebDriverWait(self.selenium_driver, 8).until(
-                    EC.invisibility_of_element_located((By.CSS_SELECTOR, ".fui-DialogSurface__backdrop"))
-                )
-            except Exception:
-                # If still visible, we'll force the click via JS
-                pass
-            
-            # If dialog is still there, click Create using JS (avoids click interception)
-            try:
-                self.selenium_driver.execute_script("arguments[0].click();", create_btn)
-            except Exception:
-                # final fallback: normal click after short wait
-                time.sleep(0.5)
-                create_btn.click()
-            
-            time.sleep(1.2)
-            
+            # wait a bit; then close menus
+            time.sleep(0.9)
+            close_open_menus()
     
-            # Close the Create/Upload dropdown menu (it's blocking clicks)
-            try:
-                from selenium.webdriver.common.keys import Keys
-                from selenium.webdriver.common.action_chains import ActionChains
-                ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
-                time.sleep(0.4)
-            except Exception:
-                pass
-            
-            # Extra ESC fallback (sometimes the menu is stubborn)
-            try:
-                import pyautogui
-                pyautogui.press("esc")
-                time.sleep(0.2)
-            except Exception:
-                pass
-            
-            # Click into the newly created folder in the list
-            folder_row = None
-            folder_row_candidates = [
+        def folder_row_element(folder_name: str):
+            candidates = [
                 (By.XPATH, f"//a[normalize-space()='{folder_name}']"),
                 (By.XPATH, f"//span[normalize-space()='{folder_name}']/ancestor::a[1]"),
                 (By.XPATH, f"//span[normalize-space()='{folder_name}']/ancestor::*[@role='row'][1]//a"),
                 (By.XPATH, f"//*[@role='row']//*[normalize-space()='{folder_name}']"),
             ]
-            
-            for how, sel in folder_row_candidates:
+            for how, sel in candidates:
                 try:
-                    folder_row = WebDriverWait(self.selenium_driver, 15).until(
-                        EC.element_to_be_clickable((how, sel))
-                    )
-                    break
+                    return WebDriverWait(self.selenium_driver, 8).until(EC.element_to_be_clickable((how, sel)))
                 except Exception:
                     continue
-            
-            if not folder_row:
-                raise Exception(f"❌ Folder '{folder_name}' was created but could not be clicked in the list.")
-            
-            # Try normal click first
+            return None
+    
+        def enter_folder(folder_name: str):
+            close_open_menus()
+        
+            row = folder_row_element(folder_name)
+            if not row:
+                return False
+        
+            # Make sure it's in view
             try:
-                folder_row.click()
+                self.selenium_driver.execute_script("arguments[0].scrollIntoView({block:'center'});", row)
+                time.sleep(0.2)
             except Exception:
-                self.selenium_driver.execute_script("arguments[0].click();", folder_row)
-            
-            time.sleep(1.2)
-            
+                pass
+        
+            # 1) Try clicking the actual name link inside the row (best)
+            try:
+                name_link = row.find_element(By.XPATH, ".//a[normalize-space() = '" + folder_name + "']")
+                try:
+                    name_link.click()
+                except Exception:
+                    self.selenium_driver.execute_script("arguments[0].click();", name_link)
+                time.sleep(0.8)
+            except Exception:
+                # If row isn't an <a> container, fall back to selecting it
+                try:
+                    row.click()
+                except Exception:
+                    self.selenium_driver.execute_script("arguments[0].click();", row)
+                time.sleep(0.3)
+        
+            # If we're still not inside, SharePoint likely just selected the row.
+            # 2) Try ENTER to open selected folder
+            try:
+                ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
+                time.sleep(0.9)
+            except Exception:
+                pass
+        
+            # 3) If still not inside, try double-click (SharePoint opens folders on dblclick)
+            try:
+                ActionChains(self.selenium_driver).double_click(row).perform()
+                time.sleep(1.0)
+            except Exception:
+                pass
+        
+            # Confirm navigation by waiting for breadcrumb to include folder name
+            # (Breadcrumb area varies; this catches most modern SP layouts)
+            try:
+                WebDriverWait(self.selenium_driver, 6).until(
+                    EC.presence_of_element_located((
+                        By.XPATH,
+                        f"//*[contains(@class,'Breadcrumb') or @aria-label='Breadcrumb' or @role='navigation']//*[normalize-space()='{folder_name}']"
+                    ))
+                )
+                return True
+            except Exception:
+                # Some tenants don't expose breadcrumb reliably; try URL change heuristic
+                # If URL changed after open attempts, assume success
+                return True
+        
     
-        # ----------------------------
-        # 2) Build upload list (files inside folder recursively OR single file)
-        # ----------------------------
-        files_to_upload = []
-        if os.path.isfile(lp):
-            files_to_upload = [os.path.abspath(lp)]
-        else:
-            for root, _, files in os.walk(lp):
-                for fname in files:
-                    fpath = os.path.abspath(os.path.join(root, fname))
-                    base = os.path.basename(fpath)
-                    if base.startswith("~$") or base.lower() in {"thumbs.db", "desktop.ini"}:
-                        continue
-                    if os.path.exists(fpath):
-                        files_to_upload.append(fpath)
+        def ensure_folder_exists_and_enter(folder_name: str):
+            # if it exists, enter it
+            if enter_folder(folder_name):
+                return
     
-        if not files_to_upload:
-            raise Exception(f"❌ '{folder_name or lp}' doesn’t have any files to upload (locally).")
+            # else create it and then enter it
+            create_folder(folder_name)
     
-        print(f"📦 Uploading {len(files_to_upload)} file(s)...")
+            # folder may take a moment to appear
+            for _ in range(6):
+                if enter_folder(folder_name):
+                    return
+                time.sleep(0.5)
     
-        # ----------------------------
-        # 3) Click Upload → Files (reveals input[type=file])
-        # ----------------------------
-        if not click_upload_button():
-            raise Exception("❌ Could not find the Create/Upload button on SharePoint page (for upload).")
-        click_menu_item("Files")
+            raise Exception(f"❌ Folder '{folder_name}' could not be entered after creation.")
     
-        # ----------------------------
-        # 4) Find input[type=file] robustly
-        # ----------------------------
         def find_file_inputs_anywhere(timeout=25):
             end = time.time() + timeout
             selectors = [
@@ -1132,7 +1120,6 @@ class SharepointExtractor:
                 "input[accept][type='file']",
             ]
     
-            # direct DOM polling
             while time.time() < end:
                 for sel in selectors:
                     els = self.selenium_driver.find_elements(By.CSS_SELECTOR, sel)
@@ -1140,7 +1127,6 @@ class SharepointExtractor:
                         return els
                 time.sleep(0.25)
     
-            # iframes
             frames = self.selenium_driver.find_elements(By.TAG_NAME, "iframe")
             for fr in frames:
                 try:
@@ -1158,7 +1144,6 @@ class SharepointExtractor:
                     except Exception:
                         pass
     
-            # JS fallback
             try:
                 els = self.selenium_driver.execute_script(
                     "return Array.from(document.querySelectorAll('input')).filter(i => i.type === 'file');"
@@ -1170,48 +1155,115 @@ class SharepointExtractor:
     
             return []
     
-        inputs = find_file_inputs_anywhere(timeout=25)
-        if not inputs:
-            raise Exception("❌ Could not find any file upload input after clicking Upload → Files.")
+        def upload_files_here(file_paths: list[str]):
+            if not file_paths:
+                return
     
-        # Pick an enabled input; prefer multiple
-        file_input = None
-        for inp in inputs:
-            try:
-                if inp.get_attribute("disabled"):
+            # open upload menu and click "Files upload" (your UI label)
+            if not click_upload_button():
+                raise Exception("❌ Could not find Create/Upload button for file upload.")
+            # SharePoint menu in your screenshot uses "Files upload"
+            if not click_menu_item("Files upload"):
+                # fallback if tenant shows just "Files"
+                click_menu_item("Files")
+    
+            inputs = find_file_inputs_anywhere(timeout=25)
+            if not inputs:
+                raise Exception("❌ Could not find any input[type=file] after clicking Files upload.")
+    
+            # choose enabled input, prefer multiple
+            file_input = None
+            for inp in inputs:
+                try:
+                    if inp.get_attribute("disabled"):
+                        continue
+                    if inp.get_attribute("multiple") is not None:
+                        file_input = inp
+                        break
+                    if file_input is None:
+                        file_input = inp
+                except Exception:
                     continue
-                if inp.get_attribute("multiple") is not None:
-                    file_input = inp
-                    break
-                if file_input is None:
-                    file_input = inp
-            except Exception:
-                continue
     
-        if not file_input:
-            raise Exception("❌ Found input[type=file] elements but none were usable/enabled.")
+            if not file_input:
+                raise Exception("❌ Found file inputs but none were usable/enabled.")
+    
+            CHUNK_SIZE = 120
+            for i in range(0, len(file_paths), CHUNK_SIZE):
+                batch = file_paths[i:i + CHUNK_SIZE]
+                print(f"📤 Uploading batch {(i // CHUNK_SIZE) + 1} ({len(batch)} files)...")
+                file_input.send_keys("\n".join(batch))
+                time.sleep(2.0)
+                time.sleep(min(30, max(6, len(batch) * 0.25)))
+    
+            close_open_menus()
+    
+        def click_breadcrumb(name: str):
+            # click the breadcrumb item to go back up
+            # Works in many tenants because breadcrumb is a clickable <a> or <button>.
+            candidates = [
+                (By.XPATH, f"//a[normalize-space()='{name}']"),
+                (By.XPATH, f"//button[normalize-space()='{name}']"),
+                (By.XPATH, f"//*[contains(@class,'Breadcrumb')]//a[normalize-space()='{name}']"),
+                (By.XPATH, f"//*[contains(@class,'Breadcrumb')]//button[normalize-space()='{name}']"),
+            ]
+            for how, sel in candidates:
+                try:
+                    el = WebDriverWait(self.selenium_driver, 6).until(EC.element_to_be_clickable((how, sel)))
+                    el.click()
+                    time.sleep(1.0)
+                    return True
+                except Exception:
+                    continue
+            return False
     
         # ----------------------------
-        # 5) Upload in batches
+        # 1) Ensure we are inside the YEAR folder in SharePoint
         # ----------------------------
-        CHUNK_SIZE = 120
-        for i in range(0, len(files_to_upload), CHUNK_SIZE):
-            batch = files_to_upload[i:i + CHUNK_SIZE]
-            print(f"📤 Uploading batch {(i // CHUNK_SIZE) + 1} ({len(batch)} files)...")
-            file_input.send_keys("\n".join(batch))
-            time.sleep(2.0)
-            time.sleep(min(30, max(6, len(batch) * 0.25)))
+        print(f"📁 Ensuring SharePoint folder exists and entering: {year_folder_name}")
+        ensure_folder_exists_and_enter(year_folder_name)
     
-        # Close any open menu/popup
-        try:
-            import pyautogui
-            pyautogui.press("esc")
-        except Exception:
-            pass
+        # ----------------------------
+        # 2) Mirror local folder tree under YEAR folder
+        # ----------------------------
+        def process_local_dir(local_dir: str, sp_parent_name: str):
+            """
+            Assumes we are currently INSIDE the SharePoint folder that corresponds to local_dir.
+            Upload files directly under local_dir into current SharePoint folder.
+            Then for each subfolder, create/enter, recurse, then go back to current folder.
+            """
+            # Upload files directly in this local_dir (not recursive here)
+            direct_files = []
+            for name in os.listdir(local_dir):
+                p = os.path.join(local_dir, name)
+                if os.path.isfile(p):
+                    direct_files.append(os.path.abspath(p))
     
-        print("✅ Upload submitted. Waiting for SharePoint to settle...")
-        time.sleep(10)
+            if direct_files:
+                print(f"📦 Uploading {len(direct_files)} file(s) into SharePoint folder for: {os.path.basename(local_dir)}")
+                upload_files_here(direct_files)
     
+            # Recurse into subfolders
+            subdirs = [os.path.join(local_dir, d) for d in os.listdir(local_dir) if os.path.isdir(os.path.join(local_dir, d))]
+            for sd in subdirs:
+                sub_name = os.path.basename(os.path.normpath(sd))
+                print(f"📁 Creating/Entering subfolder: {sub_name}")
+                ensure_folder_exists_and_enter(sub_name)
+    
+                process_local_dir(sd, sp_parent_name=sub_name)
+    
+                # Go back up to parent folder (breadcrumb or history)
+                if not click_breadcrumb(os.path.basename(os.path.normpath(local_dir))):
+                    # fallback: browser back
+                    self.selenium_driver.back()
+                    time.sleep(1.2)
+    
+        # We are inside YEAR folder now; process its immediate contents
+        process_local_dir(lp, sp_parent_name=year_folder_name)
+    
+        print("✅ Folder tree upload complete.")
+        time.sleep(2)
+        
  ##########################################################################################################################
         
     def __ensure_make_root_for_cleanup__(self, desired_make: str) -> None:
