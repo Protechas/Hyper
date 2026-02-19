@@ -826,6 +826,10 @@ class SharepointExtractor:
         self.sharepoint_link = self.sharepoint_links[0]
         self.excel_file_path = excel_file_path
         self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
+        # Upload reporting counters
+        self.total_files_uploaded = 0
+        self.files_uploaded_by_make = {}
+        
 
         # Check installed Chrome version
         def get_chrome_version():
@@ -901,10 +905,11 @@ class SharepointExtractor:
 
 
 
-           ###############################  Upload Files Code #############################################################################
+    ###############################  Upload Files Code #############################################################################
 
     def run_upload_flow(self, local_path: str, upload_type: str = "oem"):
         import os
+        import re
         import time
         from selenium.webdriver.common.by import By
         from selenium.webdriver.support.ui import WebDriverWait
@@ -914,12 +919,13 @@ class SharepointExtractor:
     
         print(f"📤 Upload Mode starting | type={upload_type}")
         print(f"📁 Local path: {local_path}")
-    
+        job_start_time = time.time()
+        self._job_files_uploaded = 0
+
         # ----------------------------
         # 0) Normalize / validate local path
         # ----------------------------
         lp = (local_path or "").strip().strip('"')
-    
         if lp.lower().startswith("file:///"):
             lp = lp.replace("file:///", "").replace("/", "\\")
     
@@ -930,9 +936,40 @@ class SharepointExtractor:
             raise Exception(f"❌ Local path does not exist: {lp}")
     
         if not os.path.isdir(lp):
-            raise Exception("❌ For tree-mirroring, please pass a folder path (ex: ...\\2014).")
+            raise Exception("❌ For tree-mirroring, please pass a folder path.")
     
-        year_folder_name = os.path.basename(os.path.normpath(lp))
+        # ----------------------------
+        # Determine make from local path (supports both ...\Make and ...\Make\2014)
+        # ----------------------------
+        try:
+            parts = lp.split(os.sep)
+            last = (parts[-1] or "").strip()
+            if re.fullmatch(r"\d{4}", last) and len(parts) >= 2:
+                make_name = parts[-2]  # ...\Make\2014
+            else:
+                make_name = parts[-1] if parts else "Unknown"  # ...\Make
+            self.current_make = make_name
+            print(f"📊 Reporting make set to: {self.current_make}")
+        except Exception:
+            self.current_make = "Unknown"
+    
+        # ----------------------------
+        # Year-range filter support: only upload years within selected range
+        # Hyper should pass "2022-2026" via argv[6] into self.upload_year_range_key
+        # ----------------------------
+        def _parse_year_range(key: str):
+            m = re.match(r"^\s*(\d{4})\s*-\s*(\d{4})\s*$", key or "")
+            if not m:
+                return None
+            a, b = int(m.group(1)), int(m.group(2))
+            return (min(a, b), max(a, b))
+    
+        def _is_year_folder_name(name: str) -> bool:
+            return bool(re.fullmatch(r"\d{4}", (name or "").strip()))
+    
+        selected_range_key = (getattr(self, "upload_year_range_key", "") or "").strip()
+        yr_bounds = _parse_year_range(selected_range_key)
+    
         wait = WebDriverWait(self.selenium_driver, 25)
     
         # ----------------------------
@@ -984,14 +1021,11 @@ class SharepointExtractor:
             return False
     
         def create_folder(folder_name: str):
-            # open menu
             if not click_upload_button():
                 raise Exception("❌ Could not find Create/Upload button for folder creation.")
-            # click Folder (creates SharePoint folder)
             if not click_menu_item("Folder"):
                 click_menu_item("New folder")
     
-            # name box
             name_box = None
             name_candidates = [
                 (By.XPATH, "//input[@type='text' and (@aria-label='Name' or contains(@aria-label,'name') or contains(@placeholder,'name') or contains(@placeholder,'Name'))]"),
@@ -1009,14 +1043,11 @@ class SharepointExtractor:
     
             name_box.clear()
             name_box.send_keys(folder_name)
-    
-            # submit via Enter (more reliable)
             try:
                 name_box.send_keys(Keys.ENTER)
             except Exception:
                 pass
     
-            # wait a bit; then close menus
             time.sleep(0.9)
             close_open_menus()
     
@@ -1036,19 +1067,16 @@ class SharepointExtractor:
     
         def enter_folder(folder_name: str):
             close_open_menus()
-        
             row = folder_row_element(folder_name)
             if not row:
                 return False
-        
-            # Make sure it's in view
+    
             try:
                 self.selenium_driver.execute_script("arguments[0].scrollIntoView({block:'center'});", row)
                 time.sleep(0.2)
             except Exception:
                 pass
-        
-            # 1) Try clicking the actual name link inside the row (best)
+    
             try:
                 name_link = row.find_element(By.XPATH, ".//a[normalize-space() = '" + folder_name + "']")
                 try:
@@ -1057,58 +1085,35 @@ class SharepointExtractor:
                     self.selenium_driver.execute_script("arguments[0].click();", name_link)
                 time.sleep(0.8)
             except Exception:
-                # If row isn't an <a> container, fall back to selecting it
                 try:
                     row.click()
                 except Exception:
                     self.selenium_driver.execute_script("arguments[0].click();", row)
                 time.sleep(0.3)
-        
-            # If we're still not inside, SharePoint likely just selected the row.
-            # 2) Try ENTER to open selected folder
+    
             try:
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
                 time.sleep(0.9)
             except Exception:
                 pass
-        
-            # 3) If still not inside, try double-click (SharePoint opens folders on dblclick)
+    
             try:
                 ActionChains(self.selenium_driver).double_click(row).perform()
                 time.sleep(1.0)
             except Exception:
                 pass
-        
-            # Confirm navigation by waiting for breadcrumb to include folder name
-            # (Breadcrumb area varies; this catches most modern SP layouts)
-            try:
-                WebDriverWait(self.selenium_driver, 6).until(
-                    EC.presence_of_element_located((
-                        By.XPATH,
-                        f"//*[contains(@class,'Breadcrumb') or @aria-label='Breadcrumb' or @role='navigation']//*[normalize-space()='{folder_name}']"
-                    ))
-                )
-                return True
-            except Exception:
-                # Some tenants don't expose breadcrumb reliably; try URL change heuristic
-                # If URL changed after open attempts, assume success
-                return True
-        
+    
+            # Best-effort: if it didn't navigate, we'll still return True to avoid deadlocks
+            return True
     
         def ensure_folder_exists_and_enter(folder_name: str):
-            # if it exists, enter it
             if enter_folder(folder_name):
                 return
-    
-            # else create it and then enter it
             create_folder(folder_name)
-    
-            # folder may take a moment to appear
             for _ in range(6):
                 if enter_folder(folder_name):
                     return
                 time.sleep(0.5)
-    
             raise Exception(f"❌ Folder '{folder_name}' could not be entered after creation.")
     
         def find_file_inputs_anywhere(timeout=25):
@@ -1159,19 +1164,15 @@ class SharepointExtractor:
             if not file_paths:
                 return
     
-            # open upload menu and click "Files upload" (your UI label)
             if not click_upload_button():
                 raise Exception("❌ Could not find Create/Upload button for file upload.")
-            # SharePoint menu in your screenshot uses "Files upload"
             if not click_menu_item("Files upload"):
-                # fallback if tenant shows just "Files"
                 click_menu_item("Files")
     
             inputs = find_file_inputs_anywhere(timeout=25)
             if not inputs:
                 raise Exception("❌ Could not find any input[type=file] after clicking Files upload.")
     
-            # choose enabled input, prefer multiple
             file_input = None
             for inp in inputs:
                 try:
@@ -1193,14 +1194,22 @@ class SharepointExtractor:
                 batch = file_paths[i:i + CHUNK_SIZE]
                 print(f"📤 Uploading batch {(i // CHUNK_SIZE) + 1} ({len(batch)} files)...")
                 file_input.send_keys("\n".join(batch))
+    
+                batch_count = len(batch)
+                self._job_files_uploaded += batch_count
+                self.total_files_uploaded += batch_count
+    
+                make_name = self.current_make if hasattr(self, "current_make") else "Unknown"
+                if make_name not in self.files_uploaded_by_make:
+                    self.files_uploaded_by_make[make_name] = 0
+                self.files_uploaded_by_make[make_name] += batch_count
+    
                 time.sleep(2.0)
                 time.sleep(min(30, max(6, len(batch) * 0.25)))
     
             close_open_menus()
     
         def click_breadcrumb(name: str):
-            # click the breadcrumb item to go back up
-            # Works in many tenants because breadcrumb is a clickable <a> or <button>.
             candidates = [
                 (By.XPATH, f"//a[normalize-space()='{name}']"),
                 (By.XPATH, f"//button[normalize-space()='{name}']"),
@@ -1218,21 +1227,18 @@ class SharepointExtractor:
             return False
     
         # ----------------------------
-        # 1) Ensure we are inside the YEAR folder in SharePoint
+        # 1) Ensure we are inside the MAKE folder under the selected year-range SharePoint URL
+        #    (Hyper navigates you to the year-range URL already.)
         # ----------------------------
-        print(f"📁 Ensuring SharePoint folder exists and entering: {year_folder_name}")
-        ensure_folder_exists_and_enter(year_folder_name)
+        make_folder = getattr(self, "current_make", "Unknown") or "Unknown"
+        print(f"📁 Ensuring SharePoint MAKE folder exists and entering: {make_folder}")
+        ensure_folder_exists_and_enter(make_folder)
     
         # ----------------------------
-        # 2) Mirror local folder tree under YEAR folder
+        # 2) Mirror local folder tree under YEAR folders (filtered by selected range)
         # ----------------------------
-        def process_local_dir(local_dir: str, sp_parent_name: str):
-            """
-            Assumes we are currently INSIDE the SharePoint folder that corresponds to local_dir.
-            Upload files directly under local_dir into current SharePoint folder.
-            Then for each subfolder, create/enter, recurse, then go back to current folder.
-            """
-            # Upload files directly in this local_dir (not recursive here)
+        def process_local_dir(local_dir: str):
+            # Upload direct files in this local_dir (not recursive here)
             direct_files = []
             for name in os.listdir(local_dir):
                 p = os.path.join(local_dir, name)
@@ -1249,20 +1255,71 @@ class SharepointExtractor:
                 sub_name = os.path.basename(os.path.normpath(sd))
                 print(f"📁 Creating/Entering subfolder: {sub_name}")
                 ensure_folder_exists_and_enter(sub_name)
+                process_local_dir(sd)
     
-                process_local_dir(sd, sp_parent_name=sub_name)
-    
-                # Go back up to parent folder (breadcrumb or history)
-                if not click_breadcrumb(os.path.basename(os.path.normpath(local_dir))):
-                    # fallback: browser back
+                # Go back up to parent folder
+                parent_name = os.path.basename(os.path.normpath(local_dir))
+                if not click_breadcrumb(parent_name):
                     self.selenium_driver.back()
                     time.sleep(1.2)
     
-        # We are inside YEAR folder now; process its immediate contents
-        process_local_dir(lp, sp_parent_name=year_folder_name)
+        # ----------------------------
+        # Decide which YEAR folders to process:
+        # - If lp ends with a year (old behavior), process that one year only.
+        # - Else, treat lp as MAKE root and only process years within selected range.
+        # ----------------------------
+        lp_base = os.path.basename(os.path.normpath(lp))
+        years_to_process = []
     
-        print("✅ Folder tree upload complete.")
+        if _is_year_folder_name(lp_base):
+            # Old style: lp = ...\Make\2014
+            years_to_process = [lp]
+            print(f"🧭 Single-year upload detected: {lp_base}")
+        else:
+            # New style: lp = ...\Make
+            if not yr_bounds:
+                raise Exception("❌ No year range key provided (upload_year_range_key). Cannot filter year folders.")
+            y0, y1 = yr_bounds
+            for name in os.listdir(lp):
+                full = os.path.join(lp, name)
+                if os.path.isdir(full) and _is_year_folder_name(name):
+                    y = int(name)
+                    if y0 <= y <= y1:
+                        years_to_process.append(full)
+            years_to_process.sort(key=lambda p: int(os.path.basename(p)))
+    
+            if not years_to_process:
+                raise Exception(f"❌ No year folders found in {lp} within selected range {selected_range_key}")
+    
+            print(f"🧭 Year-range filter active: {selected_range_key} → {len(years_to_process)} year folder(s)")
+    
+        # Process each year folder under the current MAKE folder in SharePoint
+        for year_path in years_to_process:
+            year_name = os.path.basename(os.path.normpath(year_path))
+            print(f"📁 Creating/Entering YEAR folder: {year_name}")
+            ensure_folder_exists_and_enter(year_name)
+    
+            process_local_dir(year_path)
+    
+            # Return to MAKE folder
+            if not click_breadcrumb(make_folder):
+                self.selenium_driver.back()
+                time.sleep(1.2)
+    
+        # ----------------------------
+        # Emit machine-readable job summary for Hyper.py (FLUSHED)
+        # ----------------------------
+        try:
+            elapsed = int(time.time() - job_start_time)
+            make_name = getattr(self, "current_make", "Unknown") or "Unknown"
+            yr_key = (getattr(self, "upload_year_range_key", "") or "").strip()  # <-- add year-range key
+            files = int(getattr(self, "_job_files_uploaded", 0))
+            print(f"UPLOAD_JOB_SUMMARY|MAKE={make_name}|YR={yr_key}|FILES={files}|SECONDS={elapsed}", flush=True)
+        except Exception:
+            pass
+
         time.sleep(2)
+    
         
  ##########################################################################################################################
         
@@ -3460,7 +3517,14 @@ if __name__ == '__main__':
     print("=" * 68)
 
     if run_mode == "upload":
+        year_range_key = sys.argv[6] if len(sys.argv) > 6 else ""
+        explicit_make  = sys.argv[7] if len(sys.argv) > 7 else ""
+        
+        extractor.upload_year_range_key = (year_range_key or "").strip()
+        extractor.current_make = (explicit_make or "").strip() or "Unknown"
+        
         extractor.run_upload_flow(local_path=local_path, upload_type=upload_type)
+        
         print("=" * 68)
         print("✅ Upload Mode complete!")
         sys.exit(0)

@@ -385,6 +385,21 @@ class SeleniumAutomationApp(QWidget):
         self.current_index = 0              # index into self.excel_paths / manufacturers_to_run
         self._next_timer = None             # single reusable timer for “check again in 10s”
         # ──────────────────────────────────────────────────────────────────────
+
+    UPLOAD_ROOTS = {
+        "Acura": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Acura",
+        "Alfa Romeo": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Alfa Romeo",
+        "Audi": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Audi",
+        "Brightdrop": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\BrightDrop",
+    }
+    
+    SHAREPOINT_TARGETS = {
+        "2012-2016": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgDuEFQ2FR8cQJfYoyN9hV46AfJneTPGSGFJpcbkyt9j8GM?e=XCALO8",
+        "2017-2021": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCQuieJ-JcBTpZu_8qdHcXQAfegs9LUlNpcRNT78Lc3nPw?e=2Cu7QS",
+        "2022-2026": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgBEwGI01IDgSJ1-6K-Atqg7AXCeboGZ2mI9RpF2qoRZb9Q?e=9tWjr8",
+        "2027-2031": "https://.../ADAS%20S.I.%20PDF%20Documents/2027-2031",
+    }
+
             
     def initUI(self):
         self.setWindowTitle('Hyper')
@@ -961,8 +976,80 @@ class SeleniumAutomationApp(QWidget):
         Consume stdout from SharepointExtractor. Update UI progress bars,
         parse report data, and manage terminal display.
         """
-        import re
-    
+        # ----------------------------
+        # Upload job summary parser (from SharepointExtractor) + DEBUG
+        # ----------------------------
+        try:
+            raw = text or ""
+        
+            # IMPORTANT: splitlines() handles \n, \r\n, and \r
+            for line in raw.splitlines():
+                line = (line or "").strip()
+                if not line:
+                    continue
+        
+                if "UPLOAD_JOB_SUMMARY|" not in line:
+                    continue
+        
+                # DEBUG: confirm we saw it
+                try:
+                    if getattr(self, "terminal", None):
+                        self.terminal.append_output(f"🧪 DEBUG: parser saw summary line: {line}")
+                except Exception:
+                    pass
+        
+                # If your logger prefixes text, strip anything before the marker
+                marker = "UPLOAD_JOB_SUMMARY|"
+                payload = line[line.find(marker):]
+        
+                parts = payload.split("|")
+                kv = {}
+                for p in parts[1:]:
+                    if "=" in p:
+                        k, v = p.split("=", 1)
+                        kv[k.strip()] = v.strip()
+        
+                make = kv.get("MAKE", "Unknown") or "Unknown"
+                yr   = kv.get("YR", "") or "UNKNOWN_RANGE"
+                files = int((kv.get("FILES", "0") or "0").replace(",", "").strip())
+                secs  = int((kv.get("SECONDS", "0") or "0").replace(",", "").strip())
+        
+                # Ensure accumulators exist (safe even if you initialized already)
+                if not hasattr(self, "_upload_total_files"):
+                    self._upload_total_files = 0
+                if not hasattr(self, "_upload_files_by_make"):
+                    self._upload_files_by_make = {}
+                if not hasattr(self, "_upload_time_by_make"):
+                    self._upload_time_by_make = {}
+                if not hasattr(self, "_upload_files_by_job"):
+                    self._upload_files_by_job = {}
+                if not hasattr(self, "_upload_time_by_job"):
+                    self._upload_time_by_job = {}
+        
+                # Accumulate
+                self._upload_total_files += files
+                self._upload_files_by_make[make] = self._upload_files_by_make.get(make, 0) + files
+                self._upload_time_by_make[make]  = self._upload_time_by_make.get(make, 0.0) + float(secs)
+        
+                self._upload_files_by_job[yr] = self._upload_files_by_job.get(yr, 0) + files
+                self._upload_time_by_job[yr]  = self._upload_time_by_job.get(yr, 0.0) + float(secs)
+        
+                # DEBUG: confirm totals changed immediately
+                try:
+                    if getattr(self, "terminal", None):
+                        self.terminal.append_output(
+                            f"🧪 DEBUG: totals now -> total_files={self._upload_total_files}, "
+                            f"make_files[{make}]={self._upload_files_by_make.get(make)}, "
+                            f"make_secs[{make}]={int(self._upload_time_by_make.get(make, 0))}"
+                        )
+                except Exception:
+                    pass
+        
+        except Exception:
+            pass
+
+
+
         # Ensure report buckets exist
         if not hasattr(self, "report_stats"):
             self.report_stats = {}
@@ -1726,9 +1813,9 @@ class SeleniumAutomationApp(QWidget):
     
     def start_automation(self):
         """Gather selections, confirm, and kick off the automation process."""
-
+    
         upload_mode = bool(getattr(self, "upload_mode_checkbox", None) and self.upload_mode_checkbox.isChecked())
-
+    
         # 1) gather selected manufacturers
         selected_manufacturers = []
         for i in range(self.manufacturer_tree.topLevelItemCount()):
@@ -1745,10 +1832,14 @@ class SeleniumAutomationApp(QWidget):
         # 3) sanity check
         if not upload_mode:
             if not (self.excel_paths and selected_manufacturers and selected_systems):
-                QMessageBox.warning(self, 'Warning',
-                    "Please select Excel files, manufacturers, and at least one system.", QMessageBox.Ok)
+                QMessageBox.warning(
+                    self,
+                    'Warning',
+                    "Please select Excel files, manufacturers, and at least one system.",
+                    QMessageBox.Ok
+                )
                 return
-           
+    
         # 4) confirm and kick off
         excel_list = "\n".join(f"{i+1}. {os.path.basename(path)}" for i, path in enumerate(self.excel_paths))
         manu_list  = "\n".join(f"{i+1}. {m}" for i, m in enumerate(selected_manufacturers))
@@ -1761,21 +1852,20 @@ class SeleniumAutomationApp(QWidget):
                 "and find the broken links. Based off of those results, it will\n"
                 "find the matching links and repair them."
             )
-
+    
         upload_note = ""
         if upload_mode:
             upload_note = (
                 "\n\n⚠️ Upload Mode Activated:\n"
                 "Upload mode will ignore everything.\n\nContinue?"
-    )
+            )
     
-        excel_format   = "Repair SI" if self.mode_switch.isChecked() else "ADAS SI"
-        #version_format = "NEW" if self.excel_mode_switch.isChecked() else "OG"
+        excel_format = "Repair SI" if self.mode_switch.isChecked() else "ADAS SI"
     
         # Format the selected year ranges like "2012–2016, 2017–2021"
         ranges = self.get_selected_year_ranges() if hasattr(self, "get_selected_year_ranges") else []
         years_list = ", ".join(f"{a}–{b}" for (a, b) in ranges) if ranges else "None"
-        
+    
         confirm_message = (
             "Excel files selected:\n"
             f"{excel_list}\n\n"
@@ -1790,55 +1880,100 @@ class SeleniumAutomationApp(QWidget):
             + cleanup_note
             + upload_note
         )
-        
-        
-        if QMessageBox.question(self, 'Confirmation', confirm_message,
-               QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+    
+        if QMessageBox.question(
+            self,
+            'Confirmation',
+            confirm_message,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        ) != QMessageBox.Yes:
             return
+    
         # ---------------- UPLOAD MODE BRANCH ----------------
         upload_mode = bool(getattr(self, "upload_mode_checkbox", None) and self.upload_mode_checkbox.isChecked())
         if upload_mode:
-            # Prompt for SharePoint Site URL + Local path
-            dest_url, site_url = self.prompt_upload_urls()
-            if not dest_url or not site_url:
-                QMessageBox.warning(self, "Missing Info", "Upload cancelled: you did not provide required URL/path.")
+            # Build upload plan from GUI selections (Option A)
+    
+            # Convert ranges [(2012,2016), ...] into keys "2012-2016"
+            selected_year_range_keys = [f"{a}-{b}" for (a, b) in ranges] if ranges else []
+    
+            upload_jobs = []
+            for make in selected_manufacturers:
+                if make not in self.UPLOAD_ROOTS:
+                    print(f"⚠️ No UPLOAD_ROOTS entry for make: {make} (skipping)")
+                    continue
+            
+                make_root = self.UPLOAD_ROOTS[make]
+            
+                for yr_key in selected_year_range_keys:
+                    if yr_key not in self.SHAREPOINT_TARGETS:
+                        print(f"⚠️ No SHAREPOINT_TARGETS entry for year range: {yr_key} (skipping)")
+                        continue
+            
+                    sp_url = self.SHAREPOINT_TARGETS[yr_key]
+                    local_path = make_root
+                    upload_jobs.append((make, yr_key, local_path, sp_url))
+            
+    
+            if not upload_jobs:
+                QMessageBox.warning(
+                    self,
+                    "Missing Info",
+                    "Upload cancelled: no valid upload jobs were built.\n\n"
+                    "Check that:\n"
+                    "- At least one manufacturer is selected\n"
+                    "- At least one year range is selected\n"
+                    "- UPLOAD_ROOTS contains those manufacturers\n"
+                    "- SHAREPOINT_TARGETS contains those year ranges"
+                )
                 return
-        
-            # Store for reference/debug
-            self.upload_local_path = dest_url      # local folder path (your "local drive URL")
-            self.upload_site_url = site_url        # SharePoint page to navigate to
-        
+    
+            # Store jobs for later (so you can advance to job #2, #3, etc. after each finishes)
+            # Store jobs for chaining
+            self.upload_jobs = upload_jobs
+            self.upload_job_index = -1  # IMPORTANT: start_next_upload_job() increments first
+            
             # Mark running + show terminal (reuse your existing UI behavior)
             self.is_running = True
             self.stop_requested = False
             self._report_written = False
-        
-            # Swap Start -> Stop like you already do
+            self.upload_start_time = time.time()
+            self._upload_batch_start = time.time()
+            self._upload_total_files = 0
+            self._upload_files_by_make = {}
+            self._upload_time_by_make = {}
+            self._upload_files_by_job = {}
+            self._upload_time_by_job = {}
+            self._upload_job_stats = []
+
+            # Swap Start -> Stop (your existing behavior)
             layout = self.button_layout
             layout.removeWidget(self.start_button)
             self.start_button.deleteLater()
             self.start_button = CustomButton("Stop Automation", "#e63946", self)
             self.start_button.clicked.connect(self.on_start_stop)
             layout.addWidget(self.start_button)
-        
+            
             self.pause_button.setEnabled(True)
             self.pause_button.setText('Pause Automation')
             self.pause_requested = False
-        
+            
             # Ensure terminal is up
             if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
                 self.terminal = TerminalDialog(self)
             self.terminal.show()
             self.terminal.raise_()
-        
-            # Launch uploader thread
-            self.run_upload_mode(self.upload_site_url, self.upload_local_path)
+            
+            # Kick off job #1
+            self.start_next_upload_job()
             return
+
         # ---------------------------------------------------
-        
+    
         # user clicked YES → mark running
-        self.is_running     = True
-        self.stop_requested = False
+        self.is_running      = True
+        self.stop_requested  = False
         self._report_written = False  # <-- reset "written" flag for this batch
     
         # rip out the old “Start” button and insert a red “Stop Automation”
@@ -1860,8 +1995,8 @@ class SeleniumAutomationApp(QWidget):
         self.mode_flag              = "repair" if self.mode_switch.isChecked() else "adas"
     
         # REPORT: fresh state for each batch (AFTER mode_flag is set)
-        self.report_stats = {}                        # per-make stats bucket
-        self._report_year_totals = {                  # grand-total per range
+        self.report_stats = {}  # per-make stats bucket
+        self._report_year_totals = {  # grand-total per range
             "2012–2016": 0,
             "2017–2021": 0,
             "2022–2026": 0,
@@ -1869,35 +2004,33 @@ class SeleniumAutomationApp(QWidget):
         self.run_start = time.time()
         self._report_header_label = f"{'Repair SI' if self.mode_flag == 'repair' else 'ADAS SI'} PDF Document"
     
-        self.current_index          = 0
-        self.total_manufacturers    = len(self.selected_manufacturers)
+        self.current_index       = 0
+        self.total_manufacturers = len(self.selected_manufacturers)
     
-        # ---- PRE-PRIME LABELS TO AVOID "None" / "0 / 0" FLASH ----
         # ---- PRE-PRIME LABELS TO AVOID "None" / "0 / 0" FLASH ----
         first_manufacturer = self.selected_manufacturers[0]
         self.current_manufacturer_label.setText(f"Current Manufacturer: {first_manufacturer}")
-        
+    
         # Build the preview list once (already applies year-range + cleanup filters)
         # so the progress bar shows the real count.
         sp_links = self._links_for_manufacturer_preview(first_manufacturer)
-        
+    
         total_links = len(sp_links) or 1  # keep bar valid even if empty
         self._hyperlinks_total_links = total_links
-        
+    
         # keep bar in sync so nothing can overwrite back to 0/0
         self.manufacturer_hyperlink_bar.setMaximum(max(1, total_links))
         self.manufacturer_hyperlink_bar.setValue(0)
         self.manufacturer_hyperlink_label.setText(
             f"Manufacturer Hyperlinks Indexed: 0 / {total_links}"
         )
-        
     
         # get links for this manufacturer
         link_dict = self.repair_links if self.mode_flag == "repair" else self.manufacturer_links
         sharepoint_links = link_dict.get(first_manufacturer) or []
         if isinstance(sharepoint_links, str):
             sharepoint_links = [sharepoint_links]
-        
+    
         # NEW: honor Year Ranges checkboxes for the actual run
         sharepoint_links = self._filter_links_by_selected_years(sharepoint_links)
         if not sharepoint_links:
@@ -1907,14 +2040,12 @@ class SeleniumAutomationApp(QWidget):
             # make sure you advance to the next manufacturer cleanly
             self.on_manufacturer_finished(first_manufacturer, True)
             return
-        
+    
         # proceed as before
         self._multi_links = sharepoint_links
         self._multi_link_index = 0
         self._hyperlinks_total_links = len(self._multi_links)
         # (keep your existing label/bar updates here)
-        
-        
     
         if self.cleanup_checkbox.isChecked():
             years_needed = self.get_broken_hyperlink_years_for_manufacturer(first_manufacturer)
@@ -1961,6 +2092,7 @@ class SeleniumAutomationApp(QWidget):
             self.terminal = TerminalDialog(self)
             # ── MONKEY‐PATCH for live logging ──
             _orig_append = self.terminal.append_output
+    
             def _live_append(text: str):
                 # Parse first (no UI writes inside)
                 try:
@@ -1969,11 +2101,12 @@ class SeleniumAutomationApp(QWidget):
                         self._parse_and_update_report(text)
                 except Exception as e:
                     logging.exception("Report parser error: %s", e)
+    
                 # Then show in UI and log file
                 _orig_append(text)
                 logging.info(text)
+    
             self.terminal.append_output = _live_append
-            
     
         self.terminal.show()
         self.terminal.raise_()
@@ -1983,6 +2116,7 @@ class SeleniumAutomationApp(QWidget):
         self.current_index = 0
         self._clear_queue_state()
         self.process_next_manufacturer()
+
 
     ########################################### Class Addons go here ########################################### 
 
@@ -2035,6 +2169,83 @@ class SeleniumAutomationApp(QWidget):
     
         return dest_url, site_url
     
+    def _upload_output_router(self, text: str):
+        """
+        Upload-mode stdout router:
+        1) parse UPLOAD_JOB_SUMMARY lines
+        2) forward the same text to your existing output handler/UI
+        """
+        try:
+            self._parse_upload_job_summary(text)
+        except Exception:
+            pass
+    
+        # Always forward to your existing output handler so UI/logs behave the same
+        self.handle_extractor_output(text)
+    
+    
+    def _parse_upload_job_summary(self, text: str):
+        """
+        Parses:
+          UPLOAD_JOB_SUMMARY|MAKE=BrightDrop|YR=2022-2026|FILES=38|SECONDS=592
+        and accumulates totals for final reporting.
+        """
+        raw = text or ""
+    
+        # splitlines handles \n, \r\n, and \r
+        for line in raw.splitlines():
+            line = (line or "").strip()
+            if not line:
+                continue
+    
+            marker = "UPLOAD_JOB_SUMMARY|"
+            if marker not in line:
+                continue
+    
+            payload = line[line.find(marker):]  # strip any prefix
+            parts = payload.split("|")
+            kv = {}
+            for p in parts[1:]:
+                if "=" in p:
+                    k, v = p.split("=", 1)
+                    kv[k.strip()] = v.strip()
+    
+            make = kv.get("MAKE", "Unknown") or "Unknown"
+            yr = kv.get("YR", "") or "UNKNOWN_RANGE"
+            files = int((kv.get("FILES", "0") or "0").replace(",", "").strip())
+            secs = int((kv.get("SECONDS", "0") or "0").replace(",", "").strip())
+    
+            # Ensure accumulators exist (safe even if you already init them in start_automation)
+            if not hasattr(self, "_upload_total_files"):
+                self._upload_total_files = 0
+            if not hasattr(self, "_upload_files_by_make"):
+                self._upload_files_by_make = {}
+            if not hasattr(self, "_upload_time_by_make"):
+                self._upload_time_by_make = {}
+            if not hasattr(self, "_upload_files_by_job"):
+                self._upload_files_by_job = {}
+            if not hasattr(self, "_upload_time_by_job"):
+                self._upload_time_by_job = {}
+    
+            # Accumulate
+            self._upload_total_files += files
+            self._upload_files_by_make[make] = self._upload_files_by_make.get(make, 0) + files
+            self._upload_time_by_make[make] = self._upload_time_by_make.get(make, 0.0) + float(secs)
+    
+            self._upload_files_by_job[yr] = self._upload_files_by_job.get(yr, 0) + files
+            self._upload_time_by_job[yr] = self._upload_time_by_job.get(yr, 0.0) + float(secs)
+    
+            # DEBUG proof (you should see this now)
+            if not hasattr(self, "_upload_job_stats"):
+                self._upload_job_stats = []
+            self._upload_job_stats.append({
+                "make": make,
+                "yr": yr,
+                "files": files,
+                "seconds": secs,
+            })
+    
+
     def run_upload_mode(self, sharepoint_site_url: str, local_path: str):
         """
         Upload Mode: launch SharepointExtractor in 'upload' run_mode.
@@ -2061,17 +2272,20 @@ class SeleniumAutomationApp(QWidget):
             "",                            # argv[3] systems_csv (ignored)
             mode_flag,                     # argv[4] adas/repair (kept for consistency)
             "upload",                      # argv[5] run_mode
-            "",                            # argv[6] excel_mode (unused here, keep placeholder)
-            "",                            # argv[7] explicit_make (optional)
-            local_path,                    # argv[8] local folder path to upload
-            upload_type,                   # argv[9] oem/all_data
+            getattr(self, "upload_year_range", ""),  # argv[6] year-range key e.g. "2022-2026"
+            getattr(self, "upload_make", ""),        # argv[7] make (optional)
+            local_path,                    # argv[8] local folder path to upload (MAKE ROOT)
+            upload_type,                   # argv[9] oem/all_data (ignored for now)
         ]
+        
     
         # Start thread like your normal flows
         thread = WorkerThread(args, "UPLOAD_MODE", parent=self)
         self.thread = thread
-        thread.output_signal.connect(self.handle_extractor_output)
+        thread.output_signal.connect(self._upload_output_router)
         thread.finished_signal.connect(self.on_upload_mode_finished)
+        self._upload_job_started_at = time.time()
+        self._upload_job_make = getattr(self, "upload_make", "Unknown") or "Unknown"
         thread.start()
         self.threads.append(thread)
     
@@ -3145,37 +3359,141 @@ class SeleniumAutomationApp(QWidget):
 
     def on_upload_mode_finished(self, *args):
         """
-        Upload Mode completion handler. Does NOT depend on manufacturer counters.
-        Safely resets UI back to idle state.
+        Called when SharepointExtractor finishes one upload job.
+        Automatically launches the next make/year-range job.
         """
+    
+        # If user hit Stop, do not continue chaining.
+        if getattr(self, "stop_requested", False):
+            try:
+                if getattr(self, "terminal", None):
+                    self.terminal.append_output("🛑 Upload mode stopped by user.")
+            except Exception:
+                pass
+            self.finish_upload_mode()
+            return
+    
+        # Validate jobs list
+        jobs = getattr(self, "upload_jobs", None) or []
+        if not jobs:
+            self.finish_upload_mode()
+            return
+    
+        # Advance to next job
+        next_index = getattr(self, "upload_job_index", 0) + 1
+    
+        # Done? -> print final report + cleanup
+        if next_index >= len(jobs):
+            try:
+                def fmt_hhmmss(seconds: float) -> str:
+                    seconds = float(seconds or 0)
+                    hh = int(seconds // 3600)
+                    mm = int((seconds % 3600) // 60)
+                    ss = int(seconds % 60)
+                    return f"{hh}:{mm:02d}:{ss:02d}"
+    
+                def fmt_words(seconds: float) -> str:
+                    seconds = float(seconds or 0)
+                    hh = int(seconds // 3600)
+                    mm = int((seconds % 3600) // 60)
+                    return f"{hh} hours, {mm} minutes ({hh}:{mm:02d}:{int(seconds%60):02d})"
+    
+                # From parser accumulators
+                files_by_make = getattr(self, "_upload_files_by_make", {}) or {}
+                time_by_make = getattr(self, "_upload_time_by_make", {}) or {}
+                files_by_job = getattr(self, "_upload_files_by_job", {}) or {}
+                time_by_job = getattr(self, "_upload_time_by_job", {}) or {}
+    
+                # Build ordered year-ranges based on jobs list (keeps GUI order)
+                ordered_ranges = []
+                for (_m, yr_key, _p, _u) in jobs:
+                    if yr_key not in ordered_ranges:
+                        ordered_ranges.append(yr_key)
+    
+                # Build per-make per-range breakdown from _upload_job_stats
+                stats = getattr(self, "_upload_job_stats", []) or []
+                make_range = {}  # make -> {yr -> {"files":int,"secs":float}}
+                for s in stats:
+                    mk = s.get("make") or "Unknown"
+                    yr = s.get("yr") or "UNKNOWN_RANGE"
+                    make_range.setdefault(mk, {})
+                    make_range[mk].setdefault(yr, {"files": 0, "secs": 0.0})
+                    make_range[mk][yr]["files"] += int(s.get("files", 0) or 0)
+                    make_range[mk][yr]["secs"] += float(s.get("seconds", 0) or 0)
+    
+                # Grand totals
+                total_files_all = sum(int(v) for v in files_by_make.values()) if files_by_make else int(getattr(self, "_upload_total_files", 0) or 0)
+                total_secs_all = sum(float(v) for v in time_by_make.values()) if time_by_make else 0.0
+    
+                # Per-year-range totals (all makes combined)
+                # Map "2012-2016" -> "2012–2016" for display (en dash)
+                def disp_range(k: str) -> str:
+                    return (k or "").replace("-", "–")
+    
+                if getattr(self, "terminal", None):
+                    # Match requested header ordering
+                    self.terminal.append_output("\n✅ All upload jobs completed.\n")
+                    self.terminal.append_output("Grand Totals (All Makes Combined)\n")
+                    self.terminal.append_output(f"Complete Runtime: {fmt_words(total_secs_all)}")
+    
+                    for yr in ordered_ranges:
+                        self.terminal.append_output(f"Document Uploads {disp_range(yr)} Files: {int(files_by_job.get(yr, 0))}")
+    
+                    self.terminal.append_output(f"Total Files (All Years): {int(total_files_all)}")
+                    self.terminal.append_output("\n" + "-" * 90 + "\n")
+    
+                    # Per-make sections (alphabetical like your example)
+                    for make in sorted(files_by_make.keys()):
+                        make_files = int(files_by_make.get(make, 0))
+                        make_secs = float(time_by_make.get(make, 0.0))
+    
+                        self.terminal.append_output(f"{make}\n")
+                        self.terminal.append_output(f"{fmt_hhmmss(make_secs)} Total Time | Total Files: {make_files}")
+    
+                        # Print each selected link for this make (1st/2nd/3rd)
+                        for idx, yr in enumerate(ordered_ranges, start=1):
+                            yr_files = 0
+                            yr_secs = 0.0
+                            if make in make_range and yr in make_range[make]:
+                                yr_files = int(make_range[make][yr]["files"])
+                                yr_secs = float(make_range[make][yr]["secs"])
+    
+                            suffix = {1: "1st", 2: "2nd", 3: "3rd"}.get(idx, f"{idx}th")
+                            self.terminal.append_output(
+                                f"-----{suffix} {make} Link ({disp_range(yr)}): {fmt_hhmmss(yr_secs)} | Files: {yr_files}"
+                            )
+    
+                        self.terminal.append_output("")  # blank line between makes
+    
+            except Exception:
+                pass
+    
+            self.finish_upload_mode()
+            return
+    
+        # Move index forward
+        self.upload_job_index = next_index
+    
+        # Launch next job
+        make, yr_key, dest_path, site_url = jobs[self.upload_job_index]
+        self.upload_make = make
+        self.upload_year_range = yr_key
+        self.upload_local_path = dest_path
+        self.upload_site_url = site_url
+    
         try:
-            # Stop state
-            self.is_running = False
-            self.stop_requested = False
-            self.pause_requested = False
+            if getattr(self, "terminal", None):
+                self.terminal.append_output(
+                    f"📤 Upload job {self.upload_job_index + 1}/{len(jobs)} | Make={make} | YearRange={yr_key}\n"
+                    f"   LocalRoot={dest_path}\n"
+                    f"   SharePointURL={site_url}"
+                )
+        except Exception:
+            pass
     
-            # Disable pause button like your normal end-of-run behavior
-            if hasattr(self, "pause_button"):
-                self.pause_button.setEnabled(False)
-                self.pause_button.setText("Pause Automation")
-    
-            # Swap Stop -> Start (match your existing styling)
-            if hasattr(self, "button_layout") and hasattr(self, "start_button"):
-                layout = self.button_layout
-                layout.removeWidget(self.start_button)
-                self.start_button.deleteLater()
-    
-                self.start_button = CustomButton("Start Automation", "#e3b505", self)
-                self.start_button.clicked.connect(self.on_start_stop)
-                layout.addWidget(self.start_button)
-    
-            # Optional: update any status label you have
-            if hasattr(self, "current_manufacturer_label"):
-                self.current_manufacturer_label.setText("Upload Mode complete")
-    
-        except Exception as e:
-            print(f"⚠️ Upload finished handler error: {e}")
-    
+        # Run the next job
+        self.run_upload_mode(site_url, dest_path)
+
 
     def select_all(self):
         select_all_checked = True
@@ -3430,6 +3748,106 @@ class SeleniumAutomationApp(QWidget):
         insert_index = layout.indexOf(self.current_manufacturer_label)
         layout.insertWidget(insert_index, self.start_button)
      
+    def start_next_upload_job(self):
+        """Advance upload_jobs and launch the next SharepointExtractor run."""
+        if getattr(self, "stop_requested", False):
+            self.terminal.append_output("🛑 Upload mode stopped by user.")
+            self.finish_upload_mode()
+            return
+    
+        if not getattr(self, "upload_jobs", None):
+            self.terminal.append_output("⚠️ No upload jobs present.")
+            self.finish_upload_mode()
+            return
+    
+        self.upload_job_index += 1
+    
+        if self.upload_job_index >= len(self.upload_jobs):
+            self.terminal.append_output("✅ All upload jobs completed.")
+            self.finish_upload_mode()
+            return
+    
+        make, yr_key, dest_path, site_url = self.upload_jobs[self.upload_job_index]
+    
+        # Keep these fields updated (used by args builder / reporting)
+        self.upload_make = make
+        self.upload_year_range = yr_key
+        self.upload_local_path = dest_path
+        self.upload_site_url = site_url
+    
+        self.terminal.append_output(
+            f"📤 Upload job {self.upload_job_index + 1}/{len(self.upload_jobs)} | Make={make} | YearRange={yr_key}\n"
+            f"   LocalRoot={dest_path}\n"
+            f"   SharePointURL={site_url}"
+        )
+    
+        # Launch the uploader run
+        self.run_upload_mode(self.upload_site_url, self.upload_local_path)
+    
+    
+    def on_upload_job_finished(self, *args):
+        """
+        Called when SharepointExtractor upload run finishes.
+        We don't care about args shape; we just chain to next job.
+        """
+        # If user hit Stop while a job was running, stop chaining.
+        if getattr(self, "stop_requested", False):
+            self.terminal.append_output("🛑 Stop requested; not starting next upload job.")
+            self.finish_upload_mode()
+            return
+    
+        # Start next job
+        self.start_next_upload_job()
+    
+    
+    def finish_upload_mode(self):
+
+        # ---------------- Upload Time Reporting ----------------
+        try:
+            import time
+            if hasattr(self, "upload_start_time"):
+                elapsed = time.time() - self.upload_start_time
+                hours = int(elapsed // 3600)
+                minutes = int((elapsed % 3600) // 60)
+                seconds = int(elapsed % 60)
+        
+                runtime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        
+                #if getattr(self, "terminal", None):
+                #    self.terminal.append_output("\n==============================")
+                #    self.terminal.append_output(f"🕒 Total Upload Time: {runtime_str}")
+                #    self.terminal.append_output("==============================\n")
+        except Exception:
+            pass
+        
+        """Restore UI state after upload mode completes or is stopped."""
+        self.is_running = False
+    
+        # Swap Stop -> Start (same pattern you already use)
+        layout = self.button_layout
+        layout.removeWidget(self.start_button)
+        self.start_button.deleteLater()
+        self.start_button = CustomButton("Start Automation", "#e3b505", self)  # use your start color
+        self.start_button.clicked.connect(self.on_start_stop)
+        layout.addWidget(self.start_button)
+    
+        # Disable pause
+        try:
+            self.pause_button.setEnabled(False)
+            self.pause_button.setText("Pause Automation")
+            self.pause_requested = False
+        except Exception:
+            pass
+    
+        # Clean upload job state
+        self.upload_jobs = []
+        self.upload_job_index = -1
+        self.upload_make = None
+        self.upload_year_range = None
+        self.upload_local_path = None
+        self.upload_site_url = None
+
+
     def on_pause_resume(self):
         # only when running and we have a live subprocess
         if not self.is_running or self.thread is None or not hasattr(self.thread, "process"):
