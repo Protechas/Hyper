@@ -1107,15 +1107,77 @@ class SharepointExtractor:
             return True
     
         def ensure_folder_exists_and_enter(folder_name: str):
-            if enter_folder(folder_name):
-                return
-            create_folder(folder_name)
-            for _ in range(6):
-                if enter_folder(folder_name):
-                    return
-                time.sleep(0.5)
-            raise Exception(f"❌ Folder '{folder_name}' could not be entered after creation.")
-    
+            """
+            Ensure folder exists in current SharePoint view and enter it.
+            Retries up to 3 times before failing.
+            """
+        
+            MAX_ATTEMPTS = 3
+        
+            for attempt in range(1, MAX_ATTEMPTS + 1):
+                try:
+                    #print(f"📁 ensure_folder_exists_and_enter('{folder_name}') | attempt {attempt}/{MAX_ATTEMPTS}")
+        
+                    # 1) If it exists, try entering immediately
+                    if enter_folder(folder_name):
+                        return
+        
+                    #print(f"➕ Folder not entered yet; creating '{folder_name}'...")
+                    create_folder(folder_name)
+        
+                    # 2) Give SharePoint time to render the new folder row
+                    time.sleep(0.8)
+        
+                    # 3) Try multiple times to enter (folder may appear late)
+                    for i in range(1, 7):
+                        if enter_folder(folder_name):
+                            return
+                        time.sleep(0.6)
+        
+                        # Light "nudge" every couple tries (close menus + small scroll)
+                        if i in (2, 4, 6):
+                            try:
+                                close_open_menus()
+                            except Exception:
+                                pass
+                            try:
+                                self.selenium_driver.execute_script("window.scrollBy(0, 140);")
+                                time.sleep(0.2)
+                                self.selenium_driver.execute_script("window.scrollBy(0, -140);")
+                                time.sleep(0.2)
+                            except Exception:
+                                pass
+        
+                    # If we get here, attempt failed. Try a soft refresh before next attempt.
+                    print(f"⚠️ Attempt {attempt} failed to enter '{folder_name}'. Trying recovery...")
+                    try:
+                        close_open_menus()
+                    except Exception:
+                        pass
+                    try:
+                        # Sometimes the row exists but isn't clickable yet
+                        self.selenium_driver.refresh()
+                        time.sleep(2.0)
+                    except Exception:
+                        pass
+        
+                except Exception as e:
+                    # Log and continue attempts
+                    print(f"⚠️ Attempt {attempt} exception while entering '{folder_name}': {e}")
+                    try:
+                        close_open_menus()
+                    except Exception:
+                        pass
+                    try:
+                        self.selenium_driver.refresh()
+                        time.sleep(2.0)
+                    except Exception:
+                        pass
+        
+            # After max attempts
+            raise Exception(f"❌ Folder '{folder_name}' could not be entered after {MAX_ATTEMPTS} attempts.")
+        
+            
         def find_file_inputs_anywhere(timeout=25):
             end = time.time() + timeout
             selectors = [
@@ -1163,52 +1225,131 @@ class SharepointExtractor:
         def upload_files_here(file_paths: list[str]):
             if not file_paths:
                 return
-    
-            if not click_upload_button():
-                raise Exception("❌ Could not find Create/Upload button for file upload.")
-            if not click_menu_item("Files upload"):
-                click_menu_item("Files")
-    
-            inputs = find_file_inputs_anywhere(timeout=25)
-            if not inputs:
-                raise Exception("❌ Could not find any input[type=file] after clicking Files upload.")
-    
-            file_input = None
-            for inp in inputs:
-                try:
-                    if inp.get_attribute("disabled"):
-                        continue
-                    if inp.get_attribute("multiple") is not None:
-                        file_input = inp
-                        break
-                    if file_input is None:
-                        file_input = inp
-                except Exception:
-                    continue
-    
-            if not file_input:
-                raise Exception("❌ Found file inputs but none were usable/enabled.")
-    
+        
+            MAX_ATTEMPTS = 3
             CHUNK_SIZE = 120
-            for i in range(0, len(file_paths), CHUNK_SIZE):
-                batch = file_paths[i:i + CHUNK_SIZE]
-                print(f"📤 Uploading batch {(i // CHUNK_SIZE) + 1} ({len(batch)} files)...")
-                file_input.send_keys("\n".join(batch))
-    
-                batch_count = len(batch)
-                self._job_files_uploaded += batch_count
-                self.total_files_uploaded += batch_count
-    
-                make_name = self.current_make if hasattr(self, "current_make") else "Unknown"
-                if make_name not in self.files_uploaded_by_make:
-                    self.files_uploaded_by_make[make_name] = 0
-                self.files_uploaded_by_make[make_name] += batch_count
-    
-                time.sleep(2.0)
-                time.sleep(min(30, max(6, len(batch) * 0.25)))
-    
-            close_open_menus()
-    
+        
+            def _find_inputs_with_fallback():
+                # 1) your existing finder
+                inputs = find_file_inputs_anywhere(timeout=25)
+                if inputs:
+                    return inputs
+        
+                # 2) JS fallback (sometimes input exists but Selenium misses it)
+                try:
+                    js_inputs = self.selenium_driver.execute_script(
+                        "return Array.from(document.querySelectorAll('input[type=file]'));"
+                    )
+                    return js_inputs or []
+                except Exception:
+                    return []
+        
+            def _pick_file_input(inputs):
+                file_input = None
+                for inp in inputs:
+                    try:
+                        if inp.get_attribute("disabled"):
+                            continue
+                        if inp.get_attribute("multiple") is not None:
+                            return inp
+                        if file_input is None:
+                            file_input = inp
+                    except Exception:
+                        continue
+                return file_input
+        
+            for attempt in range(1, MAX_ATTEMPTS + 1):
+                try:
+                    print(f"📤 upload_files_here() attempt {attempt}/{MAX_ATTEMPTS} | files={len(file_paths)}")
+        
+                    # Close anything that might block the menu/input
+                    close_open_menus()
+                    time.sleep(0.25)
+        
+                    # Re-open upload menu fresh each attempt
+                    if not click_upload_button():
+                        raise Exception("❌ Could not find Create/Upload button for file upload.")
+                    if not click_menu_item("Files upload"):
+                        click_menu_item("Files")
+        
+                    # Give SharePoint time to inject the input
+                    time.sleep(0.8)
+        
+                    inputs = _find_inputs_with_fallback()
+                    if not inputs:
+                        raise Exception("❌ Could not find any input[type=file] after clicking Files upload.")
+        
+                    file_input = _pick_file_input(inputs)
+                    if not file_input:
+                        raise Exception("❌ Found file inputs but none were usable/enabled.")
+        
+                    # Upload in chunks
+                    for i in range(0, len(file_paths), CHUNK_SIZE):
+                        batch = file_paths[i:i + CHUNK_SIZE]
+                        print(f"📤 Uploading batch {(i // CHUNK_SIZE) + 1} ({len(batch)} files)...")
+        
+                        # Normal send_keys
+                        try:
+                            file_input.send_keys("\n".join(batch))
+                        except Exception:
+                            # If input is hidden/overlaid, try forcing visibility then retry
+                            try:
+                                self.selenium_driver.execute_script(
+                                    "arguments[0].style.display='block';"
+                                    "arguments[0].style.visibility='visible';"
+                                    "arguments[0].style.opacity=1;",
+                                    file_input
+                                )
+                                time.sleep(0.2)
+                                file_input.send_keys("\n".join(batch))
+                            except Exception as e:
+                                raise Exception(f"❌ send_keys failed for file input: {e}")
+        
+                        batch_count = len(batch)
+                        self._job_files_uploaded += batch_count
+                        self.total_files_uploaded += batch_count
+        
+                        make_name = self.current_make if hasattr(self, "current_make") else "Unknown"
+                        if make_name not in self.files_uploaded_by_make:
+                            self.files_uploaded_by_make[make_name] = 0
+                        self.files_uploaded_by_make[make_name] += batch_count
+        
+                        time.sleep(2.0)
+                        time.sleep(min(30, max(6, len(batch) * 0.25)))
+        
+                    close_open_menus()
+                    return  # ✅ success
+        
+                except Exception as e:
+                    print(f"⚠️ upload_files_here attempt {attempt} failed: {e}")
+        
+                    # Recovery: close menus/overlays and try again
+                    try:
+                        close_open_menus()
+                    except Exception:
+                        pass
+        
+                    # Try to remove dialog backdrops if they exist (can intercept clicks)
+                    try:
+                        self.selenium_driver.execute_script(
+                            "document.querySelectorAll('.fui-DialogSurface__backdrop,[role=dialog]')"
+                            ".forEach(e=>{try{e.remove()}catch(_){}});"
+                        )
+                    except Exception:
+                        pass
+        
+                    # Refresh between attempts (helps when DOM/menu gets stale)
+                    if attempt < MAX_ATTEMPTS:
+                        try:
+                            self.selenium_driver.refresh()
+                            time.sleep(2.5)
+                        except Exception:
+                            pass
+        
+            # After max attempts
+            raise Exception("❌ Could not find any input[type=file] after clicking Files upload (3 attempts).")
+        
+            
         def click_breadcrumb(name: str):
             candidates = [
                 (By.XPATH, f"//a[normalize-space()='{name}']"),
