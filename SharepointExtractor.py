@@ -747,7 +747,7 @@ class SharepointExtractor:
                 "model":  pick("Model"),
                 "system": pick(  # ADAS + Repair
                     "SME Generic System Name",
-                    "Protech Generic System Name",
+                    #"Protech Generic System Name",
                     "Generic System Name",
                     "System Name",
                     "System",
@@ -989,180 +989,312 @@ class SharepointExtractor:
                 pass
     
         def click_upload_button():
+            """
+            FAST: poll for up to ~4s total across all candidates.
+            """
             upload_btn_candidates = [
                 (By.XPATH, "//button[contains(., 'Create') or contains(., 'Upload')]"),
                 (By.XPATH, "//span[contains(., 'Create') or contains(., 'Upload')]/ancestor::button[1]"),
                 (By.XPATH, "//*[contains(@aria-label,'Create') or contains(@aria-label,'Upload')]/ancestor::button[1]"),
             ]
-            for how, sel in upload_btn_candidates:
-                try:
-                    btn = wait.until(EC.element_to_be_clickable((how, sel)))
-                    btn.click()
-                    time.sleep(0.35)
-                    return True
-                except Exception:
-                    continue
+        
+            end = time.time() + 4.0
+        
+            while time.time() < end:
+                for how, sel in upload_btn_candidates:
+                    try:
+                        els = self.selenium_driver.find_elements(how, sel)
+                        if not els:
+                            continue
+                        btn = els[0]
+                        try:
+                            self.selenium_driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
+                        except Exception:
+                            pass
+                        try:
+                            btn.click()
+                        except Exception:
+                            self.selenium_driver.execute_script("arguments[0].click();", btn)
+                        time.sleep(0.15)
+                        return True
+                    except Exception:
+                        continue
+                time.sleep(0.2)
+        
             return False
+
     
         def click_menu_item(label_contains: str):
+            """
+            FAST: poll for up to ~3.5s total instead of 8s per candidate.
+            """
+            end = time.time() + 5
             menu_candidates = [
                 (By.XPATH, f"//*[(@role='menuitem' or @role='option') and contains(., '{label_contains}')]"),
                 (By.XPATH, f"//button[contains(., '{label_contains}')]"),
                 (By.XPATH, f"//span[contains(., '{label_contains}')]/ancestor::*[(@role='menuitem' or @role='option' or self::button)][1]"),
             ]
-            for how, sel in menu_candidates:
-                try:
-                    el = WebDriverWait(self.selenium_driver, 8).until(EC.element_to_be_clickable((how, sel)))
-                    el.click()
-                    time.sleep(0.35)
-                    return True
-                except Exception:
-                    continue
+        
+            while time.time() < end:
+                for how, sel in menu_candidates:
+                    try:
+                        els = self.selenium_driver.find_elements(how, sel)
+                        if not els:
+                            continue
+                        el = els[0]
+                        try:
+                            self.selenium_driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+                        except Exception:
+                            pass
+                        try:
+                            el.click()
+                        except Exception:
+                            self.selenium_driver.execute_script("arguments[0].click();", el)
+                        time.sleep(0.15)
+                        return True
+                    except Exception:
+                        continue
+                time.sleep(0.2)
+        
             return False
+
     
         def create_folder(folder_name: str):
+            # open menu
             if not click_upload_button():
                 raise Exception("❌ Could not find Create/Upload button for folder creation.")
+        
+            # click Folder (creates SharePoint folder)
             if not click_menu_item("Folder"):
                 click_menu_item("New folder")
-    
+        
+            # --- Find the name input FAST (presence first, then clickable) ---
             name_box = None
             name_candidates = [
                 (By.XPATH, "//input[@type='text' and (@aria-label='Name' or contains(@aria-label,'name') or contains(@placeholder,'name') or contains(@placeholder,'Name'))]"),
                 (By.XPATH, "//input[@type='text' and contains(@class,'ms-TextField-field')]"),
                 (By.XPATH, "//input[@type='text']"),
             ]
+        
             for how, sel in name_candidates:
                 try:
-                    name_box = WebDriverWait(self.selenium_driver, 8).until(EC.element_to_be_clickable((how, sel)))
+                    name_box = WebDriverWait(self.selenium_driver, 2).until(
+                        EC.presence_of_element_located((how, sel))
+                    )
                     break
                 except Exception:
                     continue
+        
             if not name_box:
                 raise Exception("❌ Could not find folder name input.")
-    
-            name_box.clear()
-            name_box.send_keys(folder_name)
+        
+            # Set value (JS is faster + avoids some flaky clear())
             try:
-                name_box.send_keys(Keys.ENTER)
+                self.selenium_driver.execute_script(
+                    "arguments[0].value=''; arguments[0].dispatchEvent(new Event('input', {bubbles:true}));",
+                    name_box
+                )
+            except Exception:
+                try:
+                    name_box.clear()
+                except Exception:
+                    pass
+        
+            try:
+                name_box.send_keys(folder_name)
+            except Exception:
+                self.selenium_driver.execute_script(
+                    "arguments[0].value=arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true}));",
+                    name_box, folder_name
+                )
+        
+            # Click Create button if present (usually faster + more reliable than Enter)
+            create_btn_candidates = [
+                (By.XPATH, "//button[.//span[normalize-space()='Create'] or normalize-space()='Create']"),
+                (By.XPATH, "//button[contains(@class,'primary') and (contains(.,'Create') or contains(.,'create'))]"),
+                (By.XPATH, "//*[@role='dialog']//button[contains(.,'Create') or contains(.,'create')]"),
+            ]
+            clicked = False
+            for how, sel in create_btn_candidates:
+                try:
+                    btn = WebDriverWait(self.selenium_driver, 3).until(EC.element_to_be_clickable((how, sel)))
+                    try:
+                        btn.click()
+                    except Exception:
+                        self.selenium_driver.execute_script("arguments[0].click();", btn)
+                    clicked = True
+                    break
+                except Exception:
+                    continue
+        
+            if not clicked:
+                # fallback: Enter
+                try:
+                    name_box.send_keys(Keys.ENTER)
+                except Exception:
+                    pass
+        
+            # ✅ FAST: wait for the dialog/backdrop to disappear instead of sleeping ~1s+
+            try:
+                WebDriverWait(self.selenium_driver, 3).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR, ".fui-DialogSurface__backdrop,[role='dialog']"))
+                )
             except Exception:
                 pass
-    
-            time.sleep(0.9)
+        
             close_open_menus()
+
     
         def folder_row_element(folder_name: str):
+            """
+            FAST: poll for up to ~4s total, instead of 8s * 4 candidates (~32s)
+            """
+            end = time.time() + 6.0
             candidates = [
                 (By.XPATH, f"//a[normalize-space()='{folder_name}']"),
                 (By.XPATH, f"//span[normalize-space()='{folder_name}']/ancestor::a[1]"),
                 (By.XPATH, f"//span[normalize-space()='{folder_name}']/ancestor::*[@role='row'][1]//a"),
                 (By.XPATH, f"//*[@role='row']//*[normalize-space()='{folder_name}']"),
             ]
-            for how, sel in candidates:
-                try:
-                    return WebDriverWait(self.selenium_driver, 8).until(EC.element_to_be_clickable((how, sel)))
-                except Exception:
-                    continue
+        
+            last_err = None
+            while time.time() < end:
+                for how, sel in candidates:
+                    try:
+                        els = self.selenium_driver.find_elements(how, sel)
+                        if els:
+                            el = els[0]
+                            # Try to ensure it's interactable (but no long waits)
+                            try:
+                                self.selenium_driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+                            except Exception:
+                                pass
+                            return el
+                    except Exception as e:
+                        last_err = e
+                time.sleep(0.2)
+        
             return None
     
-        def enter_folder(folder_name: str):
+        def get_current_breadcrumb_last() -> str:
+            """
+            Returns the last breadcrumb crumb (current folder name) if available.
+            Uses your existing locator: __ONEDRIVE_PAGE_NAME_LOCATOR__ = (//*[@data-automationid='breadcrumb-crumb'])[last()]
+            """
+            try:
+                el = self.selenium_driver.find_element(By.XPATH, self.__ONEDRIVE_PAGE_NAME_LOCATOR__)
+                return (el.get_attribute("innerText") or "").strip()
+            except Exception:
+                return ""
+
+        def enter_folder(folder_name: str) -> bool:
             close_open_menus()
+        
+            # If we're already in it, we're done.
+            if get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower():
+                return True
+        
             row = folder_row_element(folder_name)
             if not row:
                 return False
-    
+        
+            prev_url = self.selenium_driver.current_url
+            prev_crumb = get_current_breadcrumb_last()
+        
             try:
                 self.selenium_driver.execute_script("arguments[0].scrollIntoView({block:'center'});", row)
-                time.sleep(0.2)
+                time.sleep(0.15)
             except Exception:
                 pass
-    
+        
+            # Prefer clicking the name link if present (most reliable navigation)
+            clicked = False
             try:
                 name_link = row.find_element(By.XPATH, ".//a[normalize-space() = '" + folder_name + "']")
                 try:
                     name_link.click()
                 except Exception:
                     self.selenium_driver.execute_script("arguments[0].click();", name_link)
-                time.sleep(0.8)
+                clicked = True
             except Exception:
+                pass
+        
+            # Fallbacks
+            if not clicked:
                 try:
                     row.click()
+                    clicked = True
                 except Exception:
-                    self.selenium_driver.execute_script("arguments[0].click();", row)
-                time.sleep(0.3)
-    
+                    try:
+                        self.selenium_driver.execute_script("arguments[0].click();", row)
+                        clicked = True
+                    except Exception:
+                        clicked = False
+        
+            if not clicked:
+                return False
+        
+            # ✅ CONFIRM NAVIGATION (breadcrumb changes to folder_name)
             try:
-                ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
-                time.sleep(0.9)
+                WebDriverWait(self.selenium_driver, 10).until(
+                    lambda d: get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower()
+                )
+                return True
             except Exception:
-                pass
-    
-            try:
-                ActionChains(self.selenium_driver).double_click(row).perform()
-                time.sleep(1.0)
-            except Exception:
-                pass
-    
-            # Best-effort: if it didn't navigate, we'll still return True to avoid deadlocks
-            return True
+                # One more attempt: double click the row (sometimes needed in SP)
+                try:
+                    ActionChains(self.selenium_driver).double_click(row).perform()
+                except Exception:
+                    pass
+        
+                try:
+                    WebDriverWait(self.selenium_driver, 10).until(
+                        lambda d: get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower()
+                    )
+                    return True
+                except Exception:
+                    # Not in folder (don’t lie anymore)
+                    return False
     
         def ensure_folder_exists_and_enter(folder_name: str):
             """
-            Ensure folder exists in current SharePoint view and enter it.
+            Ensure folder exists in current SharePoint view and ACTUALLY enter it.
             Retries up to 3 times before failing.
             """
-        
             MAX_ATTEMPTS = 3
         
             for attempt in range(1, MAX_ATTEMPTS + 1):
                 try:
-                    #print(f"📁 ensure_folder_exists_and_enter('{folder_name}') | attempt {attempt}/{MAX_ATTEMPTS}")
+                    close_open_menus()
         
-                    # 1) If it exists, try entering immediately
+                    # If already inside, done.
+                    if get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower():
+                        return
+        
+                    # 1) Try entering (verified)
                     if enter_folder(folder_name):
                         return
         
-                    #print(f"➕ Folder not entered yet; creating '{folder_name}'...")
+                    # 2) Create folder then enter
                     create_folder(folder_name)
         
-                    # 2) Give SharePoint time to render the new folder row
-                    time.sleep(0.8)
-        
-                    # 3) Try multiple times to enter (folder may appear late)
-                    for i in range(1, 7):
+                    # Wait for the row to appear, then enter (verified)
+                    end = time.time() + 10.0
+                    while time.time() < end:
                         if enter_folder(folder_name):
                             return
-                        time.sleep(0.6)
+                        time.sleep(0.4)
         
-                        # Light "nudge" every couple tries (close menus + small scroll)
-                        if i in (2, 4, 6):
-                            try:
-                                close_open_menus()
-                            except Exception:
-                                pass
-                            try:
-                                self.selenium_driver.execute_script("window.scrollBy(0, 140);")
-                                time.sleep(0.2)
-                                self.selenium_driver.execute_script("window.scrollBy(0, -140);")
-                                time.sleep(0.2)
-                            except Exception:
-                                pass
-        
-                    # If we get here, attempt failed. Try a soft refresh before next attempt.
+                    # Recovery between attempts
                     print(f"⚠️ Attempt {attempt} failed to enter '{folder_name}'. Trying recovery...")
+                    close_open_menus()
                     try:
-                        close_open_menus()
-                    except Exception:
-                        pass
-                    try:
-                        # Sometimes the row exists but isn't clickable yet
                         self.selenium_driver.refresh()
                         time.sleep(2.0)
                     except Exception:
                         pass
         
                 except Exception as e:
-                    # Log and continue attempts
                     print(f"⚠️ Attempt {attempt} exception while entering '{folder_name}': {e}")
                     try:
                         close_open_menus()
@@ -1174,10 +1306,8 @@ class SharepointExtractor:
                     except Exception:
                         pass
         
-            # After max attempts
             raise Exception(f"❌ Folder '{folder_name}' could not be entered after {MAX_ATTEMPTS} attempts.")
-        
-            
+                    
         def find_file_inputs_anywhere(timeout=25):
             end = time.time() + timeout
             selectors = [
@@ -1227,7 +1357,7 @@ class SharepointExtractor:
                 return
         
             MAX_ATTEMPTS = 3
-            CHUNK_SIZE = 120
+            CHUNK_SIZE = 300
         
             def _find_inputs_with_fallback():
                 # 1) your existing finder
@@ -1290,7 +1420,9 @@ class SharepointExtractor:
         
                         # Normal send_keys
                         try:
+                            time.sleep(1.0)
                             file_input.send_keys("\n".join(batch))
+
                         except Exception:
                             # If input is hidden/overlaid, try forcing visibility then retry
                             try:
@@ -1314,8 +1446,9 @@ class SharepointExtractor:
                             self.files_uploaded_by_make[make_name] = 0
                         self.files_uploaded_by_make[make_name] += batch_count
         
-                        time.sleep(2.0)
-                        time.sleep(min(30, max(6, len(batch) * 0.25)))
+                        time.sleep(0.8)
+                        time.sleep(min(10, max(2, len(batch) * 0.03)))
+                        
         
                     close_open_menus()
                     return  # ✅ success
@@ -1342,7 +1475,7 @@ class SharepointExtractor:
                     if attempt < MAX_ATTEMPTS:
                         try:
                             self.selenium_driver.refresh()
-                            time.sleep(2.5)
+                            time.sleep(1.6)
                         except Exception:
                             pass
         
@@ -1359,7 +1492,7 @@ class SharepointExtractor:
             ]
             for how, sel in candidates:
                 try:
-                    el = WebDriverWait(self.selenium_driver, 6).until(EC.element_to_be_clickable((how, sel)))
+                    el = WebDriverWait(self.selenium_driver, 2).until(EC.element_to_be_clickable((how, sel)))
                     el.click()
                     time.sleep(1.0)
                     return True
@@ -2359,7 +2492,7 @@ class SharepointExtractor:
                     "div[data-automation-id='sp-grid']"
                 )
             except Exception:
-                print("⚠️ Could not locate scrollable folder container.")
+                #print("⚠️ Could not locate scrollable folder container.")
                 return
     
         try:

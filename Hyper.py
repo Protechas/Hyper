@@ -391,6 +391,9 @@ class SeleniumAutomationApp(QWidget):
         "Alfa Romeo": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Alfa Romeo",
         "Audi": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Audi",
         "Brightdrop": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\BrightDrop",
+        "Buick": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Buick",
+        "Cadillac": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Cadillac",
+        "Chevrolet": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Chevrolet",
     }
     
     SHAREPOINT_TARGETS = {
@@ -2182,8 +2185,7 @@ class SeleniumAutomationApp(QWidget):
     
         # Always forward to your existing output handler so UI/logs behave the same
         self.handle_extractor_output(text)
-    
-    
+ 
     def _parse_upload_job_summary(self, text: str):
         """
         Parses:
@@ -2262,7 +2264,7 @@ class SeleniumAutomationApp(QWidget):
         # OEM vs All_Data (optional) if you already created the switch
         upload_type = "oem"
         if hasattr(self, "upload_type_switch"):
-            upload_type = "oem" if self.upload_type_switch.isChecked() else "all_data"
+            upload_type = "all_data" if getattr(self, "upload_type_switch", None) and self.upload_type_switch.isChecked() else "oem"
     
         args = [
             sys.executable,
