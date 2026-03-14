@@ -1440,11 +1440,23 @@ class SharepointExtractor:
                         batch_count = len(batch)
                         self._job_files_uploaded += batch_count
                         self.total_files_uploaded += batch_count
-        
+
                         make_name = self.current_make if hasattr(self, "current_make") else "Unknown"
                         if make_name not in self.files_uploaded_by_make:
                             self.files_uploaded_by_make[make_name] = 0
                         self.files_uploaded_by_make[make_name] += batch_count
+
+                        # Emit live file-progress update for Hyper.py
+                        try:
+                            yr_key = (getattr(self, "upload_year_range_key", "") or "").strip()
+                            total_files = int(getattr(self, "_job_total_files", 0))
+                            done_files = int(getattr(self, "_job_files_uploaded", 0))
+                            print(
+                                f"UPLOAD_PROGRESS|MAKE={make_name}|YR={yr_key}|DONE={done_files}|TOTAL={total_files}",
+                                flush=True
+                            )
+                        except Exception:
+                            pass
         
                         time.sleep(0.8)
                         time.sleep(min(10, max(2, len(batch) * 0.03)))
@@ -1567,6 +1579,27 @@ class SharepointExtractor:
     
             print(f"🧭 Year-range filter active: {selected_range_key} → {len(years_to_process)} year folder(s)")
     
+        # ----------------------------
+        # Pre-count all files for this upload job so Hyper can show live file progress
+        # ----------------------------
+        def _count_files_recursive(root_path: str) -> int:
+            total = 0
+            for _root, _dirs, files in os.walk(root_path):
+                total += len(files)
+            return total
+
+        self._job_total_files = sum(_count_files_recursive(p) for p in years_to_process)
+
+        try:
+            make_name = getattr(self, "current_make", "Unknown") or "Unknown"
+            yr_key = (getattr(self, "upload_year_range_key", "") or "").strip()
+            print(
+                f"UPLOAD_PROGRESS|MAKE={make_name}|YR={yr_key}|DONE=0|TOTAL={int(self._job_total_files)}",
+                flush=True
+            )
+        except Exception:
+            pass
+
         # Process each year folder under the current MAKE folder in SharePoint
         for year_path in years_to_process:
             year_name = os.path.basename(os.path.normpath(year_path))
@@ -1594,7 +1627,7 @@ class SharepointExtractor:
 
         time.sleep(2)
     
-        
+        ##############
  ##########################################################################################################################
         
     def __ensure_make_root_for_cleanup__(self, desired_make: str) -> None:

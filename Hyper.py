@@ -397,7 +397,7 @@ class SeleniumAutomationApp(QWidget):
     }
     
     SHAREPOINT_TARGETS = {
-        "2012-2016": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgDuEFQ2FR8cQJfYoyN9hV46AfJneTPGSGFJpcbkyt9j8GM?e=XCALO8",
+        "2012-2016": "https://calibercollision.sharepoint.com/:f:/s/O365-DepartmentofInformationSoloutions/IgCWpsTnL-a9R529udR4SP43ASdQ2yA44t8QzGMwcZN5NME?e=xoE9VU",
         "2017-2021": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCQuieJ-JcBTpZu_8qdHcXQAfegs9LUlNpcRNT78Lc3nPw?e=2Cu7QS",
         "2022-2026": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgBEwGI01IDgSJ1-6K-Atqg7AXCeboGZ2mI9RpF2qoRZb9Q?e=9tWjr8",
         "2027-2031": "https://.../ADAS%20S.I.%20PDF%20Documents/2027-2031",
@@ -982,72 +982,49 @@ class SeleniumAutomationApp(QWidget):
         # ----------------------------
         # Upload job summary parser (from SharepointExtractor) + DEBUG
         # ----------------------------
+        # ----------------------------
+        # Upload live progress parser (SAFE — does not modify existing output logic)
+        # ----------------------------
         try:
-            raw = text or ""
-        
-            # IMPORTANT: splitlines() handles \n, \r\n, and \r
-            for line in raw.splitlines():
-                line = (line or "").strip()
-                if not line:
+            raw = line or ""
+
+            for l in raw.splitlines():
+                s = (l or "").strip()
+                if not s:
                     continue
-        
-                if "UPLOAD_JOB_SUMMARY|" not in line:
+
+                if "UPLOAD_PROGRESS|" not in s:
                     continue
-        
-                # DEBUG: confirm we saw it
-                try:
-                    if getattr(self, "terminal", None):
-                        self.terminal.append_output(f"🧪 DEBUG: parser saw summary line: {line}")
-                except Exception:
-                    pass
-        
-                # If your logger prefixes text, strip anything before the marker
-                marker = "UPLOAD_JOB_SUMMARY|"
-                payload = line[line.find(marker):]
-        
+
+                marker = "UPLOAD_PROGRESS|"
+                payload = s[s.find(marker):]
+
                 parts = payload.split("|")
                 kv = {}
                 for p in parts[1:]:
                     if "=" in p:
                         k, v = p.split("=", 1)
                         kv[k.strip()] = v.strip()
-        
+
                 make = kv.get("MAKE", "Unknown") or "Unknown"
-                yr   = kv.get("YR", "") or "UNKNOWN_RANGE"
-                files = int((kv.get("FILES", "0") or "0").replace(",", "").strip())
-                secs  = int((kv.get("SECONDS", "0") or "0").replace(",", "").strip())
-        
-                # Ensure accumulators exist (safe even if you initialized already)
-                if not hasattr(self, "_upload_total_files"):
-                    self._upload_total_files = 0
-                if not hasattr(self, "_upload_files_by_make"):
-                    self._upload_files_by_make = {}
-                if not hasattr(self, "_upload_time_by_make"):
-                    self._upload_time_by_make = {}
-                if not hasattr(self, "_upload_files_by_job"):
-                    self._upload_files_by_job = {}
-                if not hasattr(self, "_upload_time_by_job"):
-                    self._upload_time_by_job = {}
-        
-                # Accumulate
-                self._upload_total_files += files
-                self._upload_files_by_make[make] = self._upload_files_by_make.get(make, 0) + files
-                self._upload_time_by_make[make]  = self._upload_time_by_make.get(make, 0.0) + float(secs)
-        
-                self._upload_files_by_job[yr] = self._upload_files_by_job.get(yr, 0) + files
-                self._upload_time_by_job[yr]  = self._upload_time_by_job.get(yr, 0.0) + float(secs)
-        
-                # DEBUG: confirm totals changed immediately
-                try:
-                    if getattr(self, "terminal", None):
-                        self.terminal.append_output(
-                            f"🧪 DEBUG: totals now -> total_files={self._upload_total_files}, "
-                            f"make_files[{make}]={self._upload_files_by_make.get(make)}, "
-                            f"make_secs[{make}]={int(self._upload_time_by_make.get(make, 0))}"
-                        )
-                except Exception:
-                    pass
-        
+                yr   = kv.get("YR", "") or ""
+                done = int((kv.get("DONE", "0") or "0").replace(",", "").strip())
+                total = int((kv.get("TOTAL", "0") or "0").replace(",", "").strip())
+
+                pct = 100 if total > 0 and done >= total else int((done / max(1, total)) * 100)
+
+                # Ensure progress widgets exist
+                if hasattr(self, "current_manufacturer_progress"):
+
+                    self.current_manufacturer_progress.setMaximum(100)
+                    self.current_manufacturer_progress.setValue(max(0, min(100, pct)))
+                    self.current_manufacturer_progress.setFormat("%p%")
+
+                if hasattr(self, "current_manufacturer_label"):
+                    self.current_manufacturer_label.setText(
+                        f"Current Manufacturer : {make} ({yr}) | Files {done}/{total}"
+                    )
+
         except Exception:
             pass
 
@@ -1950,6 +1927,40 @@ class SeleniumAutomationApp(QWidget):
             self._upload_time_by_job = {}
             self._upload_job_stats = []
 
+            # ---------------- Upload progress state ----------------
+            self._upload_jobs_total = len(upload_jobs)
+            self._upload_jobs_done = 0
+
+            self._upload_make_totals = {}
+            self._upload_make_done = {}
+            for mk, _yr, _lp, _su in upload_jobs:
+                self._upload_make_totals[mk] = self._upload_make_totals.get(mk, 0) + 1
+                self._upload_make_done.setdefault(mk, 0)
+
+            self._upload_completed_makes = set()
+            self._upload_selected_make_count = len(self._upload_make_totals)
+
+            self._upload_current_job_make = ""
+            self._upload_current_job_year = ""
+            self._upload_current_job_done_files = 0
+            self._upload_current_job_total_files = 0
+
+            # Reset bars for upload mode
+            self.current_manufacturer_progress.setMaximum(100)
+            self.current_manufacturer_progress.setValue(0)
+            self.current_manufacturer_progress.setFormat("%p%")
+            self.current_manufacturer_label.setText("Current Manufacturer : Waiting to start")
+            
+            self.manufacturer_hyperlink_bar.setMaximum(100)
+            self.manufacturer_hyperlink_bar.setValue(0)
+            self.manufacturer_hyperlink_bar.setFormat("%p%")
+            self.manufacturer_hyperlink_label.setText("Manufacturer Year Ranges : 0/0")
+            
+            self.overall_progress_bar.setMaximum(100)
+            self.overall_progress_bar.setValue(0)
+            self.overall_progress_bar.setFormat("%p%")
+            self.overall_progress_label.setText("Overall Progress : 0/0")
+
             # Swap Start -> Stop (your existing behavior)
             layout = self.button_layout
             layout.removeWidget(self.start_button)
@@ -2120,7 +2131,7 @@ class SeleniumAutomationApp(QWidget):
         self._clear_queue_state()
         self.process_next_manufacturer()
 
-
+        ####### # # # 
     ########################################### Class Addons go here ########################################### 
 
     def prompt_upload_urls(self):
@@ -3367,11 +3378,15 @@ class SeleniumAutomationApp(QWidget):
     
         # If user hit Stop, do not continue chaining.
         if getattr(self, "stop_requested", False):
-            try:
-                if getattr(self, "terminal", None):
-                    self.terminal.append_output("🛑 Upload mode stopped by user.")
-            except Exception:
-                pass
+            # try:
+            #     if getattr(self, "terminal", None):
+            #         self.terminal.append_output("🛑 Upload mode stopped by user.")
+            # except Exception:
+            #     pass
+
+            # Upload-mode only final state
+            self._upload_finish_state = "stopped"
+
             self.finish_upload_mode()
             return
     
@@ -3381,11 +3396,60 @@ class SeleniumAutomationApp(QWidget):
             self.finish_upload_mode()
             return
     
+        # Mark the just-finished upload job complete in the bars
+        finished_make = getattr(self, "upload_make", "") or getattr(self, "_upload_current_job_make", "Unknown") or "Unknown"
+        finished_year = getattr(self, "upload_year_range", "") or getattr(self, "_upload_current_job_year", "")
+    
+        # Bar 1 -> lock finished job at 100%
+        total_files = int(getattr(self, "_upload_current_job_total_files", 0) or 0)
+        done_files = int(getattr(self, "_upload_current_job_done_files", 0) or 0)
+        if total_files > 0:
+            done_files = max(done_files, total_files)
+        self.current_manufacturer_progress.setMaximum(100)
+        self.current_manufacturer_progress.setValue(100 if total_files > 0 else 0)
+        self.current_manufacturer_progress.setFormat("%p%")
+        self.current_manufacturer_label.setText(f"{finished_make} ({finished_year}) | Files {done_files}/{total_files}")
+    
+        # Bar 2 -> completed year-range jobs for this manufacturer
+        self._upload_jobs_done = int(getattr(self, "_upload_jobs_done", 0)) + 1
+        if not hasattr(self, "_upload_make_done"):
+            self._upload_make_done = {}
+        if not hasattr(self, "_upload_make_totals"):
+            self._upload_make_totals = {}
+        self._upload_make_done[finished_make] = self._upload_make_done.get(finished_make, 0) + 1
+    
+        make_done = self._upload_make_done.get(finished_make, 0)
+        make_total = max(1, self._upload_make_totals.get(finished_make, 1))
+        make_pct = int((make_done / make_total) * 100)
+    
+        self.manufacturer_hyperlink_bar.setMaximum(100)
+        self.manufacturer_hyperlink_bar.setValue(max(0, min(100, make_pct)))
+        self.manufacturer_hyperlink_bar.setFormat("%p%")
+        self.manufacturer_hyperlink_label.setText(f"{finished_make} | Year Ranges {make_done}/{make_total}")
+    
+        # Bar 3 -> completed manufacturers out of selected manufacturers
+        if not hasattr(self, "_upload_completed_makes"):
+            self._upload_completed_makes = set()
+        if make_done >= make_total:
+            self._upload_completed_makes.add(finished_make)
+    
+        done_makes = len(self._upload_completed_makes)
+        total_makes = max(1, getattr(self, "_upload_selected_make_count", 1))
+        overall_pct = int((done_makes / total_makes) * 100)
+    
+        self.overall_progress_bar.setMaximum(100)
+        self.overall_progress_bar.setValue(max(0, min(100, overall_pct)))
+        self.overall_progress_bar.setFormat("%p%")
+        self.overall_progress_label.setText(f"Manufacturers {done_makes}/{total_makes}")
+    
         # Advance to next job
         next_index = getattr(self, "upload_job_index", 0) + 1
     
         # Done? -> print final report + cleanup
         if next_index >= len(jobs):
+            # Upload-mode only final state
+            self._upload_finish_state = "completed"
+    
             try:
                 def fmt_hhmmss(seconds: float) -> str:
                     seconds = float(seconds or 0)
@@ -3653,7 +3717,7 @@ class SeleniumAutomationApp(QWidget):
             self._apply_stopped_style_to_all_bars(False)
             return
     
-        # — STOP path —   (unchanged)
+        # — STOP path —
         reply = QMessageBox.question(
             self,
             "Confirm Stop",
@@ -3662,6 +3726,11 @@ class SeleniumAutomationApp(QWidget):
         )
         if reply != QMessageBox.Yes:
             return
+    
+        # Detect upload mode once for this stop action
+        upload_mode_active = bool(
+            getattr(self, "upload_mode_checkbox", None) and self.upload_mode_checkbox.isChecked()
+        )
     
         # If we were paused, first resume the subprocess so it can be cleanly terminated
         if self.pause_requested and self.thread is not None and hasattr(self.thread, "process"):
@@ -3675,7 +3744,11 @@ class SeleniumAutomationApp(QWidget):
     
         # clear pause flag and tell loops not to launch any more work
         self.pause_requested = False
-        self.stop_requested  = True
+        self.stop_requested = True
+    
+        # Upload-mode only: persist final state for finish_upload_mode()
+        if upload_mode_active:
+            self._upload_finish_state = "stopped"
     
         # 1) Ask the Python extractor to shut down nicely
         if self.thread is not None and hasattr(self.thread, "process"):
@@ -3699,10 +3772,14 @@ class SeleniumAutomationApp(QWidget):
                     except psutil.NoSuchProcess:
                         continue
                     if "chrome" in pname or "chromedriver" in pname:
-                        try: child.kill()
-                        except psutil.NoSuchProcess: pass
-                try: parent.kill()
-                except psutil.NoSuchProcess: pass
+                        try:
+                            child.kill()
+                        except psutil.NoSuchProcess:
+                            pass
+                try:
+                    parent.kill()
+                except psutil.NoSuchProcess:
+                    pass
     
             kill_children(self.thread.process.pid)
     
@@ -3714,13 +3791,21 @@ class SeleniumAutomationApp(QWidget):
         sleep(1)
         self.terminal.append_output("❌ Hyperlink Automation has stopped.")
     
-        # Show 'Manually Stopped' + reset and paint bars red
-        if hasattr(self, "current_manufacturer_label"):
-            self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
-        if hasattr(self, "manufacturer_hyperlink_label"):
-            self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks: Manually Stopped")
-        if hasattr(self, "overall_progress_label"):
-            self.overall_progress_label.setText("Overall Progress: Manually Stopped")
+        # Show stopped text immediately
+        if upload_mode_active:
+            if hasattr(self, "current_manufacturer_label"):
+                self.current_manufacturer_label.setText("Current Manufacturer : Manually Stopped")
+            if hasattr(self, "manufacturer_hyperlink_label"):
+                self.manufacturer_hyperlink_label.setText("Manufacturer Year Ranges : Manually Stopped")
+            if hasattr(self, "overall_progress_label"):
+                self.overall_progress_label.setText("Overall Progress : Manually Stopped")
+        else:
+            if hasattr(self, "current_manufacturer_label"):
+                self.current_manufacturer_label.setText("Current Manufacturer: Manually Stopped")
+            if hasattr(self, "manufacturer_hyperlink_label"):
+                self.manufacturer_hyperlink_label.setText("Manufacturer Hyperlinks: Manually Stopped")
+            if hasattr(self, "overall_progress_label"):
+                self.overall_progress_label.setText("Overall Progress: Manually Stopped")
     
         if hasattr(self, "current_manufacturer_progress"):
             self.current_manufacturer_progress.setValue(0)
@@ -3743,8 +3828,12 @@ class SeleniumAutomationApp(QWidget):
         self.pause_button.setEnabled(False)
     
         # ── NEW: clear running state so clicks now start again ──
-        self.is_running     = False
-        self.stop_requested = False
+        self.is_running = False
+    
+        # IMPORTANT:
+        # Keep stop_requested True for upload mode so upload cleanup sees the stop.
+        if not upload_mode_active:
+            self.stop_requested = False
     
         # Ensure it goes above the progress bars
         insert_index = layout.indexOf(self.current_manufacturer_label)
@@ -3756,33 +3845,69 @@ class SeleniumAutomationApp(QWidget):
             self.terminal.append_output("🛑 Upload mode stopped by user.")
             self.finish_upload_mode()
             return
-    
+
         if not getattr(self, "upload_jobs", None):
             self.terminal.append_output("⚠️ No upload jobs present.")
             self.finish_upload_mode()
             return
-    
+
         self.upload_job_index += 1
-    
+
         if self.upload_job_index >= len(self.upload_jobs):
             self.terminal.append_output("✅ All upload jobs completed.")
             self.finish_upload_mode()
             return
-    
+
         make, yr_key, dest_path, site_url = self.upload_jobs[self.upload_job_index]
-    
+
         # Keep these fields updated (used by args builder / reporting)
         self.upload_make = make
         self.upload_year_range = yr_key
         self.upload_local_path = dest_path
         self.upload_site_url = site_url
-    
+
+        # Reset current job file progress
+        self._upload_current_job_make = make
+        self._upload_current_job_year = yr_key
+        self._upload_current_job_done_files = 0
+        self._upload_current_job_total_files = 0
+
+        # Bar 1: current upload job (files)
+        self.current_manufacturer_progress.setMaximum(100)
+        self.current_manufacturer_progress.setValue(0)
+        self.current_manufacturer_progress.setFormat("%p%")
+        self.current_manufacturer_label.setText(
+            f"Current Manufacturer : {make} ({yr_key}) | Files 0/0"
+        )
+
+        # Bar 2: year-range progress for the current manufacturer
+        make_done = self._upload_make_done.get(make, 0)
+        make_total = max(1, self._upload_make_totals.get(make, 1))
+        make_pct = int((make_done / make_total) * 100)
+        self.manufacturer_hyperlink_bar.setMaximum(100)
+        self.manufacturer_hyperlink_bar.setValue(make_pct)
+        self.manufacturer_hyperlink_bar.setFormat("%p%")
+        self.manufacturer_hyperlink_label.setText(
+            f"Manufacturer HyperLinks : {make} | Year Ranges {make_done}/{make_total}"
+        )
+
+        # Bar 3: overall manufacturer progress
+        done_makes = len(getattr(self, "_upload_completed_makes", set()))
+        total_makes = max(1, getattr(self, "_upload_selected_make_count", 1))
+        overall_pct = int((done_makes / total_makes) * 100)
+        self.overall_progress_bar.setMaximum(100)
+        self.overall_progress_bar.setValue(overall_pct)
+        self.overall_progress_bar.setFormat("%p%")
+        self.overall_progress_label.setText(
+            f"Overall Progress :  {done_makes}/{total_makes}"
+        )
+
         self.terminal.append_output(
             f"📤 Upload job {self.upload_job_index + 1}/{len(self.upload_jobs)} | Make={make} | YearRange={yr_key}\n"
             f"   LocalRoot={dest_path}\n"
             f"   SharePointURL={site_url}"
         )
-    
+
         # Launch the uploader run
         self.run_upload_mode(self.upload_site_url, self.upload_local_path)
     
@@ -3803,7 +3928,7 @@ class SeleniumAutomationApp(QWidget):
     
     
     def finish_upload_mode(self):
-
+    
         # ---------------- Upload Time Reporting ----------------
         try:
             import time
@@ -3812,24 +3937,25 @@ class SeleniumAutomationApp(QWidget):
                 hours = int(elapsed // 3600)
                 minutes = int((elapsed % 3600) // 60)
                 seconds = int(elapsed % 60)
-        
+    
                 runtime_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        
+    
                 #if getattr(self, "terminal", None):
                 #    self.terminal.append_output("\n==============================")
                 #    self.terminal.append_output(f"🕒 Total Upload Time: {runtime_str}")
                 #    self.terminal.append_output("==============================\n")
         except Exception:
             pass
-        
+    
         """Restore UI state after upload mode completes or is stopped."""
+        upload_finish_state = getattr(self, "_upload_finish_state", "completed")
         self.is_running = False
     
-        # Swap Stop -> Start (same pattern you already use)
+        # Swap Stop -> Start (UPLOAD MODE ONLY)
         layout = self.button_layout
         layout.removeWidget(self.start_button)
         self.start_button.deleteLater()
-        self.start_button = CustomButton("Start Automation", "#e3b505", self)  # use your start color
+        self.start_button = CustomButton("Start Automation", "#008000", self)
         self.start_button.clicked.connect(self.on_start_stop)
         layout.addWidget(self.start_button)
     
@@ -3841,6 +3967,42 @@ class SeleniumAutomationApp(QWidget):
         except Exception:
             pass
     
+        # Final upload mode progress UI state
+        try:
+            if upload_finish_state == "stopped":
+                if hasattr(self, "current_manufacturer_label"):
+                    self.current_manufacturer_label.setText("Current Manufacturer : Manually Stopped")
+                if hasattr(self, "manufacturer_hyperlink_label"):
+                    self.manufacturer_hyperlink_label.setText("Manufacturer Year Ranges : Manually Stopped")
+                if hasattr(self, "overall_progress_label"):
+                    self.overall_progress_label.setText("Overall Progress : Manually Stopped")
+            else:
+                if hasattr(self, "current_manufacturer_progress"):
+                    self.current_manufacturer_progress.setMaximum(100)
+                    self.current_manufacturer_progress.setValue(100)
+                    self.current_manufacturer_progress.setFormat("%p%")
+    
+                if hasattr(self, "manufacturer_hyperlink_bar"):
+                    self.manufacturer_hyperlink_bar.setMaximum(100)
+                    self.manufacturer_hyperlink_bar.setValue(100)
+                    self.manufacturer_hyperlink_bar.setFormat("%p%")
+    
+                if hasattr(self, "overall_progress_bar"):
+                    self.overall_progress_bar.setMaximum(100)
+                    self.overall_progress_bar.setValue(100)
+                    self.overall_progress_bar.setFormat("%p%")
+    
+                if hasattr(self, "current_manufacturer_label"):
+                    self.current_manufacturer_label.setText("Current Manufacturer : Upload Completed")
+    
+                if hasattr(self, "manufacturer_hyperlink_label"):
+                    self.manufacturer_hyperlink_label.setText("Manufacturer Year Ranges : Upload Completed")
+    
+                if hasattr(self, "overall_progress_label"):
+                    self.overall_progress_label.setText("Overall Progress : Upload Completed")
+        except Exception:
+            pass
+    
         # Clean upload job state
         self.upload_jobs = []
         self.upload_job_index = -1
@@ -3848,7 +4010,10 @@ class SeleniumAutomationApp(QWidget):
         self.upload_year_range = None
         self.upload_local_path = None
         self.upload_site_url = None
-
+    
+        # Clear upload-only final state
+        self._upload_finish_state = None
+        self.stop_requested = False
 
     def on_pause_resume(self):
         # only when running and we have a live subprocess
