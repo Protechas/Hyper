@@ -978,7 +978,7 @@ class SharepointExtractor:
         def close_open_menus():
             try:
                 ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
-                time.sleep(0.25)
+                time.sleep(0.10)
             except Exception:
                 pass
             try:
@@ -1015,7 +1015,7 @@ class SharepointExtractor:
                             btn.click()
                         except Exception:
                             self.selenium_driver.execute_script("arguments[0].click();", btn)
-                        time.sleep(0.15)
+                        time.sleep(0.05)
                         return True
                     except Exception:
                         continue
@@ -1203,7 +1203,7 @@ class SharepointExtractor:
         
             try:
                 self.selenium_driver.execute_script("arguments[0].scrollIntoView({block:'center'});", row)
-                time.sleep(0.15)
+                time.sleep(0.05)
             except Exception:
                 pass
         
@@ -1236,7 +1236,7 @@ class SharepointExtractor:
         
             # ✅ CONFIRM NAVIGATION (breadcrumb changes to folder_name)
             try:
-                WebDriverWait(self.selenium_driver, 10).until(
+                WebDriverWait(self.selenium_driver, 2).until(
                     lambda d: get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower()
                 )
                 return True
@@ -1248,7 +1248,7 @@ class SharepointExtractor:
                     pass
         
                 try:
-                    WebDriverWait(self.selenium_driver, 10).until(
+                    WebDriverWait(self.selenium_driver, 2).until(
                         lambda d: get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower()
                     )
                     return True
@@ -1279,18 +1279,18 @@ class SharepointExtractor:
                     create_folder(folder_name)
         
                     # Wait for the row to appear, then enter (verified)
-                    end = time.time() + 10.0
+                    end = time.time() + 4.0
                     while time.time() < end:
                         if enter_folder(folder_name):
                             return
-                        time.sleep(0.4)
+                        time.sleep(0.12)
         
                     # Recovery between attempts
                     print(f"⚠️ Attempt {attempt} failed to enter '{folder_name}'. Trying recovery...")
                     close_open_menus()
                     try:
                         self.selenium_driver.refresh()
-                        time.sleep(2.0)
+                        time.sleep(0.35)
                     except Exception:
                         pass
         
@@ -1302,7 +1302,7 @@ class SharepointExtractor:
                         pass
                     try:
                         self.selenium_driver.refresh()
-                        time.sleep(2.0)
+                        time.sleep(0.35)
                     except Exception:
                         pass
         
@@ -1403,7 +1403,7 @@ class SharepointExtractor:
                         click_menu_item("Files")
         
                     # Give SharePoint time to inject the input
-                    time.sleep(0.8)
+                    time.sleep(0.25)
         
                     inputs = _find_inputs_with_fallback()
                     if not inputs:
@@ -1458,8 +1458,8 @@ class SharepointExtractor:
                         except Exception:
                             pass
         
-                        time.sleep(0.8)
-                        time.sleep(min(10, max(2, len(batch) * 0.03)))
+                        time.sleep(0.20)
+                        time.sleep(min(2.5, max(0.75, len(batch) * 0.008)))
                         
         
                     close_open_menus()
@@ -1487,7 +1487,7 @@ class SharepointExtractor:
                     if attempt < MAX_ATTEMPTS:
                         try:
                             self.selenium_driver.refresh()
-                            time.sleep(1.6)
+                            time.sleep(1.0)
                         except Exception:
                             pass
         
