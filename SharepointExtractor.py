@@ -1117,7 +1117,7 @@ class SharepointExtractor:
             clicked = False
             for how, sel in create_btn_candidates:
                 try:
-                    btn = WebDriverWait(self.selenium_driver, 3).until(EC.element_to_be_clickable((how, sel)))
+                    btn = WebDriverWait(self.selenium_driver, 2).until(EC.element_to_be_clickable((how, sel)))
                     try:
                         btn.click()
                     except Exception:
@@ -1136,7 +1136,7 @@ class SharepointExtractor:
         
             # ✅ FAST: wait for the dialog/backdrop to disappear instead of sleeping ~1s+
             try:
-                WebDriverWait(self.selenium_driver, 3).until(
+                WebDriverWait(self.selenium_driver, 2).until(
                     EC.invisibility_of_element_located((By.CSS_SELECTOR, ".fui-DialogSurface__backdrop,[role='dialog']"))
                 )
             except Exception:
@@ -3818,7 +3818,7 @@ if __name__ == '__main__':
     local_path = sys.argv[8] if len(sys.argv) > 8 else ""
     upload_type = sys.argv[9] if len(sys.argv) > 9 else "oem"
 
-    debug_run = True
+    debug_run = False
     extractor = SharepointExtractor(sharepoint_link, excel_file_path, debug_run)
 
     print("=" * 68)
