@@ -10,6 +10,9 @@ import subprocess
 import urllib.parse
 import tkinter as tk
 import pyautogui
+from pathlib import Path
+from datetime import datetime
+import importlib.util
 from enum import Enum
 import win32clipboard
 from difflib import SequenceMatcher
@@ -907,6 +910,183 @@ class SharepointExtractor:
 
     ###############################  Upload Files Code #############################################################################
 
+    def _load_pdf_annotation_extractor_class(self):
+        """
+        Dynamically load PDFAnnotationExtractor from pdf_annotation_extractor.py
+        sitting next to SharepointExtractor.py.
+        """
+        module_path = Path(__file__).with_name("pdf_annotation_extractor.py")
+        if not module_path.exists():
+            raise FileNotFoundError(
+                f"pdf_annotation_extractor.py was not found next to SharepointExtractor.py: {module_path}"
+            )
+
+        spec = importlib.util.spec_from_file_location("pdf_annotation_extractor", str(module_path))
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Could not load module spec from: {module_path}")
+
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        if not hasattr(module, "PDFAnnotationExtractor"):
+            raise ImportError("pdf_annotation_extractor.py does not expose PDFAnnotationExtractor")
+
+        return module.PDFAnnotationExtractor
+
+    def _count_pdf_inputs_for_report(self, input_dir: Path, pdf_extractor) -> tuple[int, dict]:
+        """
+        Count initial PDFs and filtered-out totals so the Excel report has accurate stats.
+        """
+        pdf_files = []
+        for ext in getattr(pdf_extractor, "supported_extensions", [".pdf", ".PDF"]):
+            pdf_files.extend(input_dir.rglob(f"*{ext}"))
+
+        pdf_files = list(set(pdf_files))
+        initial_count = len(pdf_files)
+
+        filtered_counts = {
+            "Glass Statements": 0,
+            "No Feature docs": 0,
+            "Support docs": 0,
+        }
+
+        for pdf_path in pdf_files:
+            stem = pdf_path.stem
+            if pdf_extractor.is_glass_statement(stem):
+                filtered_counts["Glass Statements"] += 1
+                continue
+            if pdf_extractor.is_no_feature_document(stem):
+                filtered_counts["No Feature docs"] += 1
+                continue
+            if pdf_extractor.is_unwanted_document(stem):
+                filtered_counts["Support docs"] += 1
+                continue
+
+        return initial_count, filtered_counts
+
+    def _prepare_processed_upload_tree(self, source_root: str, year_paths: list[str]) -> str:
+        """
+        Build a local, processed upload tree containing only the extracted/processed PDFs
+        from the selected year folders. Returns the processed root folder path.
+        """
+        PDFAnnotationExtractor = self._load_pdf_annotation_extractor_class()
+        pdf_extractor = PDFAnnotationExtractor()
+
+        make_name = (getattr(self, "current_make", None) or getattr(self, "sharepoint_make", None) or "Unknown").strip()
+        year_key = (getattr(self, "upload_year_range_key", "") or "ALL").strip()
+
+        cache_root = Path.home() / "Documents" / "Hyper Upload Cache"
+        cache_root.mkdir(parents=True, exist_ok=True)
+
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        processed_root = cache_root / f"{make_name}_{year_key}_{stamp}"
+        processed_root.mkdir(parents=True, exist_ok=True)
+
+        report_root = processed_root / "_reports"
+        report_root.mkdir(parents=True, exist_ok=True)
+
+        print("=" * 68)
+        print(f"🧠 PDF annotation preprocessing started")
+        print(f"📁 Source root: {source_root}")
+        print(f"📁 Processed root: {processed_root}")
+        print(f"🏷 Make: {make_name}")
+        print(f"🗓 Year range: {year_key}")
+
+        settings = {
+            "combine_pages": True,
+            "combine_parts": True,
+            "keep_parts_separate": False,
+            "recursive": True,
+            "organize_folders": False,   # keep upload tree stable
+            "ignore_glass": True,
+            "ignore_no_docs": True,
+            "ignore_support": True,
+            "copy_all_files": True,     # upload annotated outputs only
+        }
+
+        overall_results = []
+        aggregate_initial_count = 0
+        aggregate_filtered_counts = {
+            "Glass Statements": 0,
+            "No Feature docs": 0,
+            "Support docs": 0,
+        }
+
+        prep_started = time.time()
+
+        for year_dir in year_paths:
+            year_input = Path(year_dir)
+            year_label = year_input.name
+            year_output = processed_root / year_label
+            year_output.mkdir(parents=True, exist_ok=True)
+
+            print("-" * 68)
+            print(f"🔎 Processing local year folder: {year_input}")
+
+            initial_count, filtered_counts = self._count_pdf_inputs_for_report(year_input, pdf_extractor)
+            aggregate_initial_count += initial_count
+            for k, v in filtered_counts.items():
+                aggregate_filtered_counts[k] += int(v)
+
+            year_results = pdf_extractor.scan_folder(
+                input_dir=year_input,
+                output_dir=year_output,
+                combine=True,
+                recursive=True,
+                combine_parts=True,
+                ignore_glass_statements=True,
+                ignore_no_feature_docs=True,
+                ignore_support_docs=True,
+                organize_folders=False,
+                keep_parts_separate=False,
+                copy_all_files=True,
+            )
+
+            overall_results.extend(year_results)
+
+            created_here = sum(
+                1 for r in year_results
+                if r.get("success") and (r.get("annotated_pages") or r.get("copied_without_annotations"))
+            )
+            print(
+                f"ANNOTATION_YEAR_SUMMARY|MAKE={make_name}|YR={year_label}|INPUT={initial_count}|OUTPUT={created_here}",
+                flush=True
+            )
+
+        runtime_seconds = time.time() - prep_started
+
+        report_path = pdf_extractor.generate_excel_report(
+            results=overall_results,
+            output_dir=report_root,
+            initial_count=aggregate_initial_count,
+            filtered_counts=aggregate_filtered_counts,
+            runtime_seconds=runtime_seconds,
+            settings=settings,
+        )
+
+        final_pdf_count = sum(1 for _ in processed_root.rglob("*.pdf"))
+
+        print("-" * 68)
+        print(f"✅ PDF annotation preprocessing complete")
+        print(f"📄 Output PDFs ready for upload: {final_pdf_count}")
+        print(f"📁 Processed upload root: {processed_root}")
+        if report_path:
+            print(f"📊 Excel report: {report_path}")
+            print(f"ANNOTATION_REPORT|PATH={report_path}", flush=True)
+
+        print(
+            f"ANNOTATION_PREP_SUMMARY|MAKE={make_name}|YR={year_key}|FILES={final_pdf_count}|SECONDS={int(runtime_seconds)}",
+            flush=True
+        )
+        print("=" * 68)
+
+        if final_pdf_count <= 0:
+            raise Exception(
+                f"❌ Annotation preprocessing finished, but no PDFs were produced for upload: {processed_root}"
+            )
+
+        return str(processed_root)
+
     def run_upload_flow(self, local_path: str, upload_type: str = "oem"):
         import os
         import re
@@ -1580,8 +1760,36 @@ class SharepointExtractor:
             print(f"🧭 Year-range filter active: {selected_range_key} → {len(years_to_process)} year folder(s)")
     
         # ----------------------------
+        # 2.5) PRE-PROCESS PDFs LOCALLY FIRST
+        # Build a processed upload tree from only the selected year folders,
+        # then upload FROM THAT processed tree instead of the raw source tree.
+        # ----------------------------
+        processed_upload_root = self._prepare_processed_upload_tree(
+            source_root=lp,
+            year_paths=years_to_process,
+        )
+
+        print(f"📦 Upload source switched to processed cache: {processed_upload_root}")
+
+        # Rebuild years_to_process so the uploader now walks the PROCESSED tree
+        processed_years_to_process = []
+        for year_path in years_to_process:
+            year_name = os.path.basename(os.path.normpath(year_path))
+            candidate = os.path.join(processed_upload_root, year_name)
+            if os.path.isdir(candidate):
+                processed_years_to_process.append(candidate)
+
+        if not processed_years_to_process:
+            raise Exception(
+                f"❌ No processed year folders were found under: {processed_upload_root}"
+            )
+
+        years_to_process = processed_years_to_process
+
+        # ----------------------------
         # Pre-count all files for this upload job so Hyper can show live file progress
         # ----------------------------
+
         def _count_files_recursive(root_path: str) -> int:
             total = 0
             for _root, _dirs, files in os.walk(root_path):

@@ -3537,28 +3537,10 @@ class SeleniumAutomationApp(QWidget):
             self.finish_upload_mode()
             return
     
-        # Move index forward
-        self.upload_job_index = next_index
-    
-        # Launch next job
-        make, yr_key, dest_path, site_url = jobs[self.upload_job_index]
-        self.upload_make = make
-        self.upload_year_range = yr_key
-        self.upload_local_path = dest_path
-        self.upload_site_url = site_url
-    
-        try:
-            if getattr(self, "terminal", None):
-                self.terminal.append_output(
-                    f"📤 Upload job {self.upload_job_index + 1}/{len(jobs)} | Make={make} | YearRange={yr_key}\n"
-                    f"   LocalRoot={dest_path}\n"
-                    f"   SharePointURL={site_url}"
-                )
-        except Exception:
-            pass
-    
-        # Run the next job
-        self.run_upload_mode(site_url, dest_path)
+        # Launch the next upload job through the normal upload-job starter
+        # so Bar 1 / Bar 2 / Bar 3 all reset/update correctly for the next make.
+        self.start_next_upload_job()
+        return
 
 
     def select_all(self):
