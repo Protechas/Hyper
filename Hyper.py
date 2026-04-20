@@ -386,7 +386,7 @@ class SeleniumAutomationApp(QWidget):
         self._next_timer = None             # single reusable timer for “check again in 10s”
         # ──────────────────────────────────────────────────────────────────────
 
-    UPLOAD_ROOTS = {
+    ADAS_UPLOAD_ROOTS = {
         "Acura": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Acura",
         "Alfa Romeo": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Alfa Romeo",
         "Audi": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Audi",
@@ -425,13 +425,59 @@ class SeleniumAutomationApp(QWidget):
         "Volvo": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\ADAS S.I. PDF Documents\Volvo",
     }
     
-    SHAREPOINT_TARGETS = {
+    REPAIR_UPLOAD_ROOTS = {
+        "Acura": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Acura",
+        "Alfa Romeo": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Alfa Romeo",
+        "Audi": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Audi",
+        "BMW": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\BMW",
+        "Brightdrop": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\BrightDrop",
+        "Buick": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Buick",
+        "Cadillac": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Cadillac",
+        "Chevrolet": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Chevrolet",
+        "Chrysler": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Chrysler",
+        "Dodge": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Dodge",
+        "Fiat": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Fiat",
+        "Ford": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Ford",
+        "Genesis": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Genesis",
+        "GMC": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\GMC",
+        "Honda": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Honda",
+        "Hyundai": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Hyundai",
+        "Infiniti": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Infiniti",
+        "Jaguar": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Jaguar",
+        "Jeep": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Jeep",
+        "Kia": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Kia",
+        "Land Rover": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Land Rover",
+        "Lexus": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Lexus",
+        "Lincoln": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Lincoln",
+        "Mazda": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Mazda",
+        "Mercedes": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Mercedes",
+        "Mini": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Mini",
+        "Mitsubishi": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Mitsubishi",
+        "Nissan": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Nissan",
+        "Porsche": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Porsche",
+        "Ram": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Ram",
+        "Rolls Royce": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Rolls Royce",
+        "Subaru": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Subaru",
+        "Tesla": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Tesla",
+        "Toyota": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Toyota",
+        "Volkswagen": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Volkswagen",
+        "Volvo": r"C:\Users\dromero3\Caliber Collision\O365-Protech-Information Solutions - General\OEM Service Information\Repair S.I. PDF Documents\Volvo",
+    }
+    
+    ADAS_SHAREPOINT_TARGETS = {
         "2012-2016": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgDuEFQ2FR8cQJfYoyN9hV46ASelhGdt2colRL3ST79ZgVA?e=CLdIOP",
         "2017-2021": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCQuieJ-JcBTpZu_8qdHcXQAfegs9LUlNpcRNT78Lc3nPw?e=2Cu7QS",
         "2022-2026": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgBEwGI01IDgSJ1-6K-Atqg7AXCeboGZ2mI9RpF2qoRZb9Q?e=9tWjr8",
         "2027-2031": "https://.../ADAS%20S.I.%20PDF%20Documents/2027-2031",
     }
-
+    
+    REPAIR_SHAREPOINT_TARGETS = {
+        "2012-2016": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgBjVrhGqO4HRZu_JzL3c63oAQi2zERIDAZrz6mYZE7uKpo?e=1KxvMe",
+        "2017-2021": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCxo5nUTWR0SIdpLiL88QIEAYWQSP9GJfc91n4A_souuQA?e=gOhnDG",
+        "2022-2026": "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgAoUWgUFckBRIjndI72IXPSAaaebEPaneei-dtBmf9fBMA?e=uBnU92",
+        "2027-2031": "PASTE_YOUR_REPAIR_2027_2031_UPLOAD_URL_HERE",
+    }
+        
             
     def initUI(self):
         self.setWindowTitle('Hyper')
@@ -1908,19 +1954,26 @@ class SeleniumAutomationApp(QWidget):
             selected_year_range_keys = [f"{a}-{b}" for (a, b) in ranges] if ranges else []
     
             upload_jobs = []
+            is_repair_mode = self.mode_switch.isChecked()
+            
+            upload_roots = self.REPAIR_UPLOAD_ROOTS if is_repair_mode else self.ADAS_UPLOAD_ROOTS
+            sharepoint_targets = self.REPAIR_SHAREPOINT_TARGETS if is_repair_mode else self.ADAS_SHAREPOINT_TARGETS
+            
             for make in selected_manufacturers:
-                if make not in self.UPLOAD_ROOTS:
-                    print(f"⚠️ No UPLOAD_ROOTS entry for make: {make} (skipping)")
+                if make not in upload_roots:
+                    mode_name = "REPAIR" if is_repair_mode else "ADAS"
+                    print(f"⚠️ No {mode_name}_UPLOAD_ROOTS entry for make: {make} (skipping)")
                     continue
             
-                make_root = self.UPLOAD_ROOTS[make]
+                make_root = upload_roots[make]
             
                 for yr_key in selected_year_range_keys:
-                    if yr_key not in self.SHAREPOINT_TARGETS:
-                        print(f"⚠️ No SHAREPOINT_TARGETS entry for year range: {yr_key} (skipping)")
+                    if yr_key not in sharepoint_targets:
+                        mode_name = "REPAIR" if is_repair_mode else "ADAS"
+                        print(f"⚠️ No {mode_name}_SHAREPOINT_TARGETS entry for year range: {yr_key} (skipping)")
                         continue
             
-                    sp_url = self.SHAREPOINT_TARGETS[yr_key]
+                    sp_url = sharepoint_targets[yr_key]
                     local_path = make_root
                     upload_jobs.append((make, yr_key, local_path, sp_url))
             
