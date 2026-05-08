@@ -389,6 +389,31 @@ class SharepointExtractor:
         "OCS","OCS2","OCS3","OCS4"
     ]
 
+    ADAS_OLD_TO_NEW_FALLBACK = {
+        "BUC": ["BUC"],
+        "ACC": ["FRS"],
+        "AEB": ["FRS"],
+        "NV":  ["NV"],
+        "APA": ["PDS"],
+        "BSW": ["RRS", "BSM"],
+        "BSM": ["RRS", "BSW"],
+        "SVC": ["SVC"],
+        "LKA": ["WSC"],
+    }
+    
+    ADAS_NEW_TO_OLD_TARGETS = {
+        "BUC": ["BUC"],
+        "FRS": ["ACC", "AEB"],   # same FRS link goes to both rows
+        "NV":  ["NV"],
+        "PDS": ["APA"],
+        "RRS": ["BSW", "BSM"],
+        "SVC": ["SVC"],
+        "WSC": ["LKA"],
+    }
+    
+    def _norm_adas_token(s: str) -> str:
+        return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
+
     __ROW_SEARCH_TERMS__ = ['LKAS', 'FCW/LDW', 'Multipurpose', 'Cross Traffic Alert', 'Side Blind Zone Alert', 'Lane Change Alert', 'Blind Spot Warning (BSW)', 'Surround Vision Camera', 'Video Processing', 'Pending Further Research',]
     __ADAS_SYSTEMS_WHITELIST__ = [
         'FCW/LDW',
@@ -748,19 +773,28 @@ class SharepointExtractor:
                 "year":   pick("Year"),
                 "make":   pick("Make"),
                 "model":  pick("Model"),
-                "system": pick(  # ADAS + Repair
+            
+                # 🔹 OLD (SME column)
+                "system": pick(
                     "SME Generic System Name",
-                    #"Protech Generic System Name",
                     "Generic System Name",
                     "System Name",
                     "System",
                 ),
-                "hyperlink": pick(  # includes “Service Information”
+            
+                # 🔹 NEW (Protech column)
+                "protech_system": pick(
+                    "Protech Generic System Name",
+                    "Protech Generic System",
+                ),
+            
+                "hyperlink": pick(
                     "Hyperlink", "Link", "URL",
                     "Service Information", "Service Information (URL)",
                     "SI", "SI Link", "SI URL",
                 ),
             }
+
             missing = [k for k in ("year","make","model","system") if not colmap.get(k)]
             if missing:
                 raise ValueError(f"Missing required header(s): {', '.join(missing)}")
@@ -1837,7 +1871,7 @@ class SharepointExtractor:
     
         ##############
  ##########################################################################################################################
-        
+          
     def __ensure_make_root_for_cleanup__(self, desired_make: str) -> None:
         """
         Cleanup Mode stale-safe helper:
@@ -2698,6 +2732,30 @@ class SharepointExtractor:
         except Exception:
             pass
   
+    def _force_ui_reset(self):
+        """
+        Aggressive recovery when SharePoint UI gets stuck.
+        Ensures we can retry the SAME row cleanly.
+        """
+        try:
+            print("🧹 Forcing UI reset (ESC spam + click body)...")
+    
+            # Spam ESC a few times (kills menus + overlays)
+            for _ in range(3):
+                ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
+                time.sleep(0.3)
+    
+            # Click empty space to remove focus traps
+            try:
+                self.selenium_driver.find_element(By.TAG_NAME, "body").click()
+            except:
+                pass
+    
+            time.sleep(0.75)
+    
+        except Exception:
+            pass
+
     def __get_row_name__(self, row_element: WebElement) -> str:
         """
         Read only the *first line* of the aria-label or innerText,
@@ -2805,61 +2863,118 @@ class SharepointExtractor:
     def __get_encrypted_link__(self, row_element: WebElement) -> str:
         """
         Tries to generate a SharePoint share link for the given row.
-        Retries up to 5 times. Returns None if it fails every time or hits a 120s timeout.
+        Handles rare OneUp/file-preview overlay interception without changing your action chain flow.
         """
     
         if self.__DEBUG_RUN__:
             return f"Link For: {self.__get_row_name__(row_element)}"
     
+        def close_preview_overlay():
+            """
+            Close SharePoint/OneUp preview overlay.
+            Returns True if an overlay was found/closed, so the caller can retry same row.
+            """
+            overlay_found = False
+        
+            try:
+                overlays = self.selenium_driver.find_elements(
+                    By.XPATH,
+                    "//*[contains(@class,'OneUp') or contains(@class,'OneUpOther')]"
+                )
+        
+                if overlays:
+                    overlay_found = True
+                    print("🧹 OneUp preview overlay detected — closing it and retrying same link...")
+                    ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
+                    time.sleep(0.75)
+        
+                    overlays = self.selenium_driver.find_elements(
+                        By.XPATH,
+                        "//*[contains(@class,'OneUp') or contains(@class,'OneUpOther')]"
+                    )
+        
+                    if overlays:
+                        self.selenium_driver.back()
+                        time.sleep(1.25)
+        
+            except Exception:
+                pass
+        
+            return overlay_found
+    
+        def safe_click(el, label="element", retries=3):
+            for attempt in range(1, retries + 1):
+                try:
+                    close_preview_overlay()
+        
+                    self.selenium_driver.execute_script(
+                        "arguments[0].scrollIntoView({block:'center'});", el
+                    )
+                    time.sleep(0.25)
+        
+                    el.click()
+                    return True
+        
+                except ElementClickInterceptedException as e:
+                    print(f"⚠️ Click intercepted on {label} attempt {attempt}: {e}")
+                    close_preview_overlay()
+                    time.sleep(0.75)
+        
+                except Exception as e:
+                    print(f"⚠️ Safe click failed on {label} attempt {attempt}: {e}")
+                    close_preview_overlay()
+                    time.sleep(0.75)
+        
+            # 🚨 NEW: instead of failing → reset UI and signal retry
+            print(f"🔁 Could not click {label} — forcing reset and retrying SAME link")
+            self._force_ui_reset()
+            return None  # ← IMPORTANT (not False)
+    
         starting_clipboard_content = self.__get_clipboard_content__()
         selector_locator = ".//div[@role='gridcell' and contains(@data-automationid, 'row-selection-')]"
-        selector_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__) \
-            .until(EC.presence_of_element_located((By.XPATH, selector_locator)))
     
-        # scroll into view & click
-        self.selenium_driver.execute_script("arguments[0].scrollIntoView(true);", selector_element)
-        try:
-            selector_element.click()
-        except ElementClickInterceptedException:
-            self.selenium_driver.execute_script("arguments[0].click();", selector_element)
-    
-        time.sleep(1.0)
-    
-        # Start timer for 120-second max timeout
         start_time = time.time()
     
-        # 🔁 Retry up to 10 times
         for retry_count in range(10):
             try:
-                # click Share button
-                row_element.find_element(By.XPATH, ".//button[@data-automationid='shareHeroId']").click()
+                close_preview_overlay()
+    
+                selector_element = WebDriverWait(row_element, self.__MAX_WAIT_TIME__).until(
+                    EC.presence_of_element_located((By.XPATH, selector_locator))
+                )
+    
+                if not safe_click(selector_element, "row selector", retries=3):
+                    raise Exception("Could not safely click row selector.")
+    
                 time.sleep(1.0)
     
+                share_button = WebDriverWait(row_element, 15).until(
+                    EC.element_to_be_clickable((By.XPATH, ".//button[@data-automationid='shareHeroId']"))
+                )
+    
+                if not safe_click(share_button, "Share button", retries=3):
+                    raise Exception("Could not safely click Share button.")
+    
+                time.sleep(3.0)
+    
                 # keyboard navigation to copy link
+                ActionChains(self.selenium_driver).send_keys(Keys.TAB).perform()
+                time.sleep(0.35)
+    
+                ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
+                time.sleep(0.35)
+    
+                ActionChains(self.selenium_driver).send_keys(Keys.ARROW_DOWN).perform()
+                time.sleep(0.35)
+    
+                ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
+                time.sleep(0.35)
+    
                 ActionChains(self.selenium_driver).send_keys(
-                    Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.TAB, Keys.ENTER
+                    Keys.TAB, Keys.TAB, Keys.TAB
                 ).perform()
-                time.sleep(1.25)
-
-                # This Function is for in the 2nd part, ensuring its a view link only
-                actions = ActionChains(self.selenium_driver)
-                
-                actions.send_keys(Keys.TAB).perform()
-                
-                actions.send_keys(Keys.ARROW_DOWN).perform()
-                time.sleep(0.15)
-                
-                actions.send_keys(Keys.ARROW_DOWN).perform()  # ← permission selector
-                time.sleep(0.25)  # 👈 critical pause so SharePoint finishes rendering
-                
-                actions.send_keys(Keys.ENTER).perform()
-                time.sleep(0.15)
-                
-                actions.send_keys(Keys.TAB, Keys.TAB).perform()
-                
-                actions.send_keys(Keys.ENTER).perform()
-                #########################
-
+                time.sleep(0.35)
+    
                 time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
                 time.sleep(1.25)
@@ -2867,26 +2982,39 @@ class SharepointExtractor:
     
                 # unselect the row
                 time.sleep(1.0)
-                selector_element.click()
+                try:
+                    close_preview_overlay()
+                    selector_element = WebDriverWait(row_element, 10).until(
+                        EC.presence_of_element_located((By.XPATH, selector_locator))
+                    )
+                    safe_click(selector_element, "unselect row", retries=2)
+                except Exception as e:
+                    print(f"⚠️ Could not unselect row after link gather: {e}")
     
-                # check clipboard
                 encrypted_file_link = self.__get_clipboard_content__()
                 if encrypted_file_link != starting_clipboard_content:
-                    return encrypted_file_link  # ✅ SUCCESS → return link
+                    return encrypted_file_link
     
                 print(f"⚠️ Did not Successfully Gather link on attempt {retry_count + 1}. Retrying…")
     
             except Exception as e:
                 print(f"⚠️ Attempt {retry_count + 1} failed: {e}")
+            
+                overlay_was_closed = close_preview_overlay()
+            
+                if overlay_was_closed:
+                    print("🔁 Overlay caused failure — retrying same file/link now...")
+                    time.sleep(1.5)
+                    continue
+            
                 time.sleep(2.0)
     
-            # check hard timeout
             if time.time() - start_time > 120:
                 print("⏳ Timeout: Could not get link in 120 seconds. Moving on.")
-                return None  # ❌ Fail after timeout
+                return None
     
         print("❌ Failed to get SharePoint link after 10 retries.")
-        return None  # ❌ Fail after 10 attempts
+        return None
       
     def __get_clipboard_content__(self) -> str:
             """
@@ -3434,12 +3562,34 @@ class SharepointExtractor:
         sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACT match with your __build_row_index__
         return sys_text, sys_norm
     
+
+
     #   overwrites OG 'Placeholder', keeps acronym verifier & NO-doc color logic)
     def __update_excel__(self, ws, year, model, doc_name, document_url, adas_last_row, cell_address=None):
         # Skip filtering if in Repair mode
         if not self.repair_mode:
-            if self.selected_adas and not any(adas in doc_name.upper() for adas in self.selected_adas):
-                return
+            if self.selected_adas:
+                selected_norms = {re.sub(r"[^A-Z0-9]", "", s.upper()) for s in self.selected_adas}
+                doc_sys = re.sub(r"[^A-Z0-9]", "", (_extract_system_from_filename(doc_name) or "").upper())
+        
+                ADAS_OLD_TO_NEW_LOCAL = {
+                    "BUC": ["BUC"],
+                    "ACC": ["ACC", "FRS"],
+                    "AEB": ["AEB", "FRS"],
+                    "NV":  ["NV"],
+                    "APA": ["APA", "PDS"],
+                    "BSW": ["BSW", "BSM", "RRS"],
+                    "BSM": ["BSM", "BSW", "RRS"],
+                    "SVC": ["SVC"],
+                    "LKA": ["LKA", "WSC"],
+                }
+        
+                allowed_doc_systems = set()
+                for selected in selected_norms:
+                    allowed_doc_systems.update(ADAS_OLD_TO_NEW_LOCAL.get(selected, [selected]))
+        
+                if doc_sys not in allowed_doc_systems:
+                    return
     
         # Ensure we have the correct hyperlink column by HEADER ONLY
         try:
@@ -3466,18 +3616,46 @@ class SharepointExtractor:
             )
     
         # --- VERIFY the picked row actually matches (Y, M, Model, System). If not, fix it. ---
+        expected_rows = []
+        sys_norm_ix = ""
+
         try:
             Y  = (year or "").strip().upper()
             M  = (self.sharepoint_make or "").strip().upper()
             MR = (model or "").strip().upper()
             sys_raw     = _extract_system_from_filename(doc_name)
             sys_norm_ix = re.sub(r"[^A-Z0-9]", "", (sys_raw or "").upper())
-    
+
+            # ✅ New acronym → old SME row targets
+            # FRS intentionally maps to BOTH ACC and AEB.
+            if not self.repair_mode:
+                ADAS_NEW_TO_OLD_TARGETS_LOCAL = {
+                    "BUC": ["BUC"],
+                    "FRS": ["ACC", "AEB"],
+                    "NV":  ["NV"],
+                    "PDS": ["APA"],
+                    "RRS": ["BSW", "BSM"],
+                    "SVC": ["SVC"],
+                    "WSC": ["LKA"],
+                }
+                target_systems = ADAS_NEW_TO_OLD_TARGETS_LOCAL.get(sys_norm_ix, [sys_norm_ix])
+            else:
+                target_systems = [sys_norm_ix]
+
+            def _norm_adas_token_local(s: str) -> str:
+                return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
+                
             # Ensure we have the latest index
             self.row_index = getattr(self, "row_index", None) or self.__build_row_index__(ws, repair_mode=self.repair_mode)
     
-            exact_key = (Y, M, MR, sys_norm_ix)
-            expected_row = self.row_index.get(exact_key)
+            expected_rows = []
+            for target_sys in target_systems:
+                exact_key = (Y, M, MR, _norm_adas_token_local(target_sys))
+                row_num = self.row_index.get(exact_key)
+                if row_num and row_num not in expected_rows:
+                    expected_rows.append(row_num)
+            
+            expected_row = expected_rows[0] if expected_rows else None
     
             if expected_row and cell and cell.row != expected_row:
                 print(f"🔁 Row verifier: correcting from row {cell.row} to expected row {expected_row} for {doc_name}")
@@ -3643,6 +3821,46 @@ class SharepointExtractor:
                 cell.font = Font(color="FF0000", underline='single')   # red
             else:
                 cell.font = Font(color="0000FF", underline='single')   # blue
+
+            # ✅ FRS special handling:
+            # If SharePoint doc is FRS, copy the same link to BOTH ACC and AEB rows.
+            try:
+                if not self.repair_mode and sys_norm_ix == "FRS" and expected_rows:
+                    for extra_row in expected_rows:
+                        if extra_row == cell.row:
+                            continue
+
+                        extra_cell = ws.cell(row=extra_row, column=self.HYPERLINK_COLUMN_INDEX)
+
+                        try:
+                            extra_cell.style = "Normal"
+                        except Exception:
+                            pass
+
+                        extra_cell.hyperlink = document_url
+
+                        if not debug_writing:
+                            extra_cell.value = document_url
+                        else:
+                            cur_text = (str(extra_cell.value).strip() if extra_cell.value is not None else "")
+                            if (not cur_text) or (cur_text.lower() == "placeholder") or cur_text.lower().startswith("link for:") or cur_text.lower().startswith("http"):
+                                extra_cell.value = _mk_link_text(
+                                    year,
+                                    self.sharepoint_make,
+                                    model,
+                                    _extract_system_from_filename(doc_name) or doc_name
+                                )
+
+                        if is_no_doc:
+                            extra_cell.font = Font(color="9B870C", underline='single')
+                        elif approx or debug_writing:
+                            extra_cell.font = Font(color="FF0000", underline='single')
+                        else:
+                            extra_cell.font = Font(color="0000FF", underline='single')
+
+                        print(f"🔁 Copied FRS link to extra ACC/AEB row: {extra_cell.coordinate}")
+            except Exception as _e:
+                print(f"⚠️ FRS duplicate-link write error for {doc_name}: {_e}")
 
             # ────────────────────────────────────────────────────────────────
             # ★ LEFT PLACEHOLDER: ONLY for brand-new rows (fallback/bottom)
