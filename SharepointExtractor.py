@@ -1417,58 +1417,58 @@ class SharepointExtractor:
         
             try:
                 self.selenium_driver.execute_script("arguments[0].scrollIntoView({block:'center'});", row)
-                time.sleep(0.05)
+                time.sleep(0.15)
             except Exception:
                 pass
         
             # Prefer clicking the name link if present (most reliable navigation)
+            # IMPORTANT: Do NOT click the whole row as fallback, because SharePoint can open a file preview.
             clicked = False
-            try:
-                name_link = row.find_element(By.XPATH, ".//a[normalize-space() = '" + folder_name + "']")
-                try:
-                    name_link.click()
-                except Exception:
-                    self.selenium_driver.execute_script("arguments[0].click();", name_link)
-                clicked = True
-            except Exception:
-                pass
+            safe_name = folder_name.replace("'", "\\'")
         
-            # Fallbacks
-            if not clicked:
+            click_candidates = [
+                f".//a[normalize-space() = '{safe_name}']",
+                f".//span[normalize-space() = '{safe_name}']/ancestor::a[1]",
+                f".//*[@data-automationid='field-LinkFilename']//*[normalize-space() = '{safe_name}']",
+            ]
+        
+            for xp in click_candidates:
                 try:
-                    row.click()
-                    clicked = True
-                except Exception:
+                    name_link = row.find_element(By.XPATH, xp)
+        
                     try:
-                        self.selenium_driver.execute_script("arguments[0].click();", row)
-                        clicked = True
+                        self.selenium_driver.execute_script(
+                            "arguments[0].scrollIntoView({block:'center'});", name_link
+                        )
                     except Exception:
-                        clicked = False
+                        pass
+        
+                    time.sleep(0.15)
+        
+                    try:
+                        name_link.click()
+                    except Exception:
+                        self.selenium_driver.execute_script("arguments[0].click();", name_link)
+        
+                    clicked = True
+                    break
+        
+                except Exception:
+                    continue
         
             if not clicked:
+                print(f"⚠️ Refusing to click whole row for '{folder_name}' to avoid opening a file.")
                 return False
         
             # ✅ CONFIRM NAVIGATION (breadcrumb changes to folder_name)
             try:
-                WebDriverWait(self.selenium_driver, 2).until(
+                WebDriverWait(self.selenium_driver, 4).until(
                     lambda d: get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower()
                 )
                 return True
             except Exception:
-                # One more attempt: double click the row (sometimes needed in SP)
-                try:
-                    ActionChains(self.selenium_driver).double_click(row).perform()
-                except Exception:
-                    pass
-        
-                try:
-                    WebDriverWait(self.selenium_driver, 2).until(
-                        lambda d: get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower()
-                    )
-                    return True
-                except Exception:
-                    # Not in folder (don’t lie anymore)
-                    return False
+                # Do NOT double-click the row. That can open file previews.
+                return False
     
         def ensure_folder_exists_and_enter(folder_name: str):
             """
@@ -1613,8 +1613,12 @@ class SharepointExtractor:
                     # Re-open upload menu fresh each attempt
                     if not click_upload_button():
                         raise Exception("❌ Could not find Create/Upload button for file upload.")
+                    
+                    # IMPORTANT:
+                    # Do NOT fall back to plain "Files" because SharePoint may match random page/file text.
                     if not click_menu_item("Files upload"):
-                        click_menu_item("Files")
+                        if not click_menu_item("Upload files"):
+                            raise Exception("❌ Could not find the 'Files upload' menu item.")
         
                     # Give SharePoint time to inject the input
                     time.sleep(0.25)
@@ -2864,76 +2868,150 @@ class SharepointExtractor:
         """
         Tries to generate a SharePoint share link for the given row.
         Handles rare OneUp/file-preview overlay interception without changing your action chain flow.
+        If it fails to gather the link, it refreshes and retries the SAME row/link.
         """
     
         if self.__DEBUG_RUN__:
             return f"Link For: {self.__get_row_name__(row_element)}"
     
+        original_row_name = self.__get_row_name__(row_element)
+    
         def close_preview_overlay():
-            """
-            Close SharePoint/OneUp preview overlay.
-            Returns True if an overlay was found/closed, so the caller can retry same row.
-            """
             overlay_found = False
-        
+    
             try:
                 overlays = self.selenium_driver.find_elements(
                     By.XPATH,
                     "//*[contains(@class,'OneUp') or contains(@class,'OneUpOther')]"
                 )
-        
+    
                 if overlays:
                     overlay_found = True
                     print("🧹 OneUp preview overlay detected — closing it and retrying same link...")
                     ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
                     time.sleep(0.75)
-        
+    
                     overlays = self.selenium_driver.find_elements(
                         By.XPATH,
                         "//*[contains(@class,'OneUp') or contains(@class,'OneUpOther')]"
                     )
-        
+    
                     if overlays:
                         self.selenium_driver.back()
                         time.sleep(1.25)
-        
+    
             except Exception:
                 pass
-        
+    
             return overlay_found
+    
+        def wait_for_share_dialog_to_close(timeout=6):
+            """
+            Wait for SharePoint's share iframe/dialog to disappear.
+            This prevents the next click from being intercepted by shareFrame.
+            """
+            try:
+                WebDriverWait(self.selenium_driver, timeout).until_not(
+                    EC.presence_of_element_located((
+                        By.XPATH,
+                        "//iframe[@id='shareFrame' or @name='shareFrame' or @title='Share']"
+                    ))
+                )
+                return True
+            except Exception:
+                return False
+    
+        def refind_same_row_by_name(row_name: str):
+            try:
+                WebDriverWait(self.selenium_driver, self.__MAX_WAIT_TIME__).until(
+                    EC.presence_of_element_located((By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__))
+                )
+    
+                time.sleep(1.0)
+    
+                page_elements = self.selenium_driver.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_LOCATOR__)
+    
+                for page in page_elements:
+                    try:
+                        rows = page.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
+                    except Exception:
+                        continue
+    
+                    for r in rows:
+                        try:
+                            if self.__get_row_name__(r).strip() == row_name.strip():
+                                return r
+                        except Exception:
+                            continue
+    
+            except Exception as e:
+                print(f"⚠️ Could not re-find same row after refresh: {e}")
+    
+            return None
+    
+        def refresh_and_refind_same_row():
+            nonlocal row_element
+    
+            try:
+                print(f"🔄 Refreshing page and retrying SAME link: {original_row_name}")
+                close_preview_overlay()
+    
+                self.selenium_driver.refresh()
+                self._page_refreshed_during_link_gather = True
+                time.sleep(3.0)
+    
+                new_row = refind_same_row_by_name(original_row_name)
+                if new_row:
+                    row_element = new_row
+                    print(f"✅ Re-found same row after refresh: {original_row_name}")
+                    return True
+    
+                print(f"❌ Could not re-find same row after refresh: {original_row_name}")
+                return False
+    
+            except Exception as e:
+                print(f"⚠️ Refresh/re-find failed for same link: {e}")
+                return False
     
         def safe_click(el, label="element", retries=3):
             for attempt in range(1, retries + 1):
                 try:
                     close_preview_overlay()
-        
+    
                     self.selenium_driver.execute_script(
                         "arguments[0].scrollIntoView({block:'center'});", el
                     )
                     time.sleep(0.25)
-        
+    
                     el.click()
                     return True
-        
+    
                 except ElementClickInterceptedException as e:
                     print(f"⚠️ Click intercepted on {label} attempt {attempt}: {e}")
                     close_preview_overlay()
                     time.sleep(0.75)
-        
+    
                 except Exception as e:
                     print(f"⚠️ Safe click failed on {label} attempt {attempt}: {e}")
                     close_preview_overlay()
                     time.sleep(0.75)
-        
-            # 🚨 NEW: instead of failing → reset UI and signal retry
+    
             print(f"🔁 Could not click {label} — forcing reset and retrying SAME link")
             self._force_ui_reset()
-            return None  # ← IMPORTANT (not False)
+            return None
     
         starting_clipboard_content = self.__get_clipboard_content__()
-        selector_locator = ".//div[@role='gridcell' and contains(@data-automationid, 'row-selection-')]"
+    
+        selector_locator = (
+            ".//*[self::div or self::button]"
+            "[@role='gridcell' or @role='checkbox' or @aria-selected]"
+            "[contains(@data-automationid, 'row-selection-') "
+            "or contains(@data-actions, 'list-item-selection-click')]"
+        )
     
         start_time = time.time()
+        refresh_retries = 0
+        max_refresh_retries = 10
     
         for retry_count in range(10):
             try:
@@ -2943,16 +3021,45 @@ class SharepointExtractor:
                     EC.presence_of_element_located((By.XPATH, selector_locator))
                 )
     
-                if not safe_click(selector_element, "row selector", retries=3):
+                click_result = safe_click(selector_element, "row selector", retries=3)
+    
+                if click_result is None:
+                    time.sleep(1.25)
+                    continue
+    
+                if click_result is False:
                     raise Exception("Could not safely click row selector.")
     
                 time.sleep(1.0)
     
-                share_button = WebDriverWait(row_element, 15).until(
-                    EC.element_to_be_clickable((By.XPATH, ".//button[@data-automationid='shareHeroId']"))
-                )
+                share_button = None
+                share_button_candidates = [
+                    ".//button[@data-automationid='shareHeroId' and @aria-label='Share']",
+                    ".//button[@data-automationid='shareHeroId']",
+                    ".//button[@title='Share' and @aria-label='Share']",
+                    ".//button[contains(@class, 'heroButton') and @data-icon-name='Share']",
+                    ".//button[contains(@data-actions, 'share')]",
+                ]
     
-                if not safe_click(share_button, "Share button", retries=3):
+                for xp in share_button_candidates:
+                    try:
+                        share_button = WebDriverWait(row_element, 5).until(
+                            EC.element_to_be_clickable((By.XPATH, xp))
+                        )
+                        break
+                    except Exception:
+                        continue
+    
+                if not share_button:
+                    raise Exception("Could not locate safe Share button.")
+    
+                click_result = safe_click(share_button, "Share button", retries=3)
+    
+                if click_result is None:
+                    time.sleep(1.25)
+                    continue
+    
+                if click_result is False:
                     raise Exception("Could not safely click Share button.")
     
                 time.sleep(3.0)
@@ -2980,33 +3087,49 @@ class SharepointExtractor:
                 time.sleep(1.25)
                 ActionChains(self.selenium_driver).send_keys(Keys.ESCAPE).perform()
     
-                # unselect the row
-                time.sleep(1.0)
-                try:
-                    close_preview_overlay()
-                    selector_element = WebDriverWait(row_element, 10).until(
-                        EC.presence_of_element_located((By.XPATH, selector_locator))
-                    )
-                    safe_click(selector_element, "unselect row", retries=2)
-                except Exception as e:
-                    print(f"⚠️ Could not unselect row after link gather: {e}")
+                # No row unselect click here.
+                # Wait for the Share iframe/dialog to close so it does not intercept future clicks.
+                time.sleep(0.75)
+                close_preview_overlay()
+                wait_for_share_dialog_to_close(timeout=6)
     
                 encrypted_file_link = self.__get_clipboard_content__()
                 if encrypted_file_link != starting_clipboard_content:
                     return encrypted_file_link
     
                 print(f"⚠️ Did not Successfully Gather link on attempt {retry_count + 1}. Retrying…")
+                
+                # Only refresh AFTER all 10 normal attempts fail.
+                # Let the for-loop continue naturally until retry_count == 9.
+                if retry_count < 9:
+                    time.sleep(1.5)
+                    continue
+                
+                if refresh_retries < max_refresh_retries:
+                    refresh_retries += 1
+                    if refresh_and_refind_same_row():
+                        return self.__get_encrypted_link__(row_element)
     
             except Exception as e:
                 print(f"⚠️ Attempt {retry_count + 1} failed: {e}")
-            
+    
                 overlay_was_closed = close_preview_overlay()
-            
+    
                 if overlay_was_closed:
                     print("🔁 Overlay caused failure — retrying same file/link now...")
                     time.sleep(1.5)
                     continue
-            
+    
+                # Only refresh after all 10 normal attempts fail.
+                if retry_count < 9:
+                    time.sleep(2.0)
+                    continue
+                
+                if refresh_retries < max_refresh_retries:
+                    refresh_retries += 1
+                    if refresh_and_refind_same_row():
+                        return self.__get_encrypted_link__(row_element)
+    
                 time.sleep(2.0)
     
             if time.time() - start_time > 120:
@@ -3015,7 +3138,7 @@ class SharepointExtractor:
     
         print("❌ Failed to get SharePoint link after 10 retries.")
         return None
-      
+          
     def __get_clipboard_content__(self) -> str:
             """
             Local helper method used to pull clipboard content for generated links
@@ -3248,12 +3371,33 @@ class SharepointExtractor:
         entry_heirarchy += self.__get_row_name__(row_element)
         return entry_heirarchy
      
-    def __get_folder_rows__(self, row_link: str = None) -> tuple[list, list]:
+    def __get_folder_rows__(self, row_link: str = None, already_processed_names=None, indexed_files=None, indexed_folders=None) -> tuple[list, list]:
+        if already_processed_names is None:
+            already_processed_names = set()
+    
+        if indexed_files is None:
+            indexed_files = []
+    
+        if indexed_folders is None:
+            indexed_folders = []
+    
         if row_link is not None:
             self.selenium_driver.get(row_link)
     
-        indexed_files = []
-        indexed_folders = []
+        def restart_if_link_gather_refreshed():
+            if getattr(self, "_page_refreshed_during_link_gather", False):
+                self._page_refreshed_during_link_gather = False
+                print("🔄 Hyperlink gatherer refreshed page — restarting current folder scan safely...")
+                return True
+            return False
+    
+        def restart_current_folder_scan():
+            return self.__get_folder_rows__(
+                row_link or self.selenium_driver.current_url,
+                already_processed_names,
+                indexed_files,
+                indexed_folders
+            )
     
         # Compile ADAS/Repair-mode regex patterns
         if self.repair_mode and self.selected_adas:
@@ -3281,7 +3425,7 @@ class SharepointExtractor:
     
         # 🔹 QUICK SCROLL of the actual scrollable container so Toyota / Volkswagen load
         self.__scroll_folder_container_to_bottom__()
-
+    
         time.sleep(1)
     
         # Get the folder table(s)
@@ -3296,7 +3440,6 @@ class SharepointExtractor:
             rows = page_element.find_elements(By.XPATH, self.__ONEDRIVE_TABLE_ROW_LOCATOR__)
     
             if not rows:
-                #print("No table rows found in folder; skipping...")
                 continue
     
             # Read the page header title
@@ -3314,9 +3457,26 @@ class SharepointExtractor:
     
             # Iterate rows
             for row_element in rows:
-                entry_name = self.__get_row_name__(row_element)
+                try:
+                    entry_name = self.__get_row_name__(row_element)
+                except Exception as e:
+                    if "stale element reference" in str(e).lower():
+                        print("🔄 Rows went stale after hyperlink refresh — restarting current folder scan...")
+                        return restart_current_folder_scan()
+                    raise
+    
+                if entry_name in already_processed_names:
+                    continue
+    
                 entry_name_upper = entry_name.strip().upper()
-                entry_hierarchy = self.__get_entry_heirarchy__(row_element)
+    
+                try:
+                    entry_hierarchy = self.__get_entry_heirarchy__(row_element)
+                except Exception as e:
+                    if "stale element reference" in str(e).lower():
+                        print("🔄 Row hierarchy went stale — restarting current folder scan...")
+                        return restart_current_folder_scan()
+                    raise
     
                 # — SPECIAL: If SAS selected in Repair mode —
                 if (self.repair_mode and
@@ -3329,18 +3489,28 @@ class SharepointExtractor:
                             SharepointExtractor.EntryTypes.FILE_ENTRY
                         )
                     )
+                    already_processed_names.add(entry_name)
                     continue
     
                 # — Handle "No ..." pseudo entries —
                 if entry_name.lower().startswith("no"):
+                    no_link = self.__get_encrypted_link__(row_element)
+    
                     simulated_entry = self.__simulate_entry_from_no_entry__(
                         entry_name,
-                        self.__get_encrypted_link__(row_element),
+                        no_link,
                         entry_hierarchy,
                         indexed_files
                     )
                     if simulated_entry:
                         indexed_files.append(simulated_entry)
+    
+                    already_processed_names.add(entry_name)
+    
+                    if restart_if_link_gather_refreshed():
+                        print(f"🔄 Page refreshed after '{entry_name}' — continuing with remaining rows only...")
+                        return restart_current_folder_scan()
+    
                     continue
     
                 # — Skip unwanted terms —
@@ -3380,12 +3550,19 @@ class SharepointExtractor:
     
                         if any(re.search(r"([PpAaRrTt]{4})|(\d+\s*\.[^\s]+)", name) for name in sub_names):
                             folder_link = self.__get_encrypted_link__(row_element)
+    
                             indexed_files.append(
                                 SharepointExtractor.SharepointEntry(
                                     entry_name, entry_hierarchy, folder_link,
                                     SharepointExtractor.EntryTypes.FOLDER_ENTRTY
                                 )
                             )
+                            already_processed_names.add(entry_name)
+    
+                            if restart_if_link_gather_refreshed():
+                                print(f"🔄 Page refreshed after '{entry_name}' — continuing with remaining rows only...")
+                                return restart_current_folder_scan()
+    
                             continue
     
                     indexed_folders.append(
@@ -3394,6 +3571,7 @@ class SharepointExtractor:
                             SharepointExtractor.EntryTypes.FOLDER_ENTRTY
                         )
                     )
+                    already_processed_names.add(entry_name)
                     continue
     
                 # === 🔍 FILTERING STARTS HERE ===
@@ -3435,9 +3613,11 @@ class SharepointExtractor:
                             SharepointExtractor.EntryTypes.FILE_ENTRY
                         )
                     )
+                    already_processed_names.add(entry_name)
                     continue
     
                 file_link = self.__get_encrypted_link__(row_element)
+    
                 indexed_files.append(
                     SharepointExtractor.SharepointEntry(
                         entry_name,
@@ -3446,6 +3626,11 @@ class SharepointExtractor:
                         SharepointExtractor.EntryTypes.FILE_ENTRY
                     )
                 )
+                already_processed_names.add(entry_name)
+    
+                if restart_if_link_gather_refreshed():
+                    print(f"🔄 Page refreshed after '{entry_name}' — continuing with remaining rows only...")
+                    return restart_current_folder_scan()
     
         return [indexed_folders, indexed_files]
  
