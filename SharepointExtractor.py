@@ -3398,7 +3398,8 @@ class SharepointExtractor:
                 indexed_files,
                 indexed_folders
             )
-    
+
+#test    
         # Compile ADAS/Repair-mode regex patterns
         if self.repair_mode and self.selected_adas:
             adas_patterns = [re.compile(re.escape(rs), re.IGNORECASE) for rs in self.selected_adas]
