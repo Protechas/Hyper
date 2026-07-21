@@ -246,6 +246,8 @@ def _extract_system_from_filename(file_name: str) -> str:
         "SVC","SVC1","SVC2","SVC3",
         "WAMC",
 
+        "FRS", "PDS", "RRS", "BSM", "WSC",
+
         # Repair SI (added)
         "YAW",
         "G-Force","GFORCE",         # both dashed and plain
@@ -313,33 +315,47 @@ def _extract_system_from_filename(file_name: str) -> str:
 
 def _system_val_for_row(self, row, repair_mode: bool):
     """
-    Return (system_text, system_norm_for_index) for a given openpyxl 'row' (tuple of cells).
-    Uses the correct columns for OG vs NEW and Repair vs ADAS.
-    NOTE: 'row[i]' here is 0-based indexing (row[0] == Column A).
+    Return (system_text, system_norm_for_index) for a given openpyxl 'row' tuple.
+
+    IMPORTANT:
+    - NEW ADAS should dynamically read "Protech Generic System Name"
+      so new acronyms like FRS, PDS, RRS, WSC can match.
+    - If that header is missing, it falls back to the normal "system" column.
     """
-    # Decide which source column to read the Protech Generic system name from
+    sys_cell = None
+
     if repair_mode:
-        # Repair SI
+        # Repair SI keeps existing behavior
         if self.excel_mode == "new":
-            # NEW Repair: Column T (0-based 19)
             sys_cell = row[19] if len(row) > 19 and row[19].value else None
         elif str(self.sharepoint_make).lower() == "toyota":
-            # OG Repair for Toyota uses Column E (0-based 4)
             sys_cell = row[4] if len(row) > 4 and row[4].value else None
         else:
-            # OG Repair default uses Column D (0-based 3)
             sys_cell = row[3] if len(row) > 3 and row[3].value else None
+
     else:
         # ADAS SI
         if self.excel_mode == "new":
-            # 🔧 NEW ADAS: Column U (0-based 20) after the S→U move
-            sys_cell = row[20] if len(row) > 20 and row[20].value else None
+            # Prefer dynamic header lookup for new acronym column
+            colmap = getattr(self, "colmap", {}) or {}
+
+            # 1-based column index from _header_colmap_()
+            col = colmap.get("protech_system") or colmap.get("system")
+
+            if col and len(row) >= col:
+                sys_cell = row[col - 1] if row[col - 1].value else None
+
+            # Fallback only if header lookup failed
+            if sys_cell is None:
+                sys_cell = row[20] if len(row) > 20 and row[20].value else None
+
         else:
-            # OG ADAS: Column E (0-based 4)
+            # OG ADAS keeps existing behavior
             sys_cell = row[18] if len(row) > 18 and row[18].value else None
 
     sys_text = (str(sys_cell.value).strip().upper() if sys_cell else "")
-    sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACTLY like your __build_row_index__
+    sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)
+
     return sys_text, sys_norm
 
 class SharepointExtractor: 
@@ -726,6 +742,42 @@ class SharepointExtractor:
 
     #################################################################################################################################################  
 
+    def __expand_selected_adas_aliases__(self, systems):
+        """Expand old/new ADAS acronyms behind the scenes for SharePoint matching."""
+        if getattr(self, "repair_mode", False):
+            return list(systems or [])
+
+        alias_map = {
+            "ACC": ["ACC", "FRS"],
+            "AEB": ["AEB", "FRS"],
+            "FRS": ["FRS", "ACC", "AEB"],
+
+            "APA": ["APA", "PDS"],
+            "PDS": ["PDS", "APA"],
+
+            "BSW": ["BSW", "BSM", "RRS"],
+            "BSM": ["BSM", "BSW", "RRS"],
+            "RRS": ["RRS", "BSW", "BSM"],
+
+            "LKA": ["LKA", "WSC"],
+            "WSC": ["WSC", "LKA"],
+
+            "BUC": ["BUC"],
+            "NV":  ["NV"],
+            "SVC": ["SVC"],
+            "AHL": ["AHL"],
+            "LW":  ["LW"],
+            "WAMC": ["WAMC"],
+        }
+
+        expanded = []
+        for system in systems or []:
+            key = re.sub(r"[^A-Z0-9]", "", (system or "").upper())
+            for mapped in alias_map.get(key, [system]):
+                if mapped and mapped not in expanded:
+                    expanded.append(mapped)
+        return expanded
+
     def __init__(self, sharepoint_link: str, excel_file_path: str, debug_run: bool = False) -> 'SharepointExtractor':
         """
         CTOR for a new SharepointExtractor. Takes the link to the requested sharepoint location 
@@ -748,8 +800,8 @@ class SharepointExtractor:
             # Normalize header text: trim, uppercase, collapse inner spaces
             import re
             return re.sub(r"\s+", " ", str(s).strip().upper())
-    
-        # ── Header-only helpers ─────────────────────────────────────────────
+           
+                # ── Header-only helpers ─────────────────────────────────────────────
         def _header_colmap_(self, ws):
             """Return 1-based indices for required headers; no fallbacks."""
             import re
@@ -862,7 +914,17 @@ class SharepointExtractor:
         self.sharepoint_links = sharepoint_link.split('||') if '||' in sharepoint_link else [sharepoint_link]
         self.sharepoint_link = self.sharepoint_links[0]
         self.excel_file_path = excel_file_path
-        self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 else []
+        self.selected_adas = sys.argv[3].split(",") if len(sys.argv) > 3 and sys.argv[3] else []
+
+        # Behind-the-scenes ADAS alias expansion so old GUI selections still find
+        # new SharePoint acronyms. Example: ACC/AEB also searches FRS, and an FRS
+        # document is later written to both ACC + AEB rows.
+        if not self.repair_mode:
+            original_selected_adas = list(self.selected_adas)
+            self.selected_adas = self.__expand_selected_adas_aliases__(self.selected_adas)
+            if self.selected_adas != original_selected_adas:
+                print(f"🔁 ADAS alias expansion: {original_selected_adas} -> {self.selected_adas}")
+
         # Upload reporting counters
         self.total_files_uploaded = 0
         self.files_uploaded_by_make = {}
@@ -1404,8 +1466,10 @@ class SharepointExtractor:
         def enter_folder(folder_name: str) -> bool:
             close_open_menus()
         
+            wanted = folder_name.strip().lower()
+        
             # If we're already in it, we're done.
-            if get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower():
+            if get_current_breadcrumb_last().strip().lower() == wanted:
                 return True
         
             row = folder_row_element(folder_name)
@@ -1421,20 +1485,32 @@ class SharepointExtractor:
             except Exception:
                 pass
         
-            # Prefer clicking the name link if present (most reliable navigation)
-            # IMPORTANT: Do NOT click the whole row as fallback, because SharePoint can open a file preview.
             clicked = False
             safe_name = folder_name.replace("'", "\\'")
         
+            # If folder_row_element returned the actual heroField/span instead of the full row,
+            # climb to the real row so XPath searches work correctly.
+            try:
+                actual_row = row.find_element(By.XPATH, "./ancestor::*[@role='row'][1]")
+            except Exception:
+                actual_row = row
+        
             click_candidates = [
+                # SharePoint modern document library folder-name button
+                f".//span[@role='button' and @data-id='heroField' and normalize-space() = '{safe_name}']",
+                f".//span[@role='button' and @data-selection-invoke='true' and @title = '{safe_name}']",
+                f".//*[@data-automationid='field-LinkFilename']//span[@role='button' and @data-id='heroField']",
+        
+                # Normal anchor/link fallbacks
                 f".//a[normalize-space() = '{safe_name}']",
                 f".//span[normalize-space() = '{safe_name}']/ancestor::a[1]",
                 f".//*[@data-automationid='field-LinkFilename']//*[normalize-space() = '{safe_name}']",
+                f".//*[@data-id='heroField' and normalize-space() = '{safe_name}']",
             ]
         
             for xp in click_candidates:
                 try:
-                    name_link = row.find_element(By.XPATH, xp)
+                    name_link = actual_row.find_element(By.XPATH, xp)
         
                     try:
                         self.selenium_driver.execute_script(
@@ -1450,6 +1526,27 @@ class SharepointExtractor:
                     except Exception:
                         self.selenium_driver.execute_script("arguments[0].click();", name_link)
         
+                    time.sleep(0.35)
+        
+                    # If click only focused/selected the folder, invoke it safely.
+                    if get_current_breadcrumb_last().strip().lower() != wanted:
+                        try:
+                            ActionChains(self.selenium_driver).double_click(name_link).perform()
+                            time.sleep(0.35)
+                        except Exception:
+                            pass
+        
+                    if get_current_breadcrumb_last().strip().lower() != wanted:
+                        try:
+                            name_link.send_keys(Keys.ENTER)
+                            time.sleep(0.35)
+                        except Exception:
+                            try:
+                                ActionChains(self.selenium_driver).send_keys(Keys.ENTER).perform()
+                                time.sleep(0.35)
+                            except Exception:
+                                pass
+        
                     clicked = True
                     break
         
@@ -1460,14 +1557,19 @@ class SharepointExtractor:
                 print(f"⚠️ Refusing to click whole row for '{folder_name}' to avoid opening a file.")
                 return False
         
-            # ✅ CONFIRM NAVIGATION (breadcrumb changes to folder_name)
+            # ✅ CONFIRM NAVIGATION
             try:
-                WebDriverWait(self.selenium_driver, 4).until(
-                    lambda d: get_current_breadcrumb_last().strip().lower() == folder_name.strip().lower()
+                WebDriverWait(self.selenium_driver, 8).until(
+                    lambda d: (
+                        get_current_breadcrumb_last().strip().lower() == wanted
+                        or self.selenium_driver.current_url != prev_url
+                        or get_current_breadcrumb_last() != prev_crumb
+                    )
                 )
-                return True
+        
+                return get_current_breadcrumb_last().strip().lower() == wanted
+        
             except Exception:
-                # Do NOT double-click the row. That can open file previews.
                 return False
     
         def ensure_folder_exists_and_enter(folder_name: str):
@@ -3398,8 +3500,7 @@ class SharepointExtractor:
                 indexed_files,
                 indexed_folders
             )
-
-#test    
+    
         # Compile ADAS/Repair-mode regex patterns
         if self.repair_mode and self.selected_adas:
             adas_patterns = [re.compile(re.escape(rs), re.IGNORECASE) for rs in self.selected_adas]
@@ -3651,7 +3752,7 @@ class SharepointExtractor:
                     cell.value = document_url
                     cell.font = Font(color="0000FF", underline='single')
                     # Color logic
-                    force_red = bool(getattr(self, "debug_mode", False)) and bool(getattr(self, "write_in_debug", True))
+                    #force_red = bool(getattr(self, "debug_mode", False)) and bool(getattr(self, "write_in_debug", True))
                     if getattr(self, "_last_match_approx", False):
                         cell.font = Font(color="FF0000", underline='single')   # red hyperlink for regex/fuzzy placement
                     else:
@@ -3670,14 +3771,17 @@ class SharepointExtractor:
     def _header_colmap_(self, ws):
         """Return 1-based indices for required headers; no fallbacks."""
         import re
-        def norm(s): return re.sub(r"\s+", " ", str(s).strip().upper())
+    
+        def norm(s):
+            return re.sub(r"\s+", " ", str(s).strip().upper())
     
         header_cells = next(ws.iter_rows(min_row=1, max_row=1))
         headers = {}
+    
         for i, c in enumerate(header_cells):
-            if c.value is None: 
+            if c.value is None:
                 continue
-            headers[norm(c.value)] = i + 1  # 1-based
+            headers[norm(c.value)] = i + 1
     
         def pick(*names):
             for n in names:
@@ -3687,25 +3791,47 @@ class SharepointExtractor:
             return None
     
         colmap = {
-            "year":   pick("Year"),
-            "make":   pick("Make"),
-            "model":  pick("Model"),
-            "system": pick(  # ADAS + Repair
+            "year": pick("Year"),
+            "make": pick("Make"),
+            "model": pick("Model"),
+    
+            # OLD acronym column
+            "system": pick(
                 "SME Generic System Name",
-                "Protech Generic System Name",
                 "Generic System Name",
                 "System Name",
                 "System",
             ),
-            "hyperlink": pick(  # includes “Service Information”
+    
+            # NEW acronym column
+            "protech_system": pick(
+                "Protech Generic System Name",
+                "Protech Generic System",
+            ),
+    
+            "hyperlink": pick(
                 "Hyperlink", "Link", "URL",
                 "Service Information", "Service Information Hyperlink",
+                "Service Information (URL)",
                 "SI", "SI Link", "SI URL",
             ),
         }
-        missing = [k for k in ("year","make","model","system") if not colmap.get(k)]
+    
+        missing = [k for k in ("year", "make", "model") if not colmap.get(k)]
+    
+        if not colmap.get("system") and not colmap.get("protech_system"):
+            missing.append("system/protech_system")
+    
         if missing:
             raise ValueError(f"Missing required header(s): {', '.join(missing)}")
+    
+        print(
+            f"📌 Header columns detected: "
+            f"Year={colmap.get('year')}, Make={colmap.get('make')}, Model={colmap.get('model')}, "
+            f"SME={colmap.get('system')}, Protech={colmap.get('protech_system')}, "
+            f"Hyperlink={colmap.get('hyperlink')}"
+        )
+    
         return colmap
     
     def _cell_val_upper(self, row_tuple, one_based_idx):
@@ -3717,35 +3843,41 @@ class SharepointExtractor:
         v = row_tuple[i].value
         return (str(v).strip().upper() if v is not None else "")
 
+    def _system_col_for_doc(self, doc_system_norm: str):
+        """
+        Pick the Excel system column dynamically based on the document acronym.
+    
+        New acronym docs read Protech Generic System Name.
+        Old acronym docs read the old SME/system column.
+        """
+        colmap = getattr(self, "colmap", {}) or {}
+    
+        new_acronyms = {"BUC", "FRS", "NV", "PDS", "RRS", "SVC", "WSC"}
+    
+        if not self.repair_mode and self.excel_mode == "new":
+            if doc_system_norm in new_acronyms and colmap.get("protech_system"):
+                return colmap.get("protech_system")
+    
+        return colmap.get("system")
+
     # ★ Add this helper once inside your class (above the two methods below)
     def _system_val_for_row(self, row, repair_mode: bool):
-        """
-        Return (system_text, system_norm_for_index) for a given openpyxl 'row' (tuple of cells).
-        Uses the correct columns for OG vs NEW and Repair vs ADAS.
-        NOTE: 'row[i]' here is 0-based indexing (row[0] == Column A).
-        """
+        sys_cell = None
+        colmap = getattr(self, "colmap", {}) or {}
+    
         if repair_mode:
-            # Repair SI
-            if self.excel_mode == "new":
-                # NEW Repair: Column T (0-based 19)
-                sys_cell = row[19] if len(row) > 19 and row[19].value else None
-            elif str(self.sharepoint_make).lower() == "toyota":
-                # OG Repair for Toyota: Column E (0-based 4)
-                sys_cell = row[4] if len(row) > 4 and row[4].value else None
-            else:
-                # OG Repair default: Column D (0-based 3)
-                sys_cell = row[3] if len(row) > 3 and row[3].value else None
+            col = colmap.get("system")
         else:
-            # ADAS SI
             if self.excel_mode == "new":
-                # NEW ADAS: Column U (0-based 20) after S→U move
-                sys_cell = row[20] if len(row) > 20 and row[20].value else None
+                col = colmap.get("protech_system") or colmap.get("system")
             else:
-                # OG ADAS: Column E (0-based 4)
-                sys_cell = row[18] if len(row) > 18 and row[18].value else None
+                col = colmap.get("system")
+    
+        if col and len(row) >= col:
+            sys_cell = row[col - 1] if row[col - 1].value else None
     
         sys_text = (str(sys_cell.value).strip().upper() if sys_cell else "")
-        sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)  # EXACT match with your __build_row_index__
+        sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)
         return sys_text, sys_norm
     
 
@@ -3755,24 +3887,44 @@ class SharepointExtractor:
         # Skip filtering if in Repair mode
         if not self.repair_mode:
             if self.selected_adas:
-                selected_norms = {re.sub(r"[^A-Z0-9]", "", s.upper()) for s in self.selected_adas}
-                doc_sys = re.sub(r"[^A-Z0-9]", "", (_extract_system_from_filename(doc_name) or "").upper())
+                selected_norms = {
+                    re.sub(r"[^A-Z0-9]", "", s.upper())
+                    for s in self.selected_adas
+                }
+        
+                doc_sys = re.sub(
+                    r"[^A-Z0-9]",
+                    "",
+                    (_extract_system_from_filename(doc_name) or "").upper()
+                )
         
                 ADAS_OLD_TO_NEW_LOCAL = {
                     "BUC": ["BUC"],
+        
+                    # Old selections should allow old + new docs
                     "ACC": ["ACC", "FRS"],
                     "AEB": ["AEB", "FRS"],
+        
                     "NV":  ["NV"],
                     "APA": ["APA", "PDS"],
                     "BSW": ["BSW", "BSM", "RRS"],
                     "BSM": ["BSM", "BSW", "RRS"],
                     "SVC": ["SVC"],
                     "LKA": ["LKA", "WSC"],
+        
+                    # New selections should also allow old fallback rows
+                    "FRS": ["FRS", "ACC", "AEB"],
+                    "PDS": ["PDS", "APA"],
+                    "RRS": ["RRS", "BSW", "BSM"],
+                    "WSC": ["WSC", "LKA"],
                 }
         
                 allowed_doc_systems = set()
+        
                 for selected in selected_norms:
-                    allowed_doc_systems.update(ADAS_OLD_TO_NEW_LOCAL.get(selected, [selected]))
+                    allowed_doc_systems.update(
+                        ADAS_OLD_TO_NEW_LOCAL.get(selected, [selected])
+                    )
         
                 if doc_sys not in allowed_doc_systems:
                     return
@@ -3804,61 +3956,124 @@ class SharepointExtractor:
         # --- VERIFY the picked row actually matches (Y, M, Model, System). If not, fix it. ---
         expected_rows = []
         sys_norm_ix = ""
-
+        
         try:
             Y  = (year or "").strip().upper()
             M  = (self.sharepoint_make or "").strip().upper()
             MR = (model or "").strip().upper()
-            sys_raw     = _extract_system_from_filename(doc_name)
+        
+            sys_raw = _extract_system_from_filename(doc_name)
             sys_norm_ix = re.sub(r"[^A-Z0-9]", "", (sys_raw or "").upper())
+        
+            NEW_TO_OLD = {
+                "FRS": ["ACC", "AEB"],
+                "PDS": ["APA"],
+                "RRS": ["BSW", "BSM"],
+                "WSC": ["LKA"],
+                "BUC": ["BUC"],
+                "NV":  ["NV"],
+                "SVC": ["SVC"],
+            }
+        
+            NEW_ADAS = {"FRS", "PDS", "RRS", "WSC"}
 
-            # ✅ New acronym → old SME row targets
-            # FRS intentionally maps to BOTH ACC and AEB.
-            if not self.repair_mode:
-                ADAS_NEW_TO_OLD_TARGETS_LOCAL = {
-                    "BUC": ["BUC"],
-                    "FRS": ["ACC", "AEB"],
-                    "NV":  ["NV"],
-                    "PDS": ["APA"],
-                    "RRS": ["BSW", "BSM"],
-                    "SVC": ["SVC"],
-                    "WSC": ["LKA"],
-                }
-                target_systems = ADAS_NEW_TO_OLD_TARGETS_LOCAL.get(sys_norm_ix, [sys_norm_ix])
-            else:
-                target_systems = [sys_norm_ix]
-
-            def _norm_adas_token_local(s: str) -> str:
-                return re.sub(r"[^A-Z0-9]", "", (s or "").upper())
-                
-            # Ensure we have the latest index
-            self.row_index = getattr(self, "row_index", None) or self.__build_row_index__(ws, repair_mode=self.repair_mode)
-    
-            expected_rows = []
-            for target_sys in target_systems:
-                exact_key = (Y, M, MR, _norm_adas_token_local(target_sys))
-                row_num = self.row_index.get(exact_key)
-                if row_num and row_num not in expected_rows:
-                    expected_rows.append(row_num)
+            # New doc acronym should check:
+            # 1) Protech column for the new acronym
+            # 2) SME column for old mapped rows
+            target_checks = []
             
+            is_new_excel = str(getattr(self, "excel_mode", "")).strip().lower() == "new"
+            
+            
+            if not self.repair_mode and sys_norm_ix in NEW_ADAS:
+                # New acronym docs MUST check Protech first
+                target_checks.append(("protech_system", sys_norm_ix))
+            
+                # Then also check/copy old SME rows where needed
+                for old_sys in NEW_TO_OLD.get(sys_norm_ix, []):
+                    target_checks.append(("system", old_sys))
+            
+            elif not self.repair_mode:
+                # Old acronym docs check SME
+                target_checks.append(("system", sys_norm_ix))
+            
+            else:
+                target_checks.append(("system", sys_norm_ix))
+
+        
+            colmap = getattr(self, "colmap", {}) or {}
+            Yc = colmap.get("year")
+            Mc = colmap.get("make")
+            Mdc = colmap.get("model")
+        
+            exact_rows = []
+            fuzzy_rows = []
+        
+            for col_key, target_sys in target_checks:
+                Sc = colmap.get(col_key)
+                # print(f"DEBUG ROW CHECK | doc={doc_name} | doc_sys={sys_norm_ix} | col_key={col_key} | Sc={Sc}")
+                if not (Yc and Mc and Mdc and Sc):
+                    continue
+        
+                target_norm = re.sub(r"[^A-Z0-9]", "", (target_sys or "").upper())
+                target_letters = re.sub(r"[^A-Z]", "", target_norm)
+        
+                for row in ws.iter_rows(min_row=2, max_col=ws.max_column):
+                    if not any(c.value for c in row):
+                        continue
+        
+                    yr = self._cell_val_upper(row, Yc)
+                    mk = self._cell_val_upper(row, Mc)
+                    mdl = self._cell_val_upper(row, Mdc)
+                    sys_text = self._cell_val_upper(row, Sc)
+        
+                    sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)
+                    sys_letters = re.sub(r"[^A-Z]", "", sys_norm)
+        
+                    if yr != Y or mk != M:
+                        continue
+        
+                    if sys_norm != target_norm and sys_letters != target_letters:
+                        continue
+        
+                    row_num = row[0].row
+        
+                    if mdl == MR:
+                        if row_num not in exact_rows:
+                            exact_rows.append(row_num)
+                    elif _similar(mdl, MR) >= 0.72:
+                        if row_num not in fuzzy_rows:
+                            fuzzy_rows.append(row_num)
+        
+            expected_rows = exact_rows or fuzzy_rows
             expected_row = expected_rows[0] if expected_rows else None
-    
-            if expected_row and cell and cell.row != expected_row:
-                print(f"🔁 Row verifier: correcting from row {cell.row} to expected row {expected_row} for {doc_name}")
+        
+            if expected_row and cell is None:
+                #print(f"🔁 Row verifier: placing {doc_name} directly into expected row {expected_row}")
                 cell = ws.cell(row=expected_row, column=self.HYPERLINK_COLUMN_INDEX)
-                self._last_match_approx = False
+                self._last_match_approx = bool(fuzzy_rows and not exact_rows)
+        
+            elif expected_row and cell and cell.row != expected_row:
+                #print(f"🔁 Row verifier: correcting from row {cell.row} to expected row {expected_row} for {doc_name}")
+                cell = ws.cell(row=expected_row, column=self.HYPERLINK_COLUMN_INDEX)
+                self._last_match_approx = bool(fuzzy_rows and not exact_rows)
+        
             elif not expected_row and cell is None:
-                # nothing indexed for this exact key and no cell chosen → will create new row below
                 pass
+        
             elif not expected_row:
-                # we matched via regex/fuzzy to some row; mark approx so it goes red
                 self._last_match_approx = True
+        
         except Exception as _e:
-            print(f"⚠️ Row verifier error for {doc_name}: {_e}")
+            pass
     
         # --- ★ ADAS acronym verifier: retarget to the correct per-system row to avoid overwrites ---
         try:
-            if not self.repair_mode and cell:
+            NEW_ADAS_ACRONYMS = {"BUC", "FRS", "NV", "PDS", "RRS", "SVC", "WSC"}
+
+            if not self.repair_mode and cell and not (
+                self.excel_mode == "new" and sys_norm_ix in NEW_ADAS_ACRONYMS
+            ):
                 # Build the target acronym from the filename’s system
                 sys_raw2 = _extract_system_from_filename(doc_name)
                 if sys_raw2:
@@ -4127,6 +4342,33 @@ class SharepointExtractor:
         # system keys
         SN_index = _norm_system_index(sys_raw)  # keep digits; e.g., "APA 2" -> "APA2"
         SN_loose = _norm_system_loose(sys_raw)  # letters only; e.g., "APA2" -> "APA"
+        dynamic_system_col = self._system_col_for_doc(SN_index)
+
+        dynamic_row_index = {}
+
+        colmap = getattr(self, "colmap", {}) or {}
+        Yc = colmap.get("year")
+        Mc = colmap.get("make")
+        Mdc = colmap.get("model")
+        Sc = dynamic_system_col
+        
+        if Yc and Mc and Mdc and Sc:
+            for row in ws.iter_rows(min_row=2, max_col=ws.max_column):
+                if not any(c.value for c in row):
+                    continue
+        
+                yr = self._cell_val_upper(row, Yc)
+                mk = self._cell_val_upper(row, Mc)
+                mdl = self._cell_val_upper(row, Mdc)
+                sys_text = self._cell_val_upper(row, Sc)
+        
+                if _system_missing_text(sys_text):
+                    continue
+        
+                sys_norm = re.sub(r"[^A-Z0-9]", "", sys_text)
+                dynamic_row_index[(yr, mk, mdl, sys_norm)] = row[0].row
+        
+            row_index = dynamic_row_index
     
         # 1) EXACT by raw model + index-style system
         key = (Y, M, MR, SN_index)
@@ -4352,7 +4594,14 @@ class SharepointExtractor:
             colmap = self._header_colmap(ws)
             self.colmap = colmap
     
-        Yc, Mc, Mdc, Sc = colmap["year"], colmap["make"], colmap["model"], colmap["system"]
+        Yc = colmap["year"]
+        Mc = colmap["make"]
+        Mdc = colmap["model"]
+        
+        if not repair_mode and self.excel_mode == "new" and colmap.get("protech_system"):
+            Sc = colmap["protech_system"]
+        else:
+            Sc = colmap["system"]
         Hc = colmap.get("hyperlink")  # may be None
     
         index = {}

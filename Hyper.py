@@ -326,7 +326,7 @@ class SeleniumAutomationApp(QWidget):
             #    ADAS S.I. PDF Documents (2012 - 2016) Processing
             #    ADAS S.I. PDF Documents (2017 - 2021) Processing
             #    ADAS S.I. PDF Documents (2022 - 2026) Processing
-            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgBDj7-ChL5nRLxaMCtZP9c-AXGf88uEGYBj5Xu7-_byXhE?e=b629MR (2012 - 2016)",
+            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgC6OsOMywGhS501tvaT_cSVAe4n7IuvGy9g3SkHd0t3Y8w?e=Tmg8WW (2012 - 2016)",
             "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCCwQgxKQ4sSYNIXTgfADBaAYxWkDXXqG8U0MlDrij4-yc?e=2vu1mJ (2017 - 2021)",
             "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCBJWvKZ8whS4L_VN_27gXvAeqaQ6jnQapnO___qSHBD_w?e=nBoOxp (2022 - 2026)",
         ]
@@ -1565,6 +1565,48 @@ class SeleniumAutomationApp(QWidget):
         for checkbox in self.adas_checkboxes:
             checkbox.setChecked(not select_all_checked)
 
+    def expand_adas_selection_for_aliases(self, selected_systems):
+        """
+        Keep the GUI clean with the old ADAS names, but send the new SharePoint
+        acronym aliases behind the scenes so matching does not skip files.
+
+        Examples:
+          ACC/AEB -> also searches FRS
+          APA     -> also searches PDS
+          BSW     -> also searches RRS/BSM
+          LKA     -> also searches WSC
+        """
+        alias_map = {
+            "ACC": ["ACC", "FRS"],
+            "AEB": ["AEB", "FRS"],
+            "FRS": ["FRS", "ACC", "AEB"],
+
+            "APA": ["APA", "PDS"],
+            "PDS": ["PDS", "APA"],
+
+            "BSW": ["BSW", "BSM", "RRS"],
+            "BSM": ["BSM", "BSW", "RRS"],
+            "RRS": ["RRS", "BSW", "BSM"],
+
+            "LKA": ["LKA", "WSC"],
+            "WSC": ["WSC", "LKA"],
+
+            "BUC": ["BUC"],
+            "NV":  ["NV"],
+            "SVC": ["SVC"],
+            "AHL": ["AHL"],
+            "LW":  ["LW"],
+            "WAMC": ["WAMC"],
+        }
+
+        expanded = []
+        for system in selected_systems:
+            key = re.sub(r"[^A-Z0-9]", "", (system or "").upper())
+            for mapped in alias_map.get(key, [system]):
+                if mapped not in expanded:
+                    expanded.append(mapped)
+        return expanded
+
     def select_all_repair(self):
         select_all_checked = all(checkbox.isChecked() for checkbox in self.repair_checkboxes)
         for checkbox in self.repair_checkboxes:
@@ -1880,9 +1922,13 @@ class SeleniumAutomationApp(QWidget):
     
         # 2) gather selected systems based on the slide‐toggle
         if self.mode_switch.isChecked():   # Repair mode
-            selected_systems = [cb.text() for cb in self.repair_checkboxes if cb.isChecked()]
+            selected_systems_display = [cb.text() for cb in self.repair_checkboxes if cb.isChecked()]
+            selected_systems = list(selected_systems_display)
         else:                              # ADAS mode
-            selected_systems = [cb.text() for cb in self.adas_checkboxes if cb.isChecked()]
+            selected_systems_display = [cb.text() for cb in self.adas_checkboxes if cb.isChecked()]
+            # Behind the scenes: include the new SharePoint acronyms too.
+            # The GUI still only shows the old/clean names.
+            selected_systems = self.expand_adas_selection_for_aliases(selected_systems_display)
     
         # 3) sanity check
         if not upload_mode:
@@ -1929,7 +1975,7 @@ class SeleniumAutomationApp(QWidget):
             "Years selected:\n"
             f"{years_list}\n\n"
             "Systems selected:\n"
-            + ", ".join(selected_systems) + "\n\n"
+            + ", ".join(selected_systems_display) + "\n\n"
             "Excel Format:\n"
             f"{excel_format}\n\n"
             + cleanup_note
