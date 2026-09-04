@@ -326,9 +326,9 @@ class SeleniumAutomationApp(QWidget):
             #    ADAS S.I. PDF Documents (2012 - 2016) Processing
             #    ADAS S.I. PDF Documents (2017 - 2021) Processing
             #    ADAS S.I. PDF Documents (2022 - 2026) Processing
-            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgC6OsOMywGhS501tvaT_cSVAe4n7IuvGy9g3SkHd0t3Y8w?e=Tmg8WW (2012 - 2016)",
-            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCCwQgxKQ4sSYNIXTgfADBaAYxWkDXXqG8U0MlDrij4-yc?e=2vu1mJ (2017 - 2021)",
-            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoA/IgCBJWvKZ8whS4L_VN_27gXvAeqaQ6jnQapnO___qSHBD_w?e=nBoOxp (2022 - 2026)",
+            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoB/IgDC9PmcGRS9Q51M8g4jJ_pgAbhOdn_GweWmF3qTRlxqmWc?e=0pVIWW (2012 - 2016)",
+            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoB/IgC-MUL_r9FLQou3sxPHO_rqAUgZ1Cx-XBgDs8CiUT3sWJ4?e=MJD6lw (2017 - 2021)",
+            "https://calibercollision.sharepoint.com/:f:/s/O365-ServiceInfoB/IgAiUD-lsciHR4qVUQhYFsfAAQuCKBhtg7xHT83KujG6tGg?e=esDmNI (2022 - 2026)",
         ]
         
         # 2) List of all manufacturers Hyper supports (you can copy the exact
@@ -640,7 +640,7 @@ class SeleniumAutomationApp(QWidget):
         adas_label.setStyleSheet("font-size: 14px; padding: 5px;")
         adas_selection_layout.addWidget(adas_label)
     
-        adas_acronyms = ["ACC", "AEB", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC", "WAMC"]
+        adas_acronyms = ["ACC", "AEB", "FCW", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC", "WAMC"]
         self.adas_checkboxes = []
         repair_systems = [
             "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD", "SRS", "SRA", 
@@ -1566,46 +1566,61 @@ class SeleniumAutomationApp(QWidget):
             checkbox.setChecked(not select_all_checked)
 
     def expand_adas_selection_for_aliases(self, selected_systems):
-        """
-        Keep the GUI clean with the old ADAS names, but send the new SharePoint
-        acronym aliases behind the scenes so matching does not skip files.
-
-        Examples:
-          ACC/AEB -> also searches FRS
-          APA     -> also searches PDS
-          BSW     -> also searches RRS/BSM
-          LKA     -> also searches WSC
-        """
+        """Allow either the old or new filename acronym for every selected ADAS system."""
         alias_map = {
             "ACC": ["ACC", "FRS"],
             "AEB": ["AEB", "FRS"],
             "FRS": ["FRS", "ACC", "AEB"],
-
+            "FCW": ["FCW", "FCR"],
+            "FCR": ["FCR", "FCW"],
             "APA": ["APA", "PDS"],
             "PDS": ["PDS", "APA"],
-
             "BSW": ["BSW", "BSM", "RRS"],
             "BSM": ["BSM", "BSW", "RRS"],
             "RRS": ["RRS", "BSW", "BSM"],
-
             "LKA": ["LKA", "WSC"],
             "WSC": ["WSC", "LKA"],
-
             "BUC": ["BUC"],
-            "NV":  ["NV"],
+            "NV": ["NV"],
             "SVC": ["SVC"],
             "AHL": ["AHL"],
-            "LW":  ["LW"],
+            "LW": ["LW"],
             "WAMC": ["WAMC"],
         }
 
         expanded = []
-        for system in selected_systems:
+        for system in selected_systems or []:
             key = re.sub(r"[^A-Z0-9]", "", (system or "").upper())
             for mapped in alias_map.get(key, [system]):
-                if mapped not in expanded:
+                if mapped and mapped not in expanded:
                     expanded.append(mapped)
         return expanded
+
+    def detect_excel_mode_from_headers(self, excel_path):
+        """Detect whether the workbook has the Protech system-name header."""
+        import openpyxl
+
+        try:
+            workbook = openpyxl.load_workbook(excel_path, read_only=True, data_only=False)
+            try:
+                worksheet = (
+                    workbook["ADAS Model Version"]
+                    if "ADAS Model Version" in workbook.sheetnames
+                    else workbook.active
+                )
+                headers = {
+                    re.sub(r"\s+", " ", str(cell.value).strip().upper())
+                    for cell in next(worksheet.iter_rows(min_row=1, max_row=1))
+                    if cell.value is not None
+                }
+            finally:
+                workbook.close()
+
+            if "PROTECH GENERIC SYSTEM NAME" in headers or "PROTECH GENERIC SYSTEM" in headers:
+                return "new"
+        except Exception as exc:
+            print(f"⚠️ Could not detect Excel format from headers; using OG fallback: {exc}")
+        return "og"
 
     def select_all_repair(self):
         select_all_checked = all(checkbox.isChecked() for checkbox in self.repair_checkboxes)
@@ -1926,8 +1941,6 @@ class SeleniumAutomationApp(QWidget):
             selected_systems = list(selected_systems_display)
         else:                              # ADAS mode
             selected_systems_display = [cb.text() for cb in self.adas_checkboxes if cb.isChecked()]
-            # Behind the scenes: include the new SharePoint acronyms too.
-            # The GUI still only shows the old/clean names.
             selected_systems = self.expand_adas_selection_for_aliases(selected_systems_display)
     
         # 3) sanity check
@@ -3017,7 +3030,10 @@ class SeleniumAutomationApp(QWidget):
         self._initial_folder_count = None  # 🆕 Reset baseline for "Folders Remain"
     
         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
-        #excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
+        excel_mode = (
+            "og" if self.mode_flag == "repair"
+            else self.detect_excel_mode_from_headers(self._multi_excel_path)
+        )
     
         current_link = self._multi_links[self._multi_link_index]
         args = [
@@ -3028,7 +3044,8 @@ class SeleniumAutomationApp(QWidget):
             ",".join(self.selected_systems),
             self.mode_flag,
             "cleanup" if self.cleanup_checkbox.isChecked() else "full",
-            #excel_mode
+            excel_mode,
+            self._multi_manufacturer,
         ]
     
         self._cleanup_mode = self.cleanup_checkbox.isChecked()
@@ -3055,7 +3072,10 @@ class SeleniumAutomationApp(QWidget):
         self._initial_folder_count = None
 
         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
-        #excel_mode = "new" if self.excel_mode_switch.isChecked() else "og"
+        excel_mode = (
+            "og" if self.mode_flag == "repair"
+            else self.detect_excel_mode_from_headers(self._multi_excel_path)
+        )
 
         # Join all links for this manufacturer into a single argument
         all_links_arg = "||".join(self._multi_links)
@@ -3068,7 +3088,8 @@ class SeleniumAutomationApp(QWidget):
             ",".join(self.selected_systems) if hasattr(self, "selected_systems") else "",
             self.mode_flag,
             "cleanup",
-            #excel_mode
+            excel_mode,
+            self._multi_manufacturer,
         ]
 
         # Batch mode marker so we can adjust hyperlink progress semantics
