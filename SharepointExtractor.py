@@ -3808,6 +3808,8 @@ class SharepointExtractor:
         New acronym document  -> Protech Generic System Name
         Shared acronyms       -> SME first, then Protech fallback
 
+        Only new Protech acronyms may target multiple rows. Vehicle identity
+        must match exactly; similar model names are not interchangeable.
         Returns: (row_numbers, approximate_model_match, source_header)
         """
         if self.repair_mode:
@@ -3860,8 +3862,6 @@ class SharepointExtractor:
             )
             exact_model_exact_system = []
             exact_model_loose_system = []
-            fuzzy_model_exact_system = []
-            fuzzy_model_loose_system = []
 
             for row in ws.iter_rows(min_row=2, max_col=ws.max_column):
                 if not any(cell.value for cell in row):
@@ -3870,7 +3870,7 @@ class SharepointExtractor:
                 row_year = self._cell_val_upper(row, Yc)
                 row_make = self._cell_val_upper(row, Mc)
                 row_model = self._cell_val_upper(row, Mdc)
-                if row_year != Y or row_make != M:
+                if not (Y and M and MR) or row_year != Y or row_make != M or row_model != MR:
                     continue
 
                 row_system_text = self._cell_val_upper(row, Sc)
@@ -3881,26 +3881,27 @@ class SharepointExtractor:
 
                 row_number = row[0].row
                 exact_system = row_system_norm == system_norm
-                exact_model = row_model == MR
-                fuzzy_model = (not exact_model and _similar(row_model, MR) >= 0.72)
-
-                if exact_model and exact_system:
+                if exact_system:
                     exact_model_exact_system.append(row_number)
-                elif exact_model:
+                elif system_base in new_acronyms or system_norm == system_base:
                     exact_model_loose_system.append(row_number)
-                elif fuzzy_model and exact_system:
-                    fuzzy_model_exact_system.append(row_number)
-                elif fuzzy_model:
-                    fuzzy_model_loose_system.append(row_number)
+
+            # New acronyms describe shared hardware: copy by acronym alone,
+            # but only within this exact vehicle. Legacy systems stay single-row.
+            if system_base in new_acronyms:
+                exact_model_exact_system = sorted(
+                    exact_model_exact_system + exact_model_loose_system
+                )
+                exact_model_loose_system = []
 
             for rows, approximate in (
                 (exact_model_exact_system, False),
                 (exact_model_loose_system, False),
-                (fuzzy_model_exact_system, True),
-                (fuzzy_model_loose_system, True),
             ):
                 if rows:
                     unique_rows = list(dict.fromkeys(rows))
+                    if system_base not in new_acronyms:
+                        unique_rows = unique_rows[:1]
                     print(
                         f"📍 ADAS header match: {doc_name} -> {source_header} "
                         f"rows {unique_rows}"
@@ -3981,10 +3982,10 @@ class SharepointExtractor:
                 error_message = None
                 self._last_match_approx = header_match_approx
             else:
-                cell, error_message = self.__find_row_in_excel__(
-                    ws, year, self.sharepoint_make, model, doc_name,
-                    repair_mode=self.repair_mode, row_index=getattr(self, "row_index", None)
-                )
+                # Do not let the legacy fuzzy/regex fallback undo strict ADAS
+                # matching or select a row from the wrong acronym column.
+                cell, error_message = None, doc_name
+                self._last_match_approx = False
         else:
             cell, error_message = self.__find_row_in_excel__(
                 ws, year, self.sharepoint_make, model, doc_name,
@@ -4154,11 +4155,13 @@ class SharepointExtractor:
             else:
                 cell.font = Font(color="0000FF", underline='single')   # blue
 
-            # Write to every row matched in the chosen SME/Protech header.
+            # Duplicate only new Protech acronyms within the matched vehicle.
             # This preserves FRS -> both ACC/AEB and also handles any other
             # workbook rows that intentionally share one new Protech acronym.
             try:
-                if not self.repair_mode and expected_rows:
+                if (not self.repair_mode and expected_rows
+                        and header_match_source == "Protech Generic System Name"
+                        and sys_base_ix in {"FCR", "FRS", "PDS", "RRS", "WSC"}):
                     for extra_row in expected_rows:
                         if extra_row == cell.row:
                             continue
