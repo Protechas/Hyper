@@ -279,6 +279,7 @@ Useful messages:
 
 ## Troubleshooting
 
+- **Hyper crashes during startup:** first confirm that Google Chrome is fully updated. Hyper requires a compatible Chrome and ChromeDriver version, and an outdated or partially updated Chrome installation is the most likely cause of an immediate startup failure. Complete any pending Chrome update, close and reopen Chrome, and then restart Hyper.
 - **SharePoint never loads:** verify the real Chrome profile is signed in and the copied automation profile has a current session and target-library access.
 - **ChromeDriver mismatch:** Hyper checks Chrome, removes a mismatched cached driver, and uses `chromedriver-autoinstaller`; network access may be required if the driver is not cached.
 - **Wrong workbook/make pairing:** reselect files and manufacturers in matching order.
