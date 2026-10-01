@@ -68,17 +68,25 @@ The UI presents 2012–2016, 2017–2021, 2022–2026, and 2027–2031. The firs
 
 ## How filenames are read
 
-The expected naming pattern is:
+The legacy naming pattern is:
 
 ```text
 YYYY Manufacturer Model (SYSTEM).pdf
+```
+
+The new ADAS naming pattern is:
+
+```text
+YYYY Manufacturer Model (SYSTEM) Calibration Type [Component Name].pdf
 ```
 
 Examples:
 
 ```text
 2024 Honda Accord (ACC 1).pdf
-2023 Ford F-150 (FRS).pdf
+2018 Chrysler Pacifica [PHEV] (BUC) No Cal Req [Backup Camera].pdf
+2018 Chrysler Pacifica [PHEV] (SVC) Dynamic [Surround View Camera].pdf
+2024 Ford F-150 (WSR) Static or Dynamic [Windshield Radar/LIDAR].pdf
 2022 Kia Niro EV (SAS).pdf
 2021 BMW X5 (Steering Angle Sensor).pdf
 ```
@@ -90,17 +98,23 @@ Hyper parses a filename in this order:
 3. Remaining words before a recognized system token become the model.
 4. A recognized acronym in parentheses is preferred as the system.
 5. If no recognized parenthesized acronym exists, Hyper searches the whole filename, then square brackets, then the final token.
-6. If the model cannot be recovered, Hyper can use the parent folder name.
+6. In the new format, text after the system is parsed as the calibration type and the final square-bracket value is treated as the component description, not part of the model.
+7. If the model cannot be recovered, Hyper can use the parent folder name.
 
 Parentheses containing model qualifiers such as `(HEV)`, `(PHEV)`, or `(EV)` remain part of model matching unless recognized as a system. Square-bracket qualifiers such as `[HEV]` are ignored during relaxed comparison. System punctuation and spacing are normalized, so `ACC 2`, `ACC-2`, and `ACC2` resolve to `ACC2`.
+
+Recognized calibration values are `Static`, `Dynamic`, `Static or Dynamic`, `Static & Dynamic`, `Program`, `Initial`, `Verify`, and `No Cal Req`. Matching is case-insensitive and the saved workbook value uses this standardized spelling.
 
 Consistent filenames produce the safest placements. A missing year or unrecognized system prevents an exact match and may produce a review-required fallback.
 
 ## ADAS systems and acronym conversion
 
-The ADAS choices in the UI are `ACC`, `AEB`, `FCW`, `AHL`, `APA`, `BSW`, `BUC`, `LKA`, `LW`, `NV`, `SVC`, and `WAMC`.
+The **Old/New** toggle changes both the visible ADAS checklist and the workbook column used for placement. Hyper starts in **Old** mode.
 
-Hyper understands both the older SME acronym set and newer Protech acronyms. Selecting an older acronym automatically includes its supported newer filename alias.
+- **Old** shows `ACC`, `AEB`, `FCW`, `AHL`, `APA`, `BSW`, `BUC`, `LKA`, `LW`, `NV`, `SVC`, and `WAMC`. It targets `SME Generic System Name`. New filename aliases are accepted and converted back to the applicable old rows.
+- **New** shows `BLS`, `BUC`, `FCR`, `FLS`, `FRS`, `LLS`, `LW`, `NV`, `PDS`, `RLS`, `RRS`, `SVC`, `WAMC`, `WSC`, and `WSR`, together with their component descriptions. It targets `Protech Generic System Name` directly and does not expand the selection into old acronyms.
+
+Repair mode disables the Old/New toggle because Repair uses its own system list and matching rules.
 
 | Older SME acronym/row | New Protech filename/row | Routing behavior |
 | --- | --- | --- |
@@ -113,15 +127,14 @@ Hyper understands both the older SME acronym set and newer Protech acronyms. Sel
 | `NV` | `NV` | Shared acronym; SME is checked first, then Protech. |
 | `SVC` | `SVC` | Shared acronym; SME is checked first, then Protech. |
 
-`AHL`, `LW`, and `WAMC` remain recognized without a separate new-name conversion.
+`AHL`, `LW`, and `WAMC` remain recognized without a separate old/new conversion. `BLS`, `FLS`, `LLS`, `RLS`, and `WSR` are new-only component acronyms.
 
-For ADAS placement, the filename decides which system column is authoritative:
+The toggle decides which system column is authoritative:
 
-- Older acronyms use `SME Generic System Name`.
-- New acronyms (`FCR`, `FRS`, `PDS`, `RRS`, `WSC`) use `Protech Generic System Name`.
-- Shared acronyms (`BUC`, `NV`, `SVC`) try SME first and Protech second.
+- Old mode requires `SME Generic System Name` (or a recognized legacy system header).
+- New mode requires `Protech Generic System Name`.
 
-Hyper detects a new-format workbook by the presence of `Protech Generic System Name`; otherwise it uses the older format behavior.
+Hyper stops with a clear error if the workbook does not contain the header required by the selected mode. It does not silently switch formats.
 
 ## Repair systems
 
@@ -176,6 +189,8 @@ Recognized hyperlink headers include `Service Information`, `Service Information
 
 If no recognized hyperlink header exists, Hyper appends a new column. The normal population path creates `Service Information Hyperlink`.
 
+For ADAS workbooks, Hyper also finds or appends a final `Calibration Type` column. When a new-format filename contains a recognized calibration value, that value is written to every exact vehicle/system row receiving the hyperlink. Old filenames without calibration metadata leave the cell blank.
+
 Placeholder rows are excluded from the normal row index. Existing cells whose visible value is an HTTP URL but whose Excel hyperlink object points elsewhere are repaired so the target matches the visible URL.
 
 ## How Hyper places hyperlinks
@@ -183,7 +198,7 @@ Placeholder rows are excluded from the normal row index. Existing cells whose vi
 Hyper builds an index keyed by normalized `(Year, Make, Model, System)` and uses this priority:
 
 1. **Manual exception:** a filename in `SPECIFIC_HYPERLINKS` can target a fixed cell for a known workbook problem.
-2. **ADAS header-aware match:** select the SME or Protech column from the filename acronym, then match year, make, model, and system. If several rows intentionally share an acronym, write to all of them.
+2. **ADAS header-aware match:** use the Old/New toggle to select the SME or Protech column, then match year, make, model, and system. If several rows intentionally share an acronym—or a new acronym maps to several old rows—write to all applicable rows for that exact vehicle.
 3. **Exact indexed match:** exact year, make, raw model, and normalized system.
 4. **Loose system match:** same year/make/model while ignoring a numeric system suffix if necessary.
 5. **Regex model match:** strict year, make, and system with normalized model formatting/qualifiers.
@@ -216,11 +231,12 @@ For a fallback row, Hyper records the filename in the mode-specific error column
 3. Check manufacturer(s) in the same order as the workbooks.
 4. Select one or more year ranges.
 5. Choose **ADAS SI** or **Repair SI** with the mode switch.
-6. Select the required systems.
-7. Leave Broken Hyperlink Mode and Upload Mode clear for normal population.
-8. Click **Start Automation** and verify the confirmation summary.
-9. Avoid interacting with the automated SharePoint page, clipboard, or automation profile while it runs.
-10. Review terminal output, progress bars, edited workbooks, and the final report.
+6. For ADAS, choose **Old** or **New** and confirm that the system checklist changes to the expected acronym set.
+7. Select the required systems.
+8. Leave Broken Hyperlink Mode and Upload Mode clear for normal population.
+9. Click **Start Automation** and verify that the confirmation summary shows the intended acronym mode.
+10. Avoid interacting with the automated SharePoint page, clipboard, or automation profile while it runs.
+11. Review terminal output, progress bars, edited workbooks, hyperlink rows, and the `Calibration Type` column.
 
 Pause suspends the extractor and its child processes. Stop ends the current automation and resets the UI. Failed manufacturers are retried later in the batch, up to ten attempts.
 

@@ -309,6 +309,39 @@ class ToggleSwitch(QCheckBox):
 ######################################################################################     Main Application Code    ######################################################################################
 
 class SeleniumAutomationApp(QWidget):
+    OLD_ADAS_SYSTEMS = [
+        ("ACC", "ACC"),
+        ("AEB", "AEB"),
+        ("FCW", "FCW"),
+        ("AHL", "AHL"),
+        ("APA", "APA"),
+        ("BSW", "BSW"),
+        ("BUC", "BUC"),
+        ("LKA", "LKA"),
+        ("LW", "LW"),
+        ("NV", "NV"),
+        ("SVC", "SVC"),
+        ("WAMC", "WAMC"),
+    ]
+
+    NEW_ADAS_SYSTEMS = [
+        ("BLS", "BLS - Back LiDAR Sensor"),
+        ("BUC", "BUC - Backup Camera"),
+        ("FCR", "FCR - Front Corner Radar"),
+        ("FLS", "FLS - Front LiDAR Sensor"),
+        ("FRS", "FRS - Front Radar Sensor"),
+        ("LLS", "LLS - Left LiDAR Sensor"),
+        ("LW", "LW - LaneWatch Camera"),
+        ("NV", "NV - Night Vision"),
+        ("PDS", "PDS - Park Distance Sensor"),
+        ("RLS", "RLS - Right LiDAR Sensor"),
+        ("RRS", "RRS - Rear Radar Sensor"),
+        ("SVC", "SVC - Surround View Camera"),
+        ("WAMC", "WAMC - Wide Angle Mono Camera"),
+        ("WSC", "WSC - Windshield Camera"),
+        ("WSR", "WSR - Windshield Radar/LIDAR"),
+    ]
+
     def __init__(self):
         super().__init__()
         
@@ -635,12 +668,17 @@ class SeleniumAutomationApp(QWidget):
   
         # ADAS Acronyms section
         adas_selection_layout = QVBoxLayout()
-        adas_label = QLabel("ADAS Systems")
-        adas_label.setAlignment(Qt.AlignHCenter)    
-        adas_label.setStyleSheet("font-size: 14px; padding: 5px;")
-        adas_selection_layout.addWidget(adas_label)
-    
-        adas_acronyms = ["ACC", "AEB", "FCW", "AHL", "APA", "BSW", "BUC", "LKA", "LW", "NV", "SVC", "WAMC"]
+        self.adas_label = QLabel("ADAS Systems (Old)")
+        self.adas_label.setAlignment(Qt.AlignHCenter)
+        self.adas_label.setStyleSheet("font-size: 14px; padding: 5px;")
+        adas_selection_layout.addWidget(self.adas_label)
+
+        self.adas_checkbox_container = QWidget(self)
+        self.adas_checkbox_layout = QVBoxLayout(self.adas_checkbox_container)
+        self.adas_checkbox_layout.setContentsMargins(0, 0, 0, 0)
+        self.adas_checkbox_layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        adas_selection_layout.addWidget(self.adas_checkbox_container)
+
         self.adas_checkboxes = []
         repair_systems = [
             "SAS", "YAW", "G-Force", "SWS", "AHL", "NV", "HUD", "SRS", "SRA", 
@@ -687,23 +725,9 @@ class SeleniumAutomationApp(QWidget):
 
         self.repair_checkboxes = []
 
-        # Keep ADAS content pinned top + centered as a group
+        # Keep ADAS content pinned top + centered as a group.
         adas_selection_layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
-        
-        # --- Create first (don't add yet) so we can normalize widths ---
-        for adas in adas_acronyms:
-            checkbox = QCheckBox(adas, self)
-            checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
-            self.adas_checkboxes.append(checkbox)
-        
-        # ✅ Make all ADAS checkboxes the same width (based on the widest one)
-        max_w = max(cb.sizeHint().width() for cb in self.adas_checkboxes)
-        for cb in self.adas_checkboxes:
-            cb.setFixedWidth(max_w)
-        
-        # --- Now add them centered (they will align perfectly) ---
-        for cb in self.adas_checkboxes:
-            adas_selection_layout.addWidget(cb, alignment=Qt.AlignHCenter)
+        self._rebuild_adas_checkboxes("og")
     
         manufacturer_selection_layout.addLayout(adas_selection_layout)
         layout.addLayout(manufacturer_selection_layout)
@@ -771,6 +795,27 @@ class SeleniumAutomationApp(QWidget):
         # after creating self.si_mode_toggle …
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
+        # ADAS acronym format toggle. Unchecked = legacy SME acronyms; checked =
+        # the new Protech component acronyms shown in the manufacturer chart.
+        adas_format_layout = QHBoxLayout()
+        adas_format_layout.setSpacing(8)
+
+        self.label_adas_old = QLabel("Old")
+        self.label_adas_new = QLabel("New")
+        for lbl in (self.label_adas_old, self.label_adas_new):
+            lbl.setStyleSheet("font-size:14px; padding:5px;")
+
+        self.excel_mode_switch = ModeSwitch(self)
+        self.excel_mode_switch.setChecked(False)
+        self.excel_mode_switch.stateChanged.connect(self.on_adas_format_toggled)
+
+        adas_format_layout.addWidget(QLabel("ADAS Acronyms:"))
+        adas_format_layout.addWidget(self.label_adas_old)
+        adas_format_layout.addWidget(self.excel_mode_switch)
+        adas_format_layout.addWidget(self.label_adas_new)
+        adas_format_layout.addStretch()
+        layout.addLayout(adas_format_layout)
+
         # ── Upload Type Toggle (OEM / All_Data) ──
         self.upload_type_container = QWidget()
         upload_type_layout = QHBoxLayout(self.upload_type_container)
@@ -802,29 +847,8 @@ class SeleniumAutomationApp(QWidget):
         self.on_upload_type_toggled(self.upload_type_switch.checkState())
 
 
-        # set initial enabled/disabled state based on default toggle
+        self.on_adas_format_toggled(self.excel_mode_switch.checkState())
         self.on_si_mode_toggled(self.mode_switch.checkState())
-
-        layout.addWidget(self.upload_type_container)
-
-        # Excel Format Toggle Layout (OG / New)
-        #excel_mode_layout = QHBoxLayout()
-        #excel_mode_layout.setSpacing(8)
-        #
-        #label_og   = QLabel("SME")
-        #label_new  = QLabel("New")
-        #for lbl in (label_og, label_new):
-        #    lbl.setStyleSheet("font-size:14px; padding:5px;")
-        #
-        #self.excel_mode_switch = ModeSwitch(self)
-        #self.excel_mode_switch.setChecked(True)  # Start in New mode
-        #
-        #excel_mode_layout.addWidget(label_og)
-        #excel_mode_layout.addWidget(self.excel_mode_switch)
-        #excel_mode_layout.addWidget(label_new)
-        #excel_mode_layout.addStretch()
-        #
-        #layout.addLayout(excel_mode_layout)
 
         # Dark mode toggle
         theme_switch_section.addStretch()
@@ -1489,6 +1513,68 @@ class SeleniumAutomationApp(QWidget):
             # Force red fill to appear even if value == 0
             self._force_zero_red(bar, enable=stopped, full=True)
        
+    def _rebuild_adas_checkboxes(self, acronym_mode):
+        """Replace the ADAS checklist when the Old/New format toggle changes."""
+        if not hasattr(self, "adas_checkbox_layout"):
+            return
+
+        while self.adas_checkbox_layout.count():
+            item = self.adas_checkbox_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+        systems = self.NEW_ADAS_SYSTEMS if acronym_mode == "new" else self.OLD_ADAS_SYSTEMS
+        self.adas_checkboxes = []
+        for code, display_text in systems:
+            checkbox = QCheckBox(display_text, self.adas_checkbox_container)
+            checkbox.setProperty("system_code", code)
+            checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
+            self.adas_checkboxes.append(checkbox)
+
+        if self.adas_checkboxes:
+            max_width = max(cb.sizeHint().width() for cb in self.adas_checkboxes)
+            for checkbox in self.adas_checkboxes:
+                checkbox.setFixedWidth(max_width)
+                self.adas_checkbox_layout.addWidget(checkbox, alignment=Qt.AlignHCenter)
+
+        if hasattr(self, "adas_label"):
+            label = "New" if acronym_mode == "new" else "Old"
+            self.adas_label.setText(f"ADAS Systems ({label})")
+
+    def selected_adas_format(self):
+        """Return the extractor format token for the visible Old/New toggle."""
+        return "new" if self.excel_mode_switch.isChecked() else "og"
+
+    def selected_adas_system_codes(self):
+        """Return checked ADAS codes without the descriptive GUI text."""
+        selected = []
+        for checkbox in self.adas_checkboxes:
+            if not checkbox.isChecked():
+                continue
+            code = checkbox.property("system_code") or checkbox.text()
+            selected.append(str(code).strip())
+        return selected
+
+    def on_adas_format_toggled(self, state):
+        """Switch the visible checklist and workbook target between Old and New."""
+        acronym_mode = "new" if state == Qt.Checked else "og"
+        self._rebuild_adas_checkboxes(acronym_mode)
+
+        if hasattr(self, "label_adas_old") and hasattr(self, "label_adas_new"):
+            old_weight = "normal" if acronym_mode == "new" else "bold"
+            new_weight = "bold" if acronym_mode == "new" else "normal"
+            self.label_adas_old.setStyleSheet(
+                f"font-size:14px; padding:5px; font-weight:{old_weight};"
+            )
+            self.label_adas_new.setStyleSheet(
+                f"font-size:14px; padding:5px; font-weight:{new_weight};"
+            )
+
+        is_repair = bool(getattr(self, "mode_switch", None) and self.mode_switch.isChecked())
+        for checkbox in self.adas_checkboxes:
+            checkbox.setEnabled(not is_repair)
+
     def on_si_mode_toggled(self, state):
         """Enable one list & button, disable—and clear—the other."""
         is_repair = (state == Qt.Checked)
@@ -1512,14 +1598,15 @@ class SeleniumAutomationApp(QWidget):
         self.select_all_adas_button.setEnabled(not is_repair)
         if is_repair:
             self.select_all_adas_button.setChecked(False)
-        # ✅ Disable Excel Format toggle if Repair SI is active
-        # ✅ Disable Excel Format toggle and reset to OG when Repair SI is active
-        #if self.excel_mode_switch:
-        #    if is_repair:
-        #        self.excel_mode_switch.setChecked(False)   # ← Reset to OG
-        #        self.excel_mode_switch.setEnabled(False)   # ← Gray out
-        #    else:
-        #        self.excel_mode_switch.setEnabled(True)
+
+        # Old/New applies only to ADAS. Preserve the selected format while the
+        # control is disabled so returning from Repair restores the same list.
+        if hasattr(self, "excel_mode_switch"):
+            self.excel_mode_switch.setEnabled(not is_repair)
+        if hasattr(self, "label_adas_old"):
+            self.label_adas_old.setEnabled(not is_repair)
+        if hasattr(self, "label_adas_new"):
+            self.label_adas_new.setEnabled(not is_repair)
 
     def on_upload_mode_toggled(self, checked: bool):
         """
@@ -1564,63 +1651,6 @@ class SeleniumAutomationApp(QWidget):
     
         for checkbox in self.adas_checkboxes:
             checkbox.setChecked(not select_all_checked)
-
-    def expand_adas_selection_for_aliases(self, selected_systems):
-        """Allow either the old or new filename acronym for every selected ADAS system."""
-        alias_map = {
-            "ACC": ["ACC", "FRS"],
-            "AEB": ["AEB", "FRS"],
-            "FRS": ["FRS", "ACC", "AEB"],
-            "FCW": ["FCW", "FCR"],
-            "FCR": ["FCR", "FCW"],
-            "APA": ["APA", "PDS"],
-            "PDS": ["PDS", "APA"],
-            "BSW": ["BSW", "BSM", "RRS"],
-            "BSM": ["BSM", "BSW", "RRS"],
-            "RRS": ["RRS", "BSW", "BSM"],
-            "LKA": ["LKA", "WSC"],
-            "WSC": ["WSC", "LKA"],
-            "BUC": ["BUC"],
-            "NV": ["NV"],
-            "SVC": ["SVC"],
-            "AHL": ["AHL"],
-            "LW": ["LW"],
-            "WAMC": ["WAMC"],
-        }
-
-        expanded = []
-        for system in selected_systems or []:
-            key = re.sub(r"[^A-Z0-9]", "", (system or "").upper())
-            for mapped in alias_map.get(key, [system]):
-                if mapped and mapped not in expanded:
-                    expanded.append(mapped)
-        return expanded
-
-    def detect_excel_mode_from_headers(self, excel_path):
-        """Detect whether the workbook has the Protech system-name header."""
-        import openpyxl
-
-        try:
-            workbook = openpyxl.load_workbook(excel_path, read_only=True, data_only=False)
-            try:
-                worksheet = (
-                    workbook["ADAS Model Version"]
-                    if "ADAS Model Version" in workbook.sheetnames
-                    else workbook.active
-                )
-                headers = {
-                    re.sub(r"\s+", " ", str(cell.value).strip().upper())
-                    for cell in next(worksheet.iter_rows(min_row=1, max_row=1))
-                    if cell.value is not None
-                }
-            finally:
-                workbook.close()
-
-            if "PROTECH GENERIC SYSTEM NAME" in headers or "PROTECH GENERIC SYSTEM" in headers:
-                return "new"
-        except Exception as exc:
-            print(f"⚠️ Could not detect Excel format from headers; using OG fallback: {exc}")
-        return "og"
 
     def select_all_repair(self):
         select_all_checked = all(checkbox.isChecked() for checkbox in self.repair_checkboxes)
@@ -1940,8 +1970,10 @@ class SeleniumAutomationApp(QWidget):
             selected_systems_display = [cb.text() for cb in self.repair_checkboxes if cb.isChecked()]
             selected_systems = list(selected_systems_display)
         else:                              # ADAS mode
-            selected_systems_display = [cb.text() for cb in self.adas_checkboxes if cb.isChecked()]
-            selected_systems = self.expand_adas_selection_for_aliases(selected_systems_display)
+            selected_systems_display = self.selected_adas_system_codes()
+            # Pass the user's exact choices. SharepointExtractor expands Old
+            # aliases once; New mode keeps these codes unchanged.
+            selected_systems = list(selected_systems_display)
     
         # 3) sanity check
         if not upload_mode:
@@ -1974,7 +2006,11 @@ class SeleniumAutomationApp(QWidget):
                 "Upload mode will ignore everything.\n\nContinue?"
             )
     
-        excel_format = "Repair SI" if self.mode_switch.isChecked() else "ADAS SI"
+        if self.mode_switch.isChecked():
+            excel_format = "Repair SI"
+        else:
+            acronym_label = "New" if self.selected_adas_format() == "new" else "Old"
+            excel_format = f"ADAS SI ({acronym_label} acronyms)"
     
         # Format the selected year ranges like "2012–2016, 2017–2021"
         ranges = self.get_selected_year_ranges() if hasattr(self, "get_selected_year_ranges") else []
@@ -2148,6 +2184,9 @@ class SeleniumAutomationApp(QWidget):
         self.selected_manufacturers = selected_manufacturers
         self.selected_systems       = selected_systems
         self.mode_flag              = "repair" if self.mode_switch.isChecked() else "adas"
+        self.adas_excel_mode        = (
+            "og" if self.mode_flag == "repair" else self.selected_adas_format()
+        )
     
         # REPORT: fresh state for each batch (AFTER mode_flag is set)
         self.report_stats = {}  # per-make stats bucket
@@ -3032,7 +3071,7 @@ class SeleniumAutomationApp(QWidget):
         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
         excel_mode = (
             "og" if self.mode_flag == "repair"
-            else self.detect_excel_mode_from_headers(self._multi_excel_path)
+            else getattr(self, "adas_excel_mode", self.selected_adas_format())
         )
     
         current_link = self._multi_links[self._multi_link_index]
@@ -3074,7 +3113,7 @@ class SeleniumAutomationApp(QWidget):
         script_path = os.path.join(os.path.dirname(__file__), "SharepointExtractor.py")
         excel_mode = (
             "og" if self.mode_flag == "repair"
-            else self.detect_excel_mode_from_headers(self._multi_excel_path)
+            else getattr(self, "adas_excel_mode", self.selected_adas_format())
         )
 
         # Join all links for this manufacturer into a single argument
