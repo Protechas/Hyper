@@ -1,8 +1,8 @@
 ﻿import sys
-from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLabel, QLineEdit, QPushButton,
-                             QTreeWidget, QTreeWidgetItem, QMessageBox, QFileDialog, QCheckBox, QScrollArea, QListWidget, QProgressBar)
-from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt,pyqtSignal,QThread, QTimer
+from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
+                             QMessageBox, QFileDialog, QCheckBox, QScrollArea, QListWidget, QProgressBar, QFrame)
+from PyQt5.QtGui import QFont, QIcon, QColor, QPalette, QPainter, QPen, QPainterPath
+from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTimer, QRectF
 from threading import Thread
 import subprocess
 import signal
@@ -14,52 +14,260 @@ import os
 import logging
 import re
 
+
+def build_app_stylesheet(theme="dark"):
+    """Return the shared modern stylesheet used by the main window and dialogs."""
+    is_dark = theme == "dark"
+    colors = {
+        "window": "#09111f" if is_dark else "#f3f6fb",
+        "surface": "#111c2f" if is_dark else "#ffffff",
+        "surface_alt": "#0c1627" if is_dark else "#f7f9fc",
+        "border": "#263650" if is_dark else "#d9e1ec",
+        "border_hover": "#3b82f6" if is_dark else "#2563eb",
+        "text": "#e8eef8" if is_dark else "#162033",
+        "muted": "#93a4bd" if is_dark else "#64748b",
+        "accent": "#60a5fa" if is_dark else "#2563eb",
+        "accent_fill": "#2563eb",
+        "accent_hover": "#1d4ed8",
+        "selection": "#1e4f91" if is_dark else "#dbeafe",
+        "disabled": "#526077" if is_dark else "#94a3b8",
+        "progress_bg": "#1d2a3f" if is_dark else "#e2e8f0",
+    }
+    return f"""
+        QWidget#HyperRoot, QDialog#LoginDialog {{
+            background-color: {colors['window']};
+            color: {colors['text']};
+            font-family: "Segoe UI", "Arial";
+            font-size: 13px;
+        }}
+        QScrollArea#WorkspaceScroll {{
+            background-color: {colors['window']};
+            border: none;
+            border-radius: 0;
+            padding: 0;
+        }}
+        QScrollArea#WorkspaceScroll > QWidget > QWidget,
+        QWidget#WorkspaceContent {{
+            background-color: {colors['window']};
+            border: none;
+        }}
+        QFrame#HeaderCard, QFrame#Card, QFrame#ControlCard, QFrame#ProgressCard {{
+            background-color: {colors['surface']};
+            border: 1px solid {colors['border']};
+            border-radius: 12px;
+        }}
+        QWidget#TransparentContainer {{
+            background: transparent;
+            border: none;
+        }}
+        QLabel {{
+            color: {colors['text']};
+            background: transparent;
+            border: none;
+        }}
+        QLabel#AppTitle {{
+            color: {colors['text']};
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }}
+        QLabel#AppSubtitle, QLabel#MutedLabel {{
+            color: {colors['muted']};
+            font-size: 12px;
+        }}
+        QLabel#SectionTitle {{
+            color: {colors['text']};
+            font-size: 14px;
+            font-weight: 600;
+            padding: 2px 0;
+        }}
+        QLabel#StatusChip {{
+            color: {colors['accent']};
+            background-color: {colors['surface_alt']};
+            border: 1px solid {colors['border']};
+            border-radius: 12px;
+            padding: 5px 11px;
+            font-size: 11px;
+            font-weight: 600;
+        }}
+        QLineEdit, QListWidget, QTreeWidget, QPlainTextEdit, QScrollArea {{
+            color: {colors['text']};
+            background-color: {colors['surface_alt']};
+            border: 1px solid {colors['border']};
+            border-radius: 8px;
+            padding: 7px;
+            selection-background-color: {colors['selection']};
+            selection-color: {colors['text']};
+            outline: none;
+        }}
+        QLineEdit:hover, QListWidget:hover, QTreeWidget:hover, QPlainTextEdit:hover, QScrollArea:hover {{
+            border-color: {colors['border_hover']};
+        }}
+        QLineEdit:focus, QListWidget:focus, QTreeWidget:focus, QPlainTextEdit:focus {{
+            border: 1px solid {colors['accent']};
+        }}
+        QListWidget::item, QTreeWidget::item {{
+            min-height: 27px;
+            border-radius: 5px;
+            padding-left: 4px;
+        }}
+        QListWidget::item:hover, QTreeWidget::item:hover {{
+            background-color: {colors['selection']};
+        }}
+        QPushButton {{
+            color: {colors['text']};
+            background-color: {colors['surface_alt']};
+            border: 1px solid {colors['border']};
+            border-radius: 8px;
+            padding: 8px 14px;
+            min-height: 20px;
+            font-weight: 600;
+        }}
+        QPushButton:hover {{ border-color: {colors['accent']}; }}
+        QPushButton:pressed {{ background-color: {colors['selection']}; }}
+        QDialog#LoginDialog QPushButton#PrimaryButton {{
+            color: #ffffff;
+            background-color: {colors['accent_fill']};
+            border-color: {colors['accent_fill']};
+        }}
+        QDialog#LoginDialog QPushButton#PrimaryButton:hover {{
+            background-color: {colors['accent_hover']};
+            border-color: {colors['accent']};
+        }}
+        QPushButton:disabled {{
+            color: {colors['disabled']};
+            background-color: {colors['surface_alt']};
+            border-color: {colors['border']};
+        }}
+        QProgressBar {{
+            color: {colors['text']};
+            background-color: {colors['progress_bg']};
+            border: none;
+            border-radius: 7px;
+            min-height: 14px;
+            max-height: 14px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 600;
+        }}
+        QProgressBar::chunk {{
+            background-color: {colors['accent_fill']};
+            border-radius: 7px;
+        }}
+        QScrollBar:vertical {{
+            background: transparent;
+            width: 10px;
+            margin: 3px 1px;
+        }}
+        QScrollBar::handle:vertical {{
+            background: {colors['border']};
+            border-radius: 5px;
+            min-height: 28px;
+        }}
+        QScrollBar::handle:vertical:hover {{ background: {colors['accent']}; }}
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+        QScrollBar:horizontal {{
+            background: transparent;
+            height: 10px;
+            margin: 1px 3px;
+        }}
+        QScrollBar::handle:horizontal {{
+            background: {colors['border']};
+            border-radius: 5px;
+            min-width: 28px;
+        }}
+        QScrollBar::handle:horizontal:hover {{ background: {colors['accent']}; }}
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
+        QToolTip {{
+            color: {colors['text']};
+            background-color: {colors['surface']};
+            border: 1px solid {colors['border']};
+            padding: 6px;
+        }}
+    """
+
+
+def apply_theme_palette(widget, theme="dark"):
+    """Keep native controls readable without replacing their platform artwork."""
+    is_dark = theme == "dark"
+    text = QColor("#e8eef8" if is_dark else "#162033")
+    disabled = QColor("#60708a" if is_dark else "#94a3b8")
+    palette = widget.palette()
+    for group in (QPalette.Active, QPalette.Inactive):
+        for role in (QPalette.WindowText, QPalette.Text, QPalette.ButtonText):
+            palette.setColor(group, role, text)
+    for role in (QPalette.WindowText, QPalette.Text, QPalette.ButtonText):
+        palette.setColor(QPalette.Disabled, role, disabled)
+    widget.setPalette(palette)
+    widget.setProperty("themeMode", theme)
+
 ######################################################################################     Username and Password    ######################################################################################
 
 class LoginDialog(QDialog):
     def __init__(self, *, max_attempts=5, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Sign in to Hyper")
+        self.setObjectName("LoginDialog")
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Hyper.ico")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
         self.max_attempts = max_attempts
         self.attempts = 0
 
-        # UI
-         # ⬅ Increase window size
-        self.setFixedSize(250, 150)  # was ~half this before
+        self.setMinimumSize(440, 340)
+        self.resize(440, 340)
+        self.setStyleSheet(build_app_stylesheet("dark"))
         v = QVBoxLayout(self)
+        v.setContentsMargins(32, 28, 32, 28)
+        v.setSpacing(0)
 
-        row_user = QHBoxLayout()
-        row_user.addWidget(QLabel("Username:"))
+        title = QLabel("HYPER")
+        title.setObjectName("AppTitle")
+        subtitle = QLabel("Sign in to open the automation workspace")
+        subtitle.setObjectName("AppSubtitle")
+        v.addWidget(title)
+        v.addSpacing(5)
+        v.addWidget(subtitle)
+        v.addSpacing(24)
+
+        user_label = QLabel("Username")
+        user_label.setObjectName("SectionTitle")
+        v.addWidget(user_label)
+        v.addSpacing(6)
         self.user_edit = QLineEdit()
         self.user_edit.setPlaceholderText("Enter username")
-        row_user.addWidget(self.user_edit)
-        v.addLayout(row_user)
+        self.user_edit.setMinimumHeight(42)
+        v.addWidget(self.user_edit)
+        v.addSpacing(16)
 
-        row_pass = QHBoxLayout()
-        row_pass.addWidget(QLabel("Password:"))
+        pass_label = QLabel("Password")
+        pass_label.setObjectName("SectionTitle")
+        v.addWidget(pass_label)
+        v.addSpacing(6)
         self.pass_edit = QLineEdit()
         self.pass_edit.setEchoMode(QLineEdit.Password)
         self.pass_edit.setPlaceholderText("Enter password")
-        row_pass.addWidget(self.pass_edit)
-        v.addLayout(row_pass)
+        self.pass_edit.setMinimumHeight(42)
+        self.pass_edit.returnPressed.connect(self.try_login)
+        v.addWidget(self.pass_edit)
+        v.addSpacing(24)
+        v.addStretch(1)
 
         btns = QHBoxLayout()
+        btns.setSpacing(10)
+        btns.addStretch()
         self.ok_btn = QPushButton("Sign In")
+        self.ok_btn.setObjectName("PrimaryButton")
+        self.ok_btn.setDefault(True)
         self.cancel_btn = QPushButton("Cancel")
-        btns.addWidget(self.ok_btn)
+        for button in (self.cancel_btn, self.ok_btn):
+            button.setFixedSize(96, 40)
         btns.addWidget(self.cancel_btn)
+        btns.addWidget(self.ok_btn)
         v.addLayout(btns)
 
         self.ok_btn.clicked.connect(self.try_login)
         self.cancel_btn.clicked.connect(self.reject)
-
-        # optional: match your dark/light styling (simple, non-invasive)
-        self.setStyleSheet("""
-            QDialog { background: #2b2b2b; color: white; }
-            QLabel  { color: white; }
-            QLineEdit { background: #3a3a3a; color: white; border: 1px solid #555; border-radius: 4px; padding: 4px; }
-            QPushButton { padding: 6px 12px; }
-        """)
 
     # Replace this with your real auth check if needed
     def _validate(self, username: str, password: str) -> bool:
@@ -186,10 +394,16 @@ class WorkerThread(QThread):
 class TerminalDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Terminal Output")
-        self.setGeometry(100, 100, 600, 400)
+        self.setWindowTitle("Hyper — Activity Log")
+        self.setObjectName("HyperRoot")
+        self.resize(820, 500)
 
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(18, 18, 18, 18)
+        self.layout.setSpacing(10)
+        title = QLabel("Activity log")
+        title.setObjectName("SectionTitle")
+        self.layout.addWidget(title)
         self.terminal_output = QPlainTextEdit()
         self.terminal_output.setReadOnly(True)
         self.layout.addWidget(self.terminal_output)
@@ -200,46 +414,120 @@ class TerminalDialog(QDialog):
         self.terminal_output.appendPlainText(text)
         self.terminal_output.ensureCursorVisible()
 
+
+class StyledCheckBox(QCheckBox):
+    """A crisp, theme-aware checkbox with a visible checkmark."""
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setMinimumHeight(24)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        dark_theme = self.window().property("themeMode") != "light"
+        if self.isEnabled():
+            text_color = QColor("#e8eef8" if dark_theme else "#162033")
+        else:
+            text_color = QColor("#60708a" if dark_theme else "#94a3b8")
+
+        box_size = 16.0
+        box_left = 1.0
+        box_top = (self.height() - box_size) / 2.0
+        box = QRectF(box_left, box_top, box_size, box_size)
+
+        if not self.isEnabled():
+            border_color = QColor("#475569" if dark_theme else "#cbd5e1")
+            fill_color = QColor("#334155" if dark_theme else "#e2e8f0")
+        elif self.isChecked():
+            border_color = QColor("#60a5fa" if dark_theme else "#2563eb")
+            fill_color = QColor("#2563eb")
+        else:
+            border_color = QColor("#60a5fa" if self.underMouse() else ("#64748b" if dark_theme else "#a8b3c4"))
+            fill_color = QColor("#0c1627" if dark_theme else "#ffffff")
+
+        painter.setPen(QPen(border_color, 1.2))
+        painter.setBrush(fill_color)
+        painter.drawRoundedRect(box, 3.0, 3.0)
+
+        if self.isChecked():
+            check = QPainterPath()
+            check.moveTo(box.left() + 3.5, box.top() + 8.2)
+            check.lineTo(box.left() + 7.0, box.top() + 11.7)
+            check.lineTo(box.left() + 13.0, box.top() + 4.8)
+            painter.setPen(QPen(QColor("#ffffff"), 2.0, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawPath(check)
+
+        painter.setFont(self.font())
+        painter.setPen(text_color)
+        text_left = int(box.right() + 8)
+        text_rect = self.rect().adjusted(text_left, 0, 0, 0)
+        painter.drawText(text_rect, Qt.AlignVCenter | Qt.AlignLeft, self.text())
+
+
 class ModeSwitch(QCheckBox):
     def __init__(self, parent=None):
         super().__init__(parent)
-        # no visible text on the switch itself
         self.setText("")
-        self.setFixedSize(50, 25)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedSize(48, 24)
         self.setStyleSheet("""
             QCheckBox {
-                background-color: #888;
+                background-color: #526077;
+                border: 1px solid #64748b;
                 border-radius: 12px;
             }
+            QCheckBox:checked {
+                background-color: #2563eb;
+                border-color: #60a5fa;
+            }
             QCheckBox::indicator {
-                width: 21px; height: 21px;
-                border-radius: 10px;
+                width: 18px;
+                height: 18px;
+                border: none;
+                border-radius: 9px;
                 background-color: white;
                 margin: 2px;
             }
             QCheckBox::indicator:checked {
-                margin-left: 27px;
+                margin-left: 25px;
             }
             QCheckBox:disabled {
-                background-color: #555;
-            }               
+                background-color: #334155;
+                border-color: #475569;
+            }
         """)
 
 class CustomButton(QPushButton):
     def __init__(self, text, color, parent=None):
         super().__init__(text, parent)
         self.color = color
+        self.setCursor(Qt.PointingHandCursor)
+        self.setMinimumHeight(40)
         self.setStyleSheet(f"""
             QPushButton {{
                 background-color: {color};
                 color: white;
-                border: none;
-                padding: 10px;
-                font-size: 16px;
-                border-radius: 5px;
+                border: 1px solid {self.darken_color(color)};
+                padding: 9px 14px;
+                font-size: 13px;
+                font-weight: 600;
+                border-radius: 8px;
             }}
             QPushButton:hover {{
                 background-color: {self.darken_color(color)};
+            }}
+            QPushButton:pressed {{
+                padding-top: 10px;
+                padding-bottom: 8px;
+            }}
+            QPushButton:disabled {{
+                background-color: #334155;
+                color: #94a3b8;
+                border-color: #475569;
             }}
         """)
 
@@ -252,59 +540,41 @@ class CustomButton(QPushButton):
 class ToggleSwitch(QCheckBox):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setText("Dark Mode")
-        self.setStyleSheet("""
-            QCheckBox {
-                font-size: 16px;
-                color: white;
-                background-color: #2e2e2e;
-                border: 1px solid #555555;
-                border-radius: 15px;
-                padding: 10px;
-            }
-            QCheckBox::indicator {
-                width: 0px;
-                height: 0px;
-            }
-        """)
-        self.setFixedSize(120, 40)
+        self.setText("Dark theme")
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedSize(112, 34)
         self.setTristate(False)
         self.stateChanged.connect(self.updateAppearance)
+        self._refresh_style()
+
+    def _refresh_style(self):
+        light = self.isChecked()
+        foreground = "#1e293b" if light else "#e8eef8"
+        background = "#ffffff" if light else "#0c1627"
+        border = "#cbd5e1" if light else "#334155"
+        self.setStyleSheet(f"""
+            QCheckBox {{
+                color: {foreground};
+                background-color: {background};
+                border: 1px solid {border};
+                border-radius: 16px;
+                padding: 6px 11px;
+                font-size: 12px;
+                font-weight: 600;
+            }}
+            QCheckBox:hover {{ border-color: #3b82f6; }}
+            QCheckBox::indicator {{ width: 0; height: 0; }}
+        """)
 
     def updateAppearance(self, state):
         if self.isChecked():
-            self.setText("Light Mode")
-            self.setStyleSheet("""
-                QCheckBox {
-                    font-size: 16px;
-                    color: black;
-                    background-color: #f0f0f0;
-                    border: 1px solid #cccccc;
-                    border-radius: 15px;
-                    padding: 10px;
-                }
-                QCheckBox::indicator {
-                    width: 0px;
-                    height: 0px;
-                }
-            """)
+            self.setText("Light theme")
         else:
-            self.setText("Dark Mode")
-            self.setStyleSheet("""
-                QCheckBox {
-                    font-size: 16px;
-                    color: white;
-                    background-color: #2e2e2e;
-                    border: 1px solid #555555;
-                    border-radius: 15px;
-                    padding: 10px;
-                }
-                QCheckBox::indicator {
-                    width: 0px;
-                    height: 0px;
-                }
-            """)
-        self.parent().toggle_theme()
+            self.setText("Dark theme")
+        self._refresh_style()
+        window = self.window()
+        if window and hasattr(window, "toggle_theme"):
+            window.toggle_theme()
         
 ######################################################################################     Main Application Code    ######################################################################################
 
@@ -512,137 +782,164 @@ class SeleniumAutomationApp(QWidget):
     }
         
             
+    def _create_card(self, object_name="Card"):
+        card = QFrame(self)
+        card.setObjectName(object_name)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(14, 14, 14, 14)
+        card_layout.setSpacing(10)
+        return card, card_layout
+
     def initUI(self):
-        self.setWindowTitle('Hyper')
-        self.setStyleSheet("background-color: #2e2e2e; color: white;")
-        layout = QVBoxLayout()
-    
-        # Excel file selection layout
+        self.setWindowTitle('Hyper — ADAS & Repair Automation')
+        self.setObjectName("HyperRoot")
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Hyper.ico")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        self.setMinimumSize(760, 560)
+        self.resize(1180, 1080)
+        self.setStyleSheet(build_app_stylesheet("dark"))
+        apply_theme_palette(self, "dark")
+
+        root_layout = QVBoxLayout()
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        self.workspace_scroll = QScrollArea(self)
+        self.workspace_scroll.setObjectName("WorkspaceScroll")
+        self.workspace_scroll.setWidgetResizable(True)
+        self.workspace_scroll.setFrameShape(QFrame.NoFrame)
+
+        self.workspace_content = QWidget()
+        self.workspace_content.setObjectName("WorkspaceContent")
+        self.workspace_content.setMinimumSize(1040, 920)
+
+        layout = QVBoxLayout(self.workspace_content)
+        layout.setContentsMargins(20, 18, 20, 20)
+        layout.setSpacing(14)
+
+        # Branded header
+        header_card, header_layout = self._create_card("HeaderCard")
+        header_row = QHBoxLayout()
+        header_copy = QVBoxLayout()
+        header_copy.setSpacing(1)
+        app_title = QLabel("HYPER")
+        app_title.setObjectName("AppTitle")
+        app_subtitle = QLabel("ADAS & Repair Information Automation")
+        app_subtitle.setObjectName("AppSubtitle")
+        header_copy.addWidget(app_title)
+        header_copy.addWidget(app_subtitle)
+        header_row.addLayout(header_copy)
+        header_row.addStretch()
+        self.header_actions_layout = QHBoxLayout()
+        self.header_actions_layout.setSpacing(10)
+        status_chip = QLabel("READY")
+        status_chip.setObjectName("StatusChip")
+        self.header_actions_layout.addWidget(status_chip)
+        header_row.addLayout(self.header_actions_layout)
+        header_layout.addLayout(header_row)
+        layout.addWidget(header_card)
+
+        # File selection card
+        file_card, file_card_layout = self._create_card()
+        file_title = QLabel("Source workbooks")
+        file_title.setObjectName("SectionTitle")
+        file_hint = QLabel("Choose one or more manufacturer Excel files to process.")
+        file_hint.setObjectName("MutedLabel")
+        file_card_layout.addWidget(file_title)
+        file_card_layout.addWidget(file_hint)
+
         file_selection_layout = QHBoxLayout()
-        self.select_file_button = CustomButton('Select Excel Files', '#008000', self)
+        file_selection_layout.setSpacing(12)
+        self.select_file_button = CustomButton('Select Excel Files', '#2563eb', self)
         self.select_file_button.clicked.connect(self.select_excel_files)
         file_selection_layout.addWidget(self.select_file_button)
-    
-        # Excel file path display
+
         self.excel_path_label = QLabel('No files selected')
-        self.excel_path_label.setStyleSheet(
-            "font-size: 14px; padding: 5px; "
-            "border: 1px solid #555555; border-radius: 5px; "
-            "background-color: #3e3e3e;"
-        )
-        
-        # Excel file list (scrollable)
+        self.excel_path_label.setObjectName("MutedLabel")
+        self.excel_path_label.setWordWrap(True)
+
         self.excel_list = QListWidget(self)
-        self.excel_list.setFixedHeight(100)   # tweak height as you like
-        
-        self.excel_list.setStyleSheet(
-            "font-size: 14px; padding: 5px; "
-            "background-color: #3e3e3e; color: white; "
-            "border: 1px solid #555555; border-radius: 5px;"
-        )
+        self.excel_list.setFixedHeight(58)
         self.excel_list.addItem('No files selected, please select files')
-        file_selection_layout.addWidget(self.excel_list)
-        layout.addLayout(file_selection_layout)
+        file_selection_layout.addWidget(self.excel_list, 1)
+        file_card_layout.addLayout(file_selection_layout)
+        self.excel_path_label.hide()
+        layout.addWidget(file_card)
+
         self.si_mode_toggle = QCheckBox()
-    
-        # "Select All (Manufacturers)" and "Select All (ADAS Systems)" button layout
-        select_all_buttons_layout = QHBoxLayout()
-        # ---- FORCE BUTTON ROW TO MATCH COLUMN LAYOUT ----
-        select_all_buttons_layout.setSpacing(10)
-        select_all_buttons_layout.setStretch(0, 1)  # Manufacturers
-        select_all_buttons_layout.setStretch(1, 1)  # Year Ranges
-        select_all_buttons_layout.setStretch(2, 1)  # ADAS Systems
-        select_all_buttons_layout.setStretch(3, 1)  # Repair Systems
-        
-        self.select_all_manufacturers_button = CustomButton('Select All (Manufacturers)', '#e3b505', self)
+
+        # Responsive selection cards
+        selection_cards_layout = QHBoxLayout()
+        selection_cards_layout.setSpacing(12)
+        manufacturer_card, manufacturer_card_layout = self._create_card()
+        years_card, years_card_layout = self._create_card()
+        adas_card, adas_card_layout = self._create_card()
+        repair_card, repair_card_layout = self._create_card()
+        for card in (manufacturer_card, years_card, adas_card, repair_card):
+            card.setMinimumHeight(320)
+        selection_cards_layout.addWidget(manufacturer_card, 1)
+        selection_cards_layout.addWidget(years_card, 1)
+        selection_cards_layout.addWidget(adas_card, 1)
+        selection_cards_layout.addWidget(repair_card, 1)
+
+        self.select_all_manufacturers_button = CustomButton('Select all', '#b77905', self)
         self.select_all_manufacturers_button.clicked.connect(self.select_all_manufacturers)
-        select_all_buttons_layout.addWidget(self.select_all_manufacturers_button)
-        
-        # NEW: Select All (Year Ranges)
-        self.select_all_years_button = CustomButton('Select All (Year Ranges)', '#e3b505', self)
+
+        self.select_all_years_button = CustomButton('Select all', '#b77905', self)
         self.select_all_years_button.clicked.connect(self.select_all_year_ranges)
-        select_all_buttons_layout.addWidget(self.select_all_years_button)
-        
-    
-        self.select_all_adas_button = CustomButton('Select All (ADAS Systems)', '#e3b505', self)
+
+        self.select_all_adas_button = CustomButton('Select all', '#b77905', self)
         self.select_all_adas_button.clicked.connect(self.select_all_adas)
-        select_all_buttons_layout.addWidget(self.select_all_adas_button)
-        
-        self.select_all_repair_button = CustomButton('Select All (Repair Systems)', '#e3b505', self)
+
+        self.select_all_repair_button = CustomButton('Select all', '#b77905', self)
         self.select_all_repair_button.clicked.connect(self.select_all_repair)
-        select_all_buttons_layout.addWidget(self.select_all_repair_button)
 
-        layout.addLayout(select_all_buttons_layout)
-    
-        # Manufacturer and ADAS selection layout
-        manufacturer_selection_layout = QHBoxLayout()
-
-        # ---- FORCE CONTENT ROW TO MATCH BUTTON ROW ----
-        manufacturer_selection_layout.setSpacing(10)
-        manufacturer_selection_layout.setStretch(0, 1)  # Manufacturers column
-        manufacturer_selection_layout.setStretch(1, 1)  # Year Ranges column
-        manufacturer_selection_layout.setStretch(2, 1)  # ADAS column
-        manufacturer_selection_layout.setStretch(3, 1)  # Repair column
-        
-    
-        # Manufacturer tree widget with checkboxes
-        manufacturer_list_layout = QVBoxLayout()
-        
-        # ▶ Label above the manufacturers list
+        # Manufacturer checkboxes (match the ADAS Systems presentation)
         manufacturer_label = QLabel("Manufacturers")
-        manufacturer_label.setAlignment(Qt.AlignHCenter)   # ⬅️ center text
-        manufacturer_label.setStyleSheet("font-size: 14px; padding: 5px 6px;")
-        manufacturer_list_layout.addWidget(manufacturer_label)
-        
-        self.manufacturer_tree = QTreeWidget(self)
-        self.manufacturer_tree.setHeaderHidden(True)
-        self.manufacturer_tree.setFixedWidth(200)  # 👈 Shift closer by narrowing it
-        self.manufacturer_tree.setStyleSheet("""
-            QTreeWidget {
-                background-color: #3e3e3e;
-                color: white;
-                border: 1px solid #555555;
-                border-radius: 5px;
-                margin-left: 10px;  /* 👈 Fine-tune left shift */
-            }
-        """)
-        
-        # Manufacturer Check Boxes
+        manufacturer_label.setObjectName("SectionTitle")
+        manufacturer_card_layout.addWidget(manufacturer_label)
+        manufacturer_card_layout.addWidget(self.select_all_manufacturers_button)
+
+        self.manufacturer_checkbox_container = QWidget(self)
+        self.manufacturer_checkbox_container.setObjectName("TransparentContainer")
+        self.manufacturer_checkbox_layout = QVBoxLayout(self.manufacturer_checkbox_container)
+        self.manufacturer_checkbox_layout.setContentsMargins(0, 0, 0, 0)
+        self.manufacturer_checkbox_layout.setSpacing(3)
+        self.manufacturer_checkbox_layout.setAlignment(Qt.AlignTop)
+
+        self.manufacturer_scroll_area = QScrollArea()
+        self.manufacturer_scroll_area.setWidgetResizable(True)
+        self.manufacturer_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.manufacturer_scroll_area.setMinimumHeight(220)
+        self.manufacturer_scroll_area.setWidget(self.manufacturer_checkbox_container)
+        manufacturer_card_layout.addWidget(self.manufacturer_scroll_area, 1)
+
         manufacturers = ["Acura", "Alfa Romeo", "Audi", "BMW", "Brightdrop", "Buick", "Cadillac", "Chevrolet", "Chrysler", "Dodge",
                          "Fiat", "Ford", "Genesis", "GMC", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia", "Land Rover", 
                          "Lexus", "Lincoln", "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan", "Porsche", "Ram", 
                          "Rolls Royce", "Subaru", "Tesla", "Toyota", "Volkswagen", "Volvo"]
+        self.manufacturer_checkboxes = []
         for manufacturer in manufacturers:
-            item = QTreeWidgetItem(self.manufacturer_tree)
-            item.setText(0, manufacturer)
-            item.setCheckState(0, Qt.Unchecked)
-        
-        manufacturer_list_layout.addWidget(self.manufacturer_tree)
-        
-        manufacturer_selection_layout.addLayout(manufacturer_list_layout)
+            checkbox = StyledCheckBox(manufacturer, self)
+            checkbox.setToolTip(manufacturer)
+            self.manufacturer_checkboxes.append(checkbox)
+            self.manufacturer_checkbox_layout.addWidget(checkbox)
         
         # === Year Ranges (match ADAS Systems visuals) ===
-        years_selection_layout = QVBoxLayout()
-        
         years_label = QLabel("Year Ranges")
-        years_label.setAlignment(Qt.AlignHCenter)
-        years_label.setStyleSheet("font-size: 14px; padding: 5px;")
-        years_selection_layout.addWidget(years_label)
+        years_label.setObjectName("SectionTitle")
+        years_card_layout.addWidget(years_label)
+        years_card_layout.addWidget(self.select_all_years_button)
         
         # Mirror the ADAS pattern: a list + a place to store the created QCheckBox widgets
         year_items = ["2012–2016 Years", "2017–2021 Years", "2022–2026 Years", "2027–2031 Years"]
         self.year_checkboxes = []  # analogous to self.adas_checkboxes
         
-        # Create the three year checkboxes just like ADAS does its acronyms
-        # Center the whole column's content (label is already centered)
-        years_selection_layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
-        
         for text in year_items:
-            cb = QCheckBox(text, self)
+            cb = StyledCheckBox(text, self)
             self.year_checkboxes.append(cb)
-        
-            # ✅ Center each checkbox under the Year button
-            years_selection_layout.addWidget(cb, alignment=Qt.AlignHCenter)
+            years_card_layout.addWidget(cb)
       
         # Keep direct handles for compatibility with existing logic
         # (old names used across your codebase)
@@ -660,24 +957,26 @@ class SeleniumAutomationApp(QWidget):
         # Convenience list (kept for any existing loops)
         self._year_checkboxes = [self.year_2012_2016, self.year_2017_2021, self.year_2022_2026, self.year_2027_2031]
         
-        # ⬆️ keep content pinned to the top
-        years_selection_layout.addStretch(1)
-        
-        # Add the Year Ranges column into the same parent layout as ADAS Systems
-        manufacturer_selection_layout.addLayout(years_selection_layout)
+        years_card_layout.addStretch(1)
   
         # ADAS Acronyms section
-        adas_selection_layout = QVBoxLayout()
         self.adas_label = QLabel("ADAS Systems (Old)")
-        self.adas_label.setAlignment(Qt.AlignHCenter)
-        self.adas_label.setStyleSheet("font-size: 14px; padding: 5px;")
-        adas_selection_layout.addWidget(self.adas_label)
+        self.adas_label.setObjectName("SectionTitle")
+        adas_card_layout.addWidget(self.adas_label)
+        adas_card_layout.addWidget(self.select_all_adas_button)
 
         self.adas_checkbox_container = QWidget(self)
+        self.adas_checkbox_container.setObjectName("TransparentContainer")
         self.adas_checkbox_layout = QVBoxLayout(self.adas_checkbox_container)
         self.adas_checkbox_layout.setContentsMargins(0, 0, 0, 0)
-        self.adas_checkbox_layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
-        adas_selection_layout.addWidget(self.adas_checkbox_container)
+        self.adas_checkbox_layout.setSpacing(3)
+        self.adas_checkbox_layout.setAlignment(Qt.AlignTop)
+        self.adas_scroll_area = QScrollArea()
+        self.adas_scroll_area.setWidgetResizable(True)
+        self.adas_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.adas_scroll_area.setMinimumHeight(220)
+        self.adas_scroll_area.setWidget(self.adas_checkbox_container)
+        adas_card_layout.addWidget(self.adas_scroll_area, 1)
 
         self.adas_checkboxes = []
         repair_systems = [
@@ -725,61 +1024,51 @@ class SeleniumAutomationApp(QWidget):
 
         self.repair_checkboxes = []
 
-        # Keep ADAS content pinned top + centered as a group.
-        adas_selection_layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
-        self._rebuild_adas_checkboxes("og")
-    
-        manufacturer_selection_layout.addLayout(adas_selection_layout)
-        layout.addLayout(manufacturer_selection_layout)
-                    
         # === Repair Systems Section (Label on top, Scrollable box underneath) ===
-        
-        # Vertical layout to hold both: label AND scrollable checkbox container
-        repair_box_layout = QVBoxLayout()
-        
-        # Label (not scrollable)
         repair_label = QLabel("Repair Systems")
-        repair_label.setAlignment(Qt.AlignHCenter)  
-        repair_label.setFixedWidth(200)    
-        repair_label.setStyleSheet("font-size: 14px; padding: 5px;")
-        repair_box_layout.addWidget(repair_label)
+        repair_label.setObjectName("SectionTitle")
+        repair_card_layout.addWidget(repair_label)
+        repair_card_layout.addWidget(self.select_all_repair_button)
         
         # Scrollable checkbox area (keep a reference so we can restyle it later)
         self.repair_scroll_area = QScrollArea()
         self.repair_scroll_area.setWidgetResizable(True)
-        self.repair_scroll_area.setFixedWidth(180)
-        self.repair_scroll_area.setStyleSheet(
-            "background-color: #3e3e3e; border: 1px solid #555555; border-radius: 5px;"
-        )
+        self.repair_scroll_area.setMinimumHeight(220)
         
         repair_container = QWidget()
+        repair_container.setObjectName("TransparentContainer")
         repair_selection_layout = QVBoxLayout(repair_container)
         
         self.repair_checkboxes = []
         for system in repair_systems:
-            checkbox = QCheckBox(system, self)
+            checkbox = StyledCheckBox(system, self)
             checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
+            checkbox.setToolTip(system)
             self.repair_checkboxes.append(checkbox)
             repair_selection_layout.addWidget(checkbox)
         
         self.repair_scroll_area.setWidget(repair_container)
-        repair_box_layout.addWidget(self.repair_scroll_area)
-        
-        # Add the full repair module section to the right side
-        manufacturer_selection_layout.addLayout(repair_box_layout)
+        repair_card_layout.addWidget(self.repair_scroll_area, 1)
+        layout.addLayout(selection_cards_layout, 1)
 
-        # Theme switch section
-        theme_switch_section = QHBoxLayout()
+        # Workflow control card
+        control_card, control_card_layout = self._create_card("ControlCard")
+        control_title = QLabel("Workflow options")
+        control_title.setObjectName("SectionTitle")
+        control_card_layout.addWidget(control_title)
+        controls_row = QHBoxLayout()
+        controls_row.setSpacing(24)
 
-        # ADAS / Repair SI Label and Toggle
+        si_group = QVBoxLayout()
+        si_group.setSpacing(5)
+        si_title = QLabel("Information type")
+        si_title.setObjectName("MutedLabel")
+        si_group.addWidget(si_title)
         switch_layout = QHBoxLayout()
         switch_layout.setSpacing(8)
         
         self.label_adas   = QLabel("ADAS SI")
         self.label_repair = QLabel("Repair SI")
-        for lbl in (self.label_adas, self.label_repair):
-            lbl.setStyleSheet("font-size:14px; padding:5px;")
-        
         self.mode_switch = ModeSwitch(self)
         # start unchecked => ADAS
         self.mode_switch.setChecked(False)
@@ -789,44 +1078,49 @@ class SeleniumAutomationApp(QWidget):
         switch_layout.addWidget(self.mode_switch)
         switch_layout.addWidget(self.label_repair)
         switch_layout.addStretch()
-        
-        layout.addLayout(switch_layout)
+        si_group.addLayout(switch_layout)
+        controls_row.addLayout(si_group, 1)
         
         # after creating self.si_mode_toggle …
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
         # ADAS acronym format toggle. Unchecked = legacy SME acronyms; checked =
         # the new Protech component acronyms shown in the manufacturer chart.
+        acronym_group = QVBoxLayout()
+        acronym_group.setSpacing(5)
+        acronym_title = QLabel("ADAS acronym set")
+        acronym_title.setObjectName("MutedLabel")
+        acronym_group.addWidget(acronym_title)
         adas_format_layout = QHBoxLayout()
         adas_format_layout.setSpacing(8)
 
         self.label_adas_old = QLabel("Old")
         self.label_adas_new = QLabel("New")
-        for lbl in (self.label_adas_old, self.label_adas_new):
-            lbl.setStyleSheet("font-size:14px; padding:5px;")
-
         self.excel_mode_switch = ModeSwitch(self)
         self.excel_mode_switch.setChecked(False)
         self.excel_mode_switch.stateChanged.connect(self.on_adas_format_toggled)
 
-        adas_format_layout.addWidget(QLabel("ADAS Acronyms:"))
         adas_format_layout.addWidget(self.label_adas_old)
         adas_format_layout.addWidget(self.excel_mode_switch)
         adas_format_layout.addWidget(self.label_adas_new)
         adas_format_layout.addStretch()
-        layout.addLayout(adas_format_layout)
+        acronym_group.addLayout(adas_format_layout)
+        controls_row.addLayout(acronym_group, 1)
 
         # ── Upload Type Toggle (OEM / All_Data) ──
         self.upload_type_container = QWidget()
-        upload_type_layout = QHBoxLayout(self.upload_type_container)
+        upload_group_layout = QVBoxLayout(self.upload_type_container)
+        upload_group_layout.setContentsMargins(0, 0, 0, 0)
+        upload_group_layout.setSpacing(5)
+        upload_title = QLabel("Upload destination")
+        upload_title.setObjectName("MutedLabel")
+        upload_group_layout.addWidget(upload_title)
+        upload_type_layout = QHBoxLayout()
         upload_type_layout.setContentsMargins(0, 0, 0, 0)
         upload_type_layout.setSpacing(8)
         
         self.label_oem = QLabel("OEM")
         self.label_alldata = QLabel("All_Data")
-        for lbl in (self.label_oem, self.label_alldata):
-            lbl.setStyleSheet("font-size:14px; padding:5px;")
-        
         # Reuse your existing switch look
         self.upload_type_switch = ModeSwitch(self)
         self.upload_type_switch.setChecked(True)  # True = OEM by default
@@ -835,9 +1129,9 @@ class SeleniumAutomationApp(QWidget):
         upload_type_layout.addWidget(self.upload_type_switch)
         upload_type_layout.addWidget(self.label_alldata)
         upload_type_layout.addStretch()
-        
-        # Add directly under ADAS/Repair toggle row
-        layout.addWidget(self.upload_type_container)
+        upload_group_layout.addLayout(upload_type_layout)
+        controls_row.addWidget(self.upload_type_container, 1)
+        control_card_layout.addLayout(controls_row)
         
         # Start disabled (greyed out). It will only enable when Upload Mode is checked.
         self.upload_type_container.setEnabled(False)
@@ -850,155 +1144,134 @@ class SeleniumAutomationApp(QWidget):
         self.on_adas_format_toggled(self.excel_mode_switch.checkState())
         self.on_si_mode_toggled(self.mode_switch.checkState())
 
-        # Dark mode toggle
-        theme_switch_section.addStretch()
+        # Theme switch lives in the header for quick access.
         self.theme_toggle = ToggleSwitch(self)
-        theme_switch_section.addWidget(self.theme_toggle)
-        layout.addLayout(theme_switch_section)
+        self.header_actions_layout.addWidget(self.theme_toggle)
     
         # ── Clean up Mode checkbox ──
-        self.cleanup_checkbox = QCheckBox("Broken Hyperlink Mode", self)
-        self.cleanup_checkbox.setStyleSheet("font-size: 14px; padding: 5px;")
+        self.cleanup_checkbox = StyledCheckBox("Broken Hyperlink Mode", self)
         
         # NEW: Put Broken Hyperlink Mode + Upload Mode on the same row
         cleanup_upload_row = QHBoxLayout()
         cleanup_upload_row.addWidget(self.cleanup_checkbox)
         
-        self.upload_mode_checkbox = QCheckBox("Upload Mode", self)
-        self.upload_mode_checkbox.setStyleSheet("font-size: 14px; padding: 5px;")
+        self.upload_mode_checkbox = StyledCheckBox("Upload Mode", self)
         self.upload_mode_checkbox.setChecked(False)
         cleanup_upload_row.addWidget(self.upload_mode_checkbox)
         
         cleanup_upload_row.addStretch()
-        layout.addLayout(cleanup_upload_row)
+        control_card_layout.addLayout(cleanup_upload_row)
+        layout.addWidget(control_card)
         
         # Wire Upload Mode -> enable/disable OEM/All_Data toggle row
         self.upload_mode_checkbox.toggled.connect(self.on_upload_mode_toggled)
          
     
-        # ── Pause/Resume & Start/Stop Buttons ──
-        self.pause_button = CustomButton('Pause Automation', '#e3a008', self)
+        # ── Run controls and progress ──
+        progress_card, progress_card_layout = self._create_card("ProgressCard")
+        progress_title = QLabel("Automation progress")
+        progress_title.setObjectName("SectionTitle")
+        progress_card_layout.addWidget(progress_title)
+
+        self.pause_button = CustomButton('Pause Automation', '#b77905', self)
         self.pause_button.clicked.connect(self.on_pause_resume)
         self.pause_button.setEnabled(False)
     
-        self.start_button = CustomButton('Start Automation', '#008000', self)
+        self.start_button = CustomButton('Start Automation', '#16803c', self)
         self.start_button.clicked.connect(self.on_start_stop)
     
-        # Use a vertical layout here so Pause sits above Start
-        self.button_layout = QVBoxLayout()  
+        self.button_layout = QHBoxLayout()
+        self.button_layout.setSpacing(10)
+        self.button_layout.addWidget(self.start_button, 2)
         self.button_layout.addWidget(self.pause_button)
-        self.button_layout.addWidget(self.start_button)
-        layout.addLayout(self.button_layout)
+        progress_card_layout.addLayout(self.button_layout)
     
         # ── Progress Bars ──
         self.current_manufacturer_label = QLabel("Current Manufacturer: None")
-        self.current_manufacturer_label.setStyleSheet("font-size: 13px; padding: 5px;")
+        self.current_manufacturer_label.setObjectName("MutedLabel")
         self.current_manufacturer_progress = QProgressBar()
         self.current_manufacturer_progress.setMaximum(100)
         self.current_manufacturer_progress.setValue(0)
         self.current_manufacturer_progress.setFormat("%p%")
-        self.current_manufacturer_progress.setStyleSheet("""
-            QProgressBar {
-                font-size: 12px;
-                padding: 4px;
-                color: black;           /* text color */
-                text-align: center;     /* center the % */
-            }
-        """)
         
         # 🆕 Manufacturer Hyperlink Status
         self.manufacturer_hyperlink_label = QLabel("Manufacturer Hyperlinks : 0 / 0")
-        self.manufacturer_hyperlink_label.setStyleSheet("font-size: 13px; padding: 5px;")
+        self.manufacturer_hyperlink_label.setObjectName("MutedLabel")
         self.manufacturer_hyperlink_bar = QProgressBar()
         self.manufacturer_hyperlink_bar.setMaximum(100)
         self.manufacturer_hyperlink_bar.setValue(0)
         self.manufacturer_hyperlink_bar.setFormat("%p%")
-        self.manufacturer_hyperlink_bar.setStyleSheet("""
-            QProgressBar {
-                font-size: 12px;
-                padding: 4px;
-                color: black;
-                text-align: center;
-            }
-        """)
         
         self.overall_progress_label = QLabel("Overall Progress: 0%")
-        self.overall_progress_label.setStyleSheet("font-size: 13px; padding: 5px;")
+        self.overall_progress_label.setObjectName("MutedLabel")
         self.overall_progress_bar = QProgressBar()
         self.overall_progress_bar.setMaximum(100)
         self.overall_progress_bar.setValue(0)
         self.overall_progress_bar.setFormat("%p%")
-        self.overall_progress_bar.setStyleSheet("""
-            QProgressBar {
-                font-size: 12px;
-                padding: 4px;
-                color: black;           /* text color */
-                text-align: center;     /* center the % */
-            }
-        """)
-        # Style used when manually stopped (red background + red chunk)
+        # Style used when manually stopped.
         self._bar_style_stopped = """
             QProgressBar {
-                font-size: 12px;
-                padding: 4px;
-                color: white;                         /* % text */
+                color: #f8fafc;
                 text-align: center;
-                background-color: #4a0f0f;            /* bar background stays red even at 0% */
-                border: 1px solid #aa4444;
-                border-radius: 4px;
+                background-color: #3f1d24;
+                border: none;
+                border-radius: 7px;
+                min-height: 14px;
+                max-height: 14px;
+                font-size: 10px;
+                font-weight: 600;
             }
             QProgressBar::chunk {
-                background-color: #d32f2f;            /* the filled part */
-                margin: 0px;
-                border-radius: 2px;
+                background-color: #dc2626;
+                border-radius: 7px;
             }
         """
         
-        layout.addWidget(self.current_manufacturer_label)
-        layout.addWidget(self.current_manufacturer_progress)
-        
-        # 🆕 Insert new hyperlink bar + label here
-        layout.addWidget(self.manufacturer_hyperlink_label)
-        layout.addWidget(self.manufacturer_hyperlink_bar)
-        
-        layout.addWidget(self.overall_progress_label)
-        layout.addWidget(self.overall_progress_bar)      
+        for label, bar in (
+            (self.current_manufacturer_label, self.current_manufacturer_progress),
+            (self.manufacturer_hyperlink_label, self.manufacturer_hyperlink_bar),
+            (self.overall_progress_label, self.overall_progress_bar),
+        ):
+            progress_card_layout.addWidget(label)
+            progress_card_layout.addWidget(bar)
+        layout.addWidget(progress_card)
         
         # after creating the bars
         self.current_manufacturer_progress.setObjectName("cmBar")
         self.manufacturer_hyperlink_bar.setObjectName("mhBar")
         self.overall_progress_bar.setObjectName("ovBar")
         
-        # one stylesheet that preserves the grey groove; only the CHUNK turns red when stopped
+        # Stable progress styling; the stopped property only recolors the fill.
         progress_css = """
         QProgressBar {
-            font-size: 12px;
-            padding: 4px;
             text-align: center;
-            color: black;
-            border: 1px solid #555555;
-            border-radius: 4px;
-            background: #e0e0e0;              /* normal groove */
+            color: #e8eef8;
+            border: none;
+            border-radius: 7px;
+            background: #1d2a3f;
+            min-height: 14px;
+            max-height: 14px;
+            font-size: 10px;
+            font-weight: 600;
         }
         QProgressBar::chunk {
-            background-color: #19A602;         /* normal (green) fill */
+            background-color: #2563eb;
+            border-radius: 7px;
         }
-        
-        /* when manually stopped, KEEP the same groove; only recolor the chunk.
-           Use object-id selectors + !important to override any global red background. */
         QProgressBar#cmBar[stopped="true"],
         QProgressBar#mhBar[stopped="true"],
         QProgressBar#ovBar[stopped="true"] {
-            background: #e0e0e0 !important;    /* cancel any red background rules */
+            background: #3f1d24;
         }
-        
         QProgressBar#cmBar[stopped="true"]::chunk,
         QProgressBar#mhBar[stopped="true"]::chunk,
         QProgressBar#ovBar[stopped="true"]::chunk {
-            background-color: #B30000 !important;  /* red fill only */
+            background-color: #dc2626;
         }
         """
-        
+        self._progress_css = progress_css
+        self._bar_style_normal = progress_css
+
         # apply to each bar
         self.current_manufacturer_progress.setStyleSheet(progress_css)
         self.manufacturer_hyperlink_bar.setStyleSheet(progress_css)
@@ -1007,8 +1280,18 @@ class SeleniumAutomationApp(QWidget):
         # after adding all widgets and layouts…
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
 
-        self.setLayout(layout)
-        self.resize(600, 400)
+        # The combined cards are taller than the initial workspace placeholder.
+        # Honor the layout's real minimum height so Qt never has to place the
+        # workflow card on top of the selection columns. Smaller windows scroll.
+        layout.activate()
+        required_content_height = layout.minimumSize().height()
+        self.workspace_content.setMinimumHeight(
+            max(self.workspace_content.minimumHeight(), required_content_height)
+        )
+
+        self.workspace_scroll.setWidget(self.workspace_content)
+        root_layout.addWidget(self.workspace_scroll)
+        self.setLayout(root_layout)
 
     def select_all_year_ranges(self):
         """Toggle all year range checkboxes on/off."""
@@ -1522,13 +1805,15 @@ class SeleniumAutomationApp(QWidget):
             item = self.adas_checkbox_layout.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                widget.setParent(None)
                 widget.deleteLater()
 
         systems = self.NEW_ADAS_SYSTEMS if acronym_mode == "new" else self.OLD_ADAS_SYSTEMS
         self.adas_checkboxes = []
         for code, display_text in systems:
-            checkbox = QCheckBox(display_text, self.adas_checkbox_container)
+            checkbox = StyledCheckBox(display_text, self.adas_checkbox_container)
             checkbox.setProperty("system_code", code)
+            checkbox.setToolTip(display_text)
             checkbox.setStyleSheet("font-size: 12px; padding: 5px;")
             self.adas_checkboxes.append(checkbox)
 
@@ -1634,16 +1919,11 @@ class SeleniumAutomationApp(QWidget):
     
     # Function to select/unselect all manufacturers
     def select_all_manufacturers(self):
-        select_all_checked = True
-        for i in range(self.manufacturer_tree.topLevelItemCount()):
-            item = self.manufacturer_tree.topLevelItem(i)
-            if item.checkState(0) != Qt.Checked:
-                select_all_checked = False
-                break
-    
-        for i in range(self.manufacturer_tree.topLevelItemCount()):
-            item = self.manufacturer_tree.topLevelItem(i)
-            item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)
+        select_all_checked = all(
+            checkbox.isChecked() for checkbox in self.manufacturer_checkboxes
+        )
+        for checkbox in self.manufacturer_checkboxes:
+            checkbox.setChecked(not select_all_checked)
     
     # Function to select/unselect all ADAS systems
     def select_all_adas(self):
@@ -1682,48 +1962,11 @@ class SeleniumAutomationApp(QWidget):
             self.excel_list.addItem('No files selected, please select files')
          
     def toggle_theme(self):
-        if self.theme_toggle.isChecked():
-            # light
-            self.setStyleSheet("background-color: #ffffff; color: black;")
-            self.manufacturer_tree.setStyleSheet(
-                "background-color: #f0f0f0; color: black; "
-                "border: 1px solid #cccccc; border-radius: 5px;"
-            )
-            self.excel_path_label.setStyleSheet(
-                "font-size: 14px; padding: 5px; "
-                "border: 1px solid #cccccc; border-radius: 5px; "
-                "background-color: #f0f0f0;"
-            )
-            self.excel_list.setStyleSheet(
-                "font-size: 14px; padding: 5px; "
-                "border: 1px solid #cccccc; border-radius: 5px; "
-                "background-color: #f0f0f0; color: black;"
-            )
-            self.repair_scroll_area.setStyleSheet(
-                "background-color: #f0f0f0; "
-                "border: 1px solid #cccccc; border-radius: 5px;"
-            )
-        else:
-            # dark
-            self.setStyleSheet("background-color: #2e2e2e; color: white;")
-            self.manufacturer_tree.setStyleSheet(
-                "background-color: #3e3e3e; color: white; "
-                "border: 1px solid #555555; border-radius: 5px;"
-            )
-            self.excel_path_label.setStyleSheet(
-                "font-size: 14px; padding: 5px; "
-                "border: 1px solid #555555; border-radius: 5px; "
-                "background-color: #3e3e3e;"
-            )
-            self.excel_list.setStyleSheet(
-                "font-size: 14px; padding: 5px; "
-                "border: 1px solid #555555; border-radius: 5px; "
-                "background-color: #3e3e3e; color: white;"
-            )
-            self.repair_scroll_area.setStyleSheet(
-                "background-color: #3e3e3e; "
-                "border: 1px solid #555555; border-radius: 5px;"
-            )
+        theme = "light" if self.theme_toggle.isChecked() else "dark"
+        self.setStyleSheet(build_app_stylesheet(theme))
+        apply_theme_palette(self, theme)
+        for checkbox in self.findChildren(StyledCheckBox):
+            checkbox.update()
 
     # ========= REPORT LOG BACKFILL HELPERS =========
     def _find_latest_log_file(self):
@@ -1959,11 +2202,11 @@ class SeleniumAutomationApp(QWidget):
         upload_mode = bool(getattr(self, "upload_mode_checkbox", None) and self.upload_mode_checkbox.isChecked())
     
         # 1) gather selected manufacturers
-        selected_manufacturers = []
-        for i in range(self.manufacturer_tree.topLevelItemCount()):
-            item = self.manufacturer_tree.topLevelItem(i)
-            if item.checkState(0) == Qt.Checked:
-                selected_manufacturers.append(item.text(0))
+        selected_manufacturers = [
+            checkbox.text()
+            for checkbox in self.manufacturer_checkboxes
+            if checkbox.isChecked()
+        ]
     
         # 2) gather selected systems based on the slide‐toggle
         if self.mode_switch.isChecked():   # Repair mode
@@ -2144,7 +2387,7 @@ class SeleniumAutomationApp(QWidget):
             self.start_button.deleteLater()
             self.start_button = CustomButton("Stop Automation", "#e63946", self)
             self.start_button.clicked.connect(self.on_start_stop)
-            layout.addWidget(self.start_button)
+            layout.insertWidget(0, self.start_button, 2)
             
             self.pause_button.setEnabled(True)
             self.pause_button.setText('Pause Automation')
@@ -2173,7 +2416,7 @@ class SeleniumAutomationApp(QWidget):
         self.start_button.deleteLater()
         self.start_button = CustomButton("Stop Automation", "#e63946", self)
         self.start_button.clicked.connect(self.on_start_stop)
-        layout.addWidget(self.start_button)
+        layout.insertWidget(0, self.start_button, 2)
     
         # enable Pause
         self.pause_button.setEnabled(True)
@@ -3423,7 +3666,7 @@ class SeleniumAutomationApp(QWidget):
                 self.start_button.deleteLater()
                 self.start_button = CustomButton("Start Automation", "#008000", self)
                 self.start_button.clicked.connect(self.on_start_stop)
-                layout.addWidget(self.start_button)
+                layout.insertWidget(0, self.start_button, 2)
     
                 # Disable Pause
                 self.pause_button.setEnabled(False)
@@ -3547,7 +3790,7 @@ class SeleniumAutomationApp(QWidget):
                 self.start_button.deleteLater()
                 self.start_button = CustomButton("Start Automation", "#008000", self)
                 self.start_button.clicked.connect(self.on_start_stop)
-                layout.addWidget(self.start_button)
+                layout.insertWidget(0, self.start_button, 2)
                 self.pause_button.setEnabled(False)
                 self.is_running = False
     
@@ -3732,16 +3975,7 @@ class SeleniumAutomationApp(QWidget):
 
 
     def select_all(self):
-        select_all_checked = True
-        for i in range(self.manufacturer_tree.topLevelItemCount()):
-            item = self.manufacturer_tree.topLevelItem(i)
-            if item.checkState(0) != Qt.Checked:
-                select_all_checked = False
-                break
-        
-        for i in range(self.manufacturer_tree.topLevelItemCount()):
-            item = self.manufacturer_tree.topLevelItem(i)
-            item.setCheckState(0, Qt.Checked if not select_all_checked else Qt.Unchecked)            
+        self.select_all_manufacturers()
 
     def closeEvent(self, event):
         # when the GUI closes, dump the terminal contents (if any) to Documents/Logs
@@ -3993,7 +4227,7 @@ class SeleniumAutomationApp(QWidget):
         self.start_button.deleteLater()
         self.start_button = CustomButton("Start Automation", "#008000", self)
         self.start_button.clicked.connect(self.on_start_stop)
-        layout.addWidget(self.start_button)
+        layout.insertWidget(0, self.start_button, 2)
     
         self.pause_button.setEnabled(False)
     
@@ -4127,7 +4361,7 @@ class SeleniumAutomationApp(QWidget):
         self.start_button.deleteLater()
         self.start_button = CustomButton("Start Automation", "#008000", self)
         self.start_button.clicked.connect(self.on_start_stop)
-        layout.addWidget(self.start_button)
+        layout.insertWidget(0, self.start_button, 2)
     
         # Disable pause
         try:
@@ -4225,7 +4459,11 @@ class SeleniumAutomationApp(QWidget):
 
 if __name__ == "__main__":
     try:
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
         app = QApplication(sys.argv)
+        app.setStyle("Fusion")
+        app.setFont(QFont("Segoe UI", 10))
 
         # Require login before launching the main window
         login = LoginDialog(max_attempts=5)
