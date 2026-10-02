@@ -184,6 +184,20 @@ def build_app_stylesheet(theme="dark"):
             border: 1px solid {colors['border']};
             padding: 6px;
         }}
+        QMessageBox {{
+            background-color: {colors['window']};
+        }}
+        QMessageBox QLabel {{
+            color: {colors['text']};
+            background: transparent;
+        }}
+        QMessageBox QLabel#qt_msgbox_label {{
+            min-width: 460px;
+            padding: 8px 4px;
+        }}
+        QMessageBox QPushButton {{
+            min-width: 72px;
+        }}
     """
 
 
@@ -409,6 +423,30 @@ class TerminalDialog(QDialog):
         self.layout.addWidget(self.terminal_output)
 
         self.setLayout(self.layout)
+
+    def append_output(self, text):
+        self.terminal_output.appendPlainText(text)
+        self.terminal_output.ensureCursorVisible()
+
+
+class ActivityLogPanel(QFrame):
+    """Embedded activity log used by the compact automation view."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("ActivityLogPanel")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 6, 0, 0)
+        layout.setSpacing(8)
+
+        title = QLabel("Activity log")
+        title.setObjectName("SectionTitle")
+        layout.addWidget(title)
+
+        self.terminal_output = QPlainTextEdit(self)
+        self.terminal_output.setReadOnly(True)
+        self.terminal_output.setMinimumHeight(180)
+        layout.addWidget(self.terminal_output)
 
     def append_output(self, text):
         self.terminal_output.appendPlainText(text)
@@ -790,6 +828,89 @@ class SeleniumAutomationApp(QWidget):
         card_layout.setSpacing(10)
         return card, card_layout
 
+    def _set_progress_only_mode(self, enabled):
+        """Collapse the workspace to the run controls while automation is active."""
+        if enabled == getattr(self, "_progress_only_mode", False):
+            return
+
+        self._progress_only_mode = enabled
+        setup_sections = getattr(self, "_setup_sections", [])
+
+        if enabled:
+            self._expanded_window_size = self.size()
+            for section in setup_sections:
+                section.hide()
+
+            self.activity_log_panel.show()
+
+            self.workspace_content.setMinimumSize(700, 430)
+            self.setMinimumSize(700, 470)
+            compact_height = max(500, self.progress_card.sizeHint().height() + 70)
+            self.resize(max(760, self.width()), compact_height)
+            self.workspace_scroll.verticalScrollBar().setValue(0)
+        else:
+            self.activity_log_panel.hide()
+            for section in setup_sections:
+                section.show()
+
+            self.workspace_content.setMinimumSize(1040, 920)
+            self.setMinimumSize(760, 560)
+            expanded_size = getattr(self, "_expanded_window_size", None)
+            if expanded_size is not None:
+                self.resize(expanded_size)
+
+    def _ensure_activity_log(self, parse_reports=False):
+        """Use the embedded log and optionally enable report parsing once."""
+        self.terminal = self.activity_log_panel
+        if parse_reports and not getattr(self, "_activity_log_parser_enabled", False):
+            original_append = self.terminal.append_output
+
+            def _live_append(text):
+                try:
+                    if not getattr(self, "_skip_parse_in_monkeypatch", False):
+                        self._parse_and_update_report(text)
+                except Exception as exc:
+                    logging.exception("Report parser error: %s", exc)
+
+                original_append(text)
+                logging.info(text)
+
+            self.terminal.append_output = _live_append
+            self._activity_log_parser_enabled = True
+        return self.terminal
+
+    def _replace_start_button(self, running):
+        """Keep Start/Stop left and Pause right in every run state."""
+        if getattr(self, "start_button", None) is not None:
+            self.button_layout.removeWidget(self.start_button)
+            self.start_button.deleteLater()
+
+        if running:
+            self.start_button = CustomButton("Stop Automation", "#e63946", self)
+        else:
+            self.start_button = CustomButton("Start Automation", "#008000", self)
+        self.start_button.clicked.connect(self.on_start_stop)
+
+        self.button_layout.removeWidget(self.pause_button)
+        self.button_layout.insertWidget(0, self.start_button, 2)
+        self.button_layout.insertWidget(1, self.pause_button)
+
+    def _restore_idle_controls(self):
+        self._replace_start_button(False)
+        self.pause_button.setText("Pause Automation")
+        self.pause_button.setEnabled(False)
+        self.pause_requested = False
+
+    def _set_always_on_top(self, enabled):
+        """Apply the user's keep-on-top preference without changing run state."""
+        was_visible = self.isVisible()
+        self.setWindowFlag(Qt.WindowStaysOnTopHint, enabled)
+        if was_visible:
+            self.show()
+            if enabled:
+                self.raise_()
+                self.activateWindow()
+
     def initUI(self):
         self.setWindowTitle('Hyper — ADAS & Repair Automation')
         self.setObjectName("HyperRoot")
@@ -820,6 +941,7 @@ class SeleniumAutomationApp(QWidget):
 
         # Branded header
         header_card, header_layout = self._create_card("HeaderCard")
+        self.header_card = header_card
         header_row = QHBoxLayout()
         header_copy = QVBoxLayout()
         header_copy.setSpacing(1)
@@ -842,6 +964,7 @@ class SeleniumAutomationApp(QWidget):
 
         # File selection card
         file_card, file_card_layout = self._create_card()
+        self.file_card = file_card
         file_title = QLabel("Source workbooks")
         file_title.setObjectName("SectionTitle")
         file_hint = QLabel("Choose one or more manufacturer Excel files to process.")
@@ -870,7 +993,10 @@ class SeleniumAutomationApp(QWidget):
         self.si_mode_toggle = QCheckBox()
 
         # Responsive selection cards
-        selection_cards_layout = QHBoxLayout()
+        self.selection_cards_container = QWidget(self.workspace_content)
+        self.selection_cards_container.setObjectName("TransparentContainer")
+        selection_cards_layout = QHBoxLayout(self.selection_cards_container)
+        selection_cards_layout.setContentsMargins(0, 0, 0, 0)
         selection_cards_layout.setSpacing(12)
         manufacturer_card, manufacturer_card_layout = self._create_card()
         years_card, years_card_layout = self._create_card()
@@ -1049,10 +1175,11 @@ class SeleniumAutomationApp(QWidget):
         
         self.repair_scroll_area.setWidget(repair_container)
         repair_card_layout.addWidget(self.repair_scroll_area, 1)
-        layout.addLayout(selection_cards_layout, 1)
+        layout.addWidget(self.selection_cards_container, 1)
 
         # Workflow control card
         control_card, control_card_layout = self._create_card("ControlCard")
+        self.control_card = control_card
         control_title = QLabel("Workflow options")
         control_title.setObjectName("SectionTitle")
         control_card_layout.addWidget(control_title)
@@ -1169,9 +1296,19 @@ class SeleniumAutomationApp(QWidget):
     
         # ── Run controls and progress ──
         progress_card, progress_card_layout = self._create_card("ProgressCard")
+        self.progress_card = progress_card
+        progress_header = QHBoxLayout()
         progress_title = QLabel("Automation progress")
         progress_title.setObjectName("SectionTitle")
-        progress_card_layout.addWidget(progress_title)
+        progress_header.addWidget(progress_title)
+        progress_header.addStretch()
+        self.always_on_top_checkbox = StyledCheckBox("Always on top", self)
+        self.always_on_top_checkbox.setToolTip(
+            "Keep the compact automation progress window above other applications."
+        )
+        self.always_on_top_checkbox.toggled.connect(self._set_always_on_top)
+        progress_header.addWidget(self.always_on_top_checkbox)
+        progress_card_layout.addLayout(progress_header)
 
         self.pause_button = CustomButton('Pause Automation', '#b77905', self)
         self.pause_button.clicked.connect(self.on_pause_resume)
@@ -1234,7 +1371,18 @@ class SeleniumAutomationApp(QWidget):
         ):
             progress_card_layout.addWidget(label)
             progress_card_layout.addWidget(bar)
+
+        self.activity_log_panel = ActivityLogPanel(progress_card)
+        self.activity_log_panel.hide()
+        progress_card_layout.addWidget(self.activity_log_panel)
         layout.addWidget(progress_card)
+        self._setup_sections = [
+            self.header_card,
+            self.file_card,
+            self.selection_cards_container,
+            self.control_card,
+        ]
+        self._progress_only_mode = False
         
         # after creating the bars
         self.current_manufacturer_progress.setObjectName("cmBar")
@@ -2381,23 +2529,14 @@ class SeleniumAutomationApp(QWidget):
             self.overall_progress_bar.setFormat("%p%")
             self.overall_progress_label.setText("Overall Progress : 0/0")
 
-            # Swap Start -> Stop (your existing behavior)
-            layout = self.button_layout
-            layout.removeWidget(self.start_button)
-            self.start_button.deleteLater()
-            self.start_button = CustomButton("Stop Automation", "#e63946", self)
-            self.start_button.clicked.connect(self.on_start_stop)
-            layout.insertWidget(0, self.start_button, 2)
+            # Swap Start -> Stop while preserving Start/Stop-left, Pause-right.
+            self._replace_start_button(True)
             
             self.pause_button.setEnabled(True)
             self.pause_button.setText('Pause Automation')
             self.pause_requested = False
             
-            # Ensure terminal is up
-            if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
-                self.terminal = TerminalDialog(self)
-            self.terminal.show()
-            self.terminal.raise_()
+            self._ensure_activity_log(parse_reports=False)
             
             # Kick off job #1
             self.start_next_upload_job()
@@ -2410,13 +2549,8 @@ class SeleniumAutomationApp(QWidget):
         self.stop_requested  = False
         self._report_written = False  # <-- reset "written" flag for this batch
     
-        # rip out the old “Start” button and insert a red “Stop Automation”
-        layout = self.button_layout
-        layout.removeWidget(self.start_button)
-        self.start_button.deleteLater()
-        self.start_button = CustomButton("Stop Automation", "#e63946", self)
-        self.start_button.clicked.connect(self.on_start_stop)
-        layout.insertWidget(0, self.start_button, 2)
+        # Replace Start with Stop without disturbing the Pause position.
+        self._replace_start_button(True)
     
         # enable Pause
         self.pause_button.setEnabled(True)
@@ -2524,29 +2658,8 @@ class SeleniumAutomationApp(QWidget):
         if hasattr(self, "_apply_stopped_style_to_all_bars"):
             self._apply_stopped_style_to_all_bars(False)
     
-        # terminal
-        if getattr(self, 'terminal', None) is None or not self.terminal.isVisible():
-            self.terminal = TerminalDialog(self)
-            # ── MONKEY‐PATCH for live logging ──
-            _orig_append = self.terminal.append_output
-    
-            def _live_append(text: str):
-                # Parse first (no UI writes inside)
-                try:
-                    # Avoid double parsing if caller already parsed this line
-                    if not getattr(self, "_skip_parse_in_monkeypatch", False):
-                        self._parse_and_update_report(text)
-                except Exception as e:
-                    logging.exception("Report parser error: %s", e)
-    
-                # Then show in UI and log file
-                _orig_append(text)
-                logging.info(text)
-    
-            self.terminal.append_output = _live_append
-    
-        self.terminal.show()
-        self.terminal.raise_()
+        # Route live output into the activity log embedded below the bars.
+        self._ensure_activity_log(parse_reports=True)
     
         # start batch
         self.queue_active = True
@@ -3660,16 +3773,8 @@ class SeleniumAutomationApp(QWidget):
                     # 🆕 force bars into red "stopped" style
                 self._apply_stopped_style_to_all_bars(True)
     
-                # Swap back to Start button
-                layout = self.button_layout
-                layout.removeWidget(self.start_button)
-                self.start_button.deleteLater()
-                self.start_button = CustomButton("Start Automation", "#008000", self)
-                self.start_button.clicked.connect(self.on_start_stop)
-                layout.insertWidget(0, self.start_button, 2)
-    
-                # Disable Pause
-                self.pause_button.setEnabled(False)
+                self._restore_idle_controls()
+                self._set_progress_only_mode(False)
                 return
     
             # ── YOUR ORIGINAL LOGIC (kept) ──────────────────────────────────
@@ -3784,15 +3889,9 @@ class SeleniumAutomationApp(QWidget):
                 self.given_up_manufacturers     = []
                 self.attempts                   = {}
     
-                # swap back to Start button
-                layout = self.button_layout
-                layout.removeWidget(self.start_button)
-                self.start_button.deleteLater()
-                self.start_button = CustomButton("Start Automation", "#008000", self)
-                self.start_button.clicked.connect(self.on_start_stop)
-                layout.insertWidget(0, self.start_button, 2)
-                self.pause_button.setEnabled(False)
+                self._restore_idle_controls()
                 self.is_running = False
+                self._set_progress_only_mode(False)
     
             # Fire the continuation in 10 seconds without blocking the UI
             QTimer.singleShot(10_000, _continue_after_delay)
@@ -4119,6 +4218,7 @@ class SeleniumAutomationApp(QWidget):
     
             # Back to normal look for a fresh run
             self._apply_stopped_style_to_all_bars(False)
+            self._set_progress_only_mode(True)
             return
     
         # — STOP path —
@@ -4221,28 +4321,17 @@ class SeleniumAutomationApp(QWidget):
         # turn bars red (and force a repaint at 0%)
         self._apply_stopped_style_to_all_bars(True)
     
-        # ── swap back to a fresh “Start Automation” button ──
-        layout = self.button_layout
-        layout.removeWidget(self.start_button)
-        self.start_button.deleteLater()
-        self.start_button = CustomButton("Start Automation", "#008000", self)
-        self.start_button.clicked.connect(self.on_start_stop)
-        layout.insertWidget(0, self.start_button, 2)
-    
-        self.pause_button.setEnabled(False)
+        self._restore_idle_controls()
     
         # ── NEW: clear running state so clicks now start again ──
         self.is_running = False
+        self._set_progress_only_mode(False)
     
         # IMPORTANT:
         # Keep stop_requested True for upload mode so upload cleanup sees the stop.
         if not upload_mode_active:
             self.stop_requested = False
     
-        # Ensure it goes above the progress bars
-        insert_index = layout.indexOf(self.current_manufacturer_label)
-        layout.insertWidget(insert_index, self.start_button)
-     
     def start_next_upload_job(self):
         """Advance upload_jobs and launch the next SharepointExtractor run."""
         if getattr(self, "stop_requested", False):
@@ -4354,22 +4443,9 @@ class SeleniumAutomationApp(QWidget):
         """Restore UI state after upload mode completes or is stopped."""
         upload_finish_state = getattr(self, "_upload_finish_state", "completed")
         self.is_running = False
+        self._set_progress_only_mode(False)
     
-        # Swap Stop -> Start (UPLOAD MODE ONLY)
-        layout = self.button_layout
-        layout.removeWidget(self.start_button)
-        self.start_button.deleteLater()
-        self.start_button = CustomButton("Start Automation", "#008000", self)
-        self.start_button.clicked.connect(self.on_start_stop)
-        layout.insertWidget(0, self.start_button, 2)
-    
-        # Disable pause
-        try:
-            self.pause_button.setEnabled(False)
-            self.pause_button.setText("Pause Automation")
-            self.pause_requested = False
-        except Exception:
-            pass
+        self._restore_idle_controls()
     
         # Final upload mode progress UI state
         try:
