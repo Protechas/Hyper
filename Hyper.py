@@ -1,6 +1,6 @@
 ﻿import sys
 from PyQt5.QtWidgets import (QApplication, QDialog, QPlainTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit,
-                             QMessageBox, QFileDialog, QCheckBox, QScrollArea, QListWidget, QProgressBar, QFrame)
+                             QMessageBox, QFileDialog, QCheckBox, QScrollArea, QListWidget, QProgressBar, QFrame, QSlider)
 from PyQt5.QtGui import QFont, QIcon, QColor, QPalette, QPainter, QPen, QPainterPath
 from PyQt5.QtCore import Qt, pyqtSignal, QThread, QTimer, QRectF
 from threading import Thread
@@ -152,6 +152,22 @@ def build_app_stylesheet(theme="dark"):
         }}
         QProgressBar::chunk {{
             background-color: {colors['accent_fill']};
+            border-radius: 7px;
+        }}
+        QSlider::groove:horizontal {{
+            height: 5px;
+            background: {colors['progress_bg']};
+            border-radius: 2px;
+        }}
+        QSlider::sub-page:horizontal {{
+            background: {colors['accent_fill']};
+            border-radius: 2px;
+        }}
+        QSlider::handle:horizontal {{
+            width: 14px;
+            margin: -5px 0;
+            background: {colors['accent']};
+            border: 1px solid {colors['border_hover']};
             border-radius: 7px;
         }}
         QScrollBar:vertical {{
@@ -911,6 +927,11 @@ class SeleniumAutomationApp(QWidget):
                 self.raise_()
                 self.activateWindow()
 
+    def _set_window_transparency(self, percent):
+        """Update the automation window transparency from the progress controls."""
+        self.setWindowOpacity(1.0 - (percent / 100.0))
+        self.opacity_value_label.setText(f"{percent}%")
+
     def initUI(self):
         self.setWindowTitle('Hyper — ADAS & Repair Automation')
         self.setObjectName("HyperRoot")
@@ -1302,6 +1323,23 @@ class SeleniumAutomationApp(QWidget):
         progress_title.setObjectName("SectionTitle")
         progress_header.addWidget(progress_title)
         progress_header.addStretch()
+        opacity_label = QLabel("Transparency")
+        opacity_label.setObjectName("MutedLabel")
+        progress_header.addWidget(opacity_label)
+        self.opacity_slider = QSlider(Qt.Horizontal, self)
+        self.opacity_slider.setRange(0, 70)
+        self.opacity_slider.setValue(0)
+        self.opacity_slider.setSingleStep(5)
+        self.opacity_slider.setPageStep(10)
+        self.opacity_slider.setFixedWidth(110)
+        self.opacity_slider.setToolTip("Adjust the window transparency (0% is fully visible).")
+        self.opacity_slider.setAccessibleName("Window transparency")
+        progress_header.addWidget(self.opacity_slider)
+        self.opacity_value_label = QLabel("0%")
+        self.opacity_value_label.setObjectName("MutedLabel")
+        self.opacity_value_label.setFixedWidth(34)
+        progress_header.addWidget(self.opacity_value_label)
+        self.opacity_slider.valueChanged.connect(self._set_window_transparency)
         self.always_on_top_checkbox = StyledCheckBox("Always on top", self)
         self.always_on_top_checkbox.setToolTip(
             "Keep the compact automation progress window above other applications."
