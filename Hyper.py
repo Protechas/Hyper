@@ -56,6 +56,11 @@ def build_app_stylesheet(theme="dark"):
             border: 1px solid {colors['border']};
             border-radius: 12px;
         }}
+        QFrame#WorkflowGroup {{
+            background-color: {colors['surface_alt']};
+            border: 1px solid {colors['border']};
+            border-radius: 9px;
+        }}
         QWidget#TransparentContainer {{
             background: transparent;
             border: none;
@@ -1117,7 +1122,7 @@ class SeleniumAutomationApp(QWidget):
         self.adas_checkbox_layout = QVBoxLayout(self.adas_checkbox_container)
         self.adas_checkbox_layout.setContentsMargins(0, 0, 0, 0)
         self.adas_checkbox_layout.setSpacing(3)
-        self.adas_checkbox_layout.setAlignment(Qt.AlignTop)
+        self.adas_checkbox_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.adas_scroll_area = QScrollArea()
         self.adas_scroll_area.setWidgetResizable(True)
         self.adas_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -1205,7 +1210,18 @@ class SeleniumAutomationApp(QWidget):
         control_title.setObjectName("SectionTitle")
         control_card_layout.addWidget(control_title)
         controls_row = QHBoxLayout()
-        controls_row.setSpacing(24)
+        controls_row.setSpacing(12)
+
+        toggle_options_box = QFrame(control_card)
+        toggle_options_box.setObjectName("WorkflowGroup")
+        toggle_options_layout = QVBoxLayout(toggle_options_box)
+        toggle_options_layout.setContentsMargins(14, 12, 14, 12)
+        toggle_options_layout.setSpacing(10)
+        toggle_options_title = QLabel("Toggle switches")
+        toggle_options_title.setObjectName("SectionTitle")
+        toggle_options_layout.addWidget(toggle_options_title)
+        toggle_controls_row = QHBoxLayout()
+        toggle_controls_row.setSpacing(20)
 
         si_group = QVBoxLayout()
         si_group.setSpacing(5)
@@ -1227,7 +1243,7 @@ class SeleniumAutomationApp(QWidget):
         switch_layout.addWidget(self.label_repair)
         switch_layout.addStretch()
         si_group.addLayout(switch_layout)
-        controls_row.addLayout(si_group, 1)
+        toggle_controls_row.addLayout(si_group, 1)
         
         # after creating self.si_mode_toggle …
         self.si_mode_toggle.stateChanged.connect(self.on_si_mode_toggled)
@@ -1253,10 +1269,12 @@ class SeleniumAutomationApp(QWidget):
         adas_format_layout.addWidget(self.label_adas_new)
         adas_format_layout.addStretch()
         acronym_group.addLayout(adas_format_layout)
-        controls_row.addLayout(acronym_group, 1)
+        toggle_controls_row.addLayout(acronym_group, 1)
+        toggle_options_layout.addLayout(toggle_controls_row)
+        controls_row.addWidget(toggle_options_box, 3)
 
         # ── Upload Type Toggle (OEM / All_Data) ──
-        self.upload_type_container = QWidget()
+        self.upload_type_container = QWidget(control_card)
         upload_group_layout = QVBoxLayout(self.upload_type_container)
         upload_group_layout.setContentsMargins(0, 0, 0, 0)
         upload_group_layout.setSpacing(5)
@@ -1278,8 +1296,10 @@ class SeleniumAutomationApp(QWidget):
         upload_type_layout.addWidget(self.label_alldata)
         upload_type_layout.addStretch()
         upload_group_layout.addLayout(upload_type_layout)
-        controls_row.addWidget(self.upload_type_container, 1)
-        control_card_layout.addLayout(controls_row)
+        # Reserved for a future upload-destination workflow. Keep the existing
+        # default state available to the automation code without showing a
+        # control that does not currently affect uploads.
+        self.upload_type_container.hide()
         
         # Start disabled (greyed out). It will only enable when Upload Mode is checked.
         self.upload_type_container.setEnabled(False)
@@ -1298,8 +1318,16 @@ class SeleniumAutomationApp(QWidget):
     
         # ── Clean up Mode checkbox ──
         self.cleanup_checkbox = StyledCheckBox("Broken Hyperlink Mode", self)
-        
-        # NEW: Put Broken Hyperlink Mode + Upload Mode on the same row
+
+        checkbox_options_box = QFrame(control_card)
+        checkbox_options_box.setObjectName("WorkflowGroup")
+        checkbox_options_layout = QVBoxLayout(checkbox_options_box)
+        checkbox_options_layout.setContentsMargins(14, 12, 14, 12)
+        checkbox_options_layout.setSpacing(8)
+        checkbox_options_title = QLabel("Checkbox options")
+        checkbox_options_title.setObjectName("SectionTitle")
+        checkbox_options_layout.addWidget(checkbox_options_title)
+
         cleanup_upload_row = QHBoxLayout()
         cleanup_upload_row.addWidget(self.cleanup_checkbox)
         
@@ -1308,7 +1336,10 @@ class SeleniumAutomationApp(QWidget):
         cleanup_upload_row.addWidget(self.upload_mode_checkbox)
         
         cleanup_upload_row.addStretch()
-        control_card_layout.addLayout(cleanup_upload_row)
+        checkbox_options_layout.addLayout(cleanup_upload_row)
+        checkbox_options_layout.addStretch()
+        controls_row.addWidget(checkbox_options_box, 2)
+        control_card_layout.addLayout(controls_row)
         layout.addWidget(control_card)
         
         # Wire Upload Mode -> enable/disable OEM/All_Data toggle row
@@ -2007,7 +2038,7 @@ class SeleniumAutomationApp(QWidget):
             max_width = max(cb.sizeHint().width() for cb in self.adas_checkboxes)
             for checkbox in self.adas_checkboxes:
                 checkbox.setFixedWidth(max_width)
-                self.adas_checkbox_layout.addWidget(checkbox, alignment=Qt.AlignHCenter)
+                self.adas_checkbox_layout.addWidget(checkbox, alignment=Qt.AlignLeft)
 
         if hasattr(self, "adas_label"):
             label = "New" if acronym_mode == "new" else "Old"
