@@ -432,18 +432,76 @@ class TerminalDialog(QDialog):
         self.setWindowTitle("Hyper — Activity Log")
         self.setObjectName("HyperRoot")
         self.resize(820, 500)
+        self.log_path = None
+        self._last_contents = None
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.setInterval(1000)
+        self.refresh_timer.timeout.connect(self.refresh_log)
 
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(18, 18, 18, 18)
         self.layout.setSpacing(10)
+        title_row = QHBoxLayout()
         title = QLabel("Activity log")
         title.setObjectName("SectionTitle")
-        self.layout.addWidget(title)
+        title_row.addWidget(title)
+        title_row.addStretch()
+        self.refresh_button = QPushButton("Refresh")
+        self.refresh_button.clicked.connect(self.refresh_log)
+        title_row.addWidget(self.refresh_button)
+        self.layout.addLayout(title_row)
+
+        self.log_path_label = QLabel()
+        self.log_path_label.setObjectName("MutedLabel")
+        self.log_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.layout.addWidget(self.log_path_label)
+
         self.terminal_output = QPlainTextEdit()
         self.terminal_output.setReadOnly(True)
         self.layout.addWidget(self.terminal_output)
 
         self.setLayout(self.layout)
+
+    def load_log_file(self, path):
+        """Load the current session log and keep the newest entry visible."""
+        self.log_path = path
+        self.log_path_label.setText(path or "No current log file")
+        if not path or not os.path.isfile(path):
+            contents = "No log entries are available yet."
+            if contents != self._last_contents:
+                self._last_contents = contents
+                self.terminal_output.setPlainText(contents)
+            return
+
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as handle:
+                contents = handle.read()
+        except OSError as exc:
+            contents = f"Unable to read the log file:\n{exc}"
+            if contents != self._last_contents:
+                self._last_contents = contents
+                self.terminal_output.setPlainText(contents)
+            return
+
+        contents = contents or "No log entries are available yet."
+        if contents == self._last_contents:
+            return
+
+        self._last_contents = contents
+        self.terminal_output.setPlainText(contents)
+        scrollbar = self.terminal_output.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+
+    def refresh_log(self):
+        self.load_log_file(self.log_path)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.refresh_timer.start()
+
+    def hideEvent(self, event):
+        self.refresh_timer.stop()
+        super().hideEvent(event)
 
     def append_output(self, text):
         self.terminal_output.appendPlainText(text)
@@ -937,6 +995,19 @@ class SeleniumAutomationApp(QWidget):
         self.setWindowOpacity(1.0 - (percent / 100.0))
         self.opacity_value_label.setText(f"{percent}%")
 
+    def _show_activity_log_window(self):
+        """Open the current session log even when automation is idle."""
+        if not getattr(self, "log_dialog", None):
+            self.log_dialog = TerminalDialog(self)
+
+        theme = "light" if getattr(self, "theme_toggle", None) and self.theme_toggle.isChecked() else "dark"
+        self.log_dialog.setStyleSheet(build_app_stylesheet(theme))
+        apply_theme_palette(self.log_dialog, theme)
+        self.log_dialog.load_log_file(log_file)
+        self.log_dialog.show()
+        self.log_dialog.raise_()
+        self.log_dialog.activateWindow()
+
     def initUI(self):
         self.setWindowTitle('Hyper — ADAS & Repair Automation')
         self.setObjectName("HyperRoot")
@@ -984,6 +1055,10 @@ class SeleniumAutomationApp(QWidget):
         status_chip = QLabel("READY")
         status_chip.setObjectName("StatusChip")
         self.header_actions_layout.addWidget(status_chip)
+        self.view_log_button = QPushButton("View log")
+        self.view_log_button.setToolTip("Open the current Hyper session log.")
+        self.view_log_button.clicked.connect(self._show_activity_log_window)
+        self.header_actions_layout.addWidget(self.view_log_button)
         header_row.addLayout(self.header_actions_layout)
         header_layout.addLayout(header_row)
         layout.addWidget(header_card)
@@ -2182,6 +2257,9 @@ class SeleniumAutomationApp(QWidget):
         theme = "light" if self.theme_toggle.isChecked() else "dark"
         self.setStyleSheet(build_app_stylesheet(theme))
         apply_theme_palette(self, theme)
+        if getattr(self, "log_dialog", None):
+            self.log_dialog.setStyleSheet(build_app_stylesheet(theme))
+            apply_theme_palette(self.log_dialog, theme)
         for checkbox in self.findChildren(StyledCheckBox):
             checkbox.update()
 
