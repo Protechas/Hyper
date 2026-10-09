@@ -1,20 +1,48 @@
 """HTML presentation for Hyper. The original widgets remain the source of truth."""
 import json
+import logging
 import os
 from pathlib import Path
 import sys
+import tempfile
+
+# The bundled interface is entirely local and does not benefit from Chromium's
+# shared GPU/disk caches. Disabling those caches prevents a stale GPUCache lock
+# from aborting startup before the first window is shown.
+_webengine_flags = os.environ.get('QTWEBENGINE_CHROMIUM_FLAGS', '').split()
+for _flag in ('--disable-gpu-shader-disk-cache', '--disable-gpu-program-cache', '--disk-cache-size=0'):
+    if _flag not in _webengine_flags:
+        _webengine_flags.append(_flag)
+os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = ' '.join(_webengine_flags)
 
 from PyQt5.QtCore import QEvent, QObject, QTimer, QUrl, Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5.QtWebChannel import QWebChannel
-from PyQt5.QtWebEngineWidgets import QWebEnginePage, QWebEngineView
+from PyQt5.QtWebEngineWidgets import QWebEnginePage, QWebEngineProfile, QWebEngineView
 
 from Hyper import LoginDialog, SeleniumAutomationApp
 from desktop_icon import DesktopIcon, link_icon
 from window_theme import NativeFrameTheme
 
 ROOT = Path(__file__).resolve().parent
+_WEBENGINE_RUNTIME = Path(tempfile.mkdtemp(prefix='hyper-webengine-'))
+_WEBENGINE_CONFIGURED = False
+
+
+def configure_webengine_profile():
+    """Give this Hyper process an isolated, disposable WebEngine profile."""
+    global _WEBENGINE_CONFIGURED
+    if _WEBENGINE_CONFIGURED:
+        return QWebEngineProfile.defaultProfile()
+
+    profile = QWebEngineProfile.defaultProfile()
+    profile.setHttpCacheType(QWebEngineProfile.MemoryHttpCache)
+    profile.setPersistentCookiesPolicy(QWebEngineProfile.NoPersistentCookies)
+    profile.setCachePath(str(_WEBENGINE_RUNTIME / 'cache'))
+    profile.setPersistentStoragePath(str(_WEBENGINE_RUNTIME / 'storage'))
+    _WEBENGINE_CONFIGURED = True
+    return profile
 
 
 class LocalPage(QWebEnginePage):
@@ -29,8 +57,10 @@ class LocalPage(QWebEnginePage):
 
 def embed(host, bridge, login=False):
     app = QApplication.instance()
+    configure_webengine_profile()
     if not hasattr(app, 'native_frame_theme'):
         app.native_frame_theme = NativeFrameTheme(app)
+    app.native_frame_theme.watch(host)
     view = QWebEngineView(host)
     view.setPage(LocalPage(view))
     channel = QWebChannel(view.page())
@@ -96,6 +126,7 @@ class WorkspaceBridge(QObject):
         super().__init__(host)
         self.host = host
         self.previous = ''
+        self.file_picker_scheduled = False
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.publish)
         self.timer.start(150)
@@ -156,11 +187,33 @@ class WorkspaceBridge(QObject):
 
     @pyqtSlot(str)
     def click(self, name):
-        if name in self.BUTTONS:
-            widget = getattr(self.host, name)
-            if widget.isEnabled():
-                widget.click()
-        self.publish()
+        if name == 'select_file_button':
+            # A native Windows file dialog runs its own modal message loop.
+            # Launch it only after this WebChannel callback has returned;
+            # otherwise dismissing the dialog can re-enter Qt WebEngine and
+            # terminate the application process.
+            if not self.file_picker_scheduled:
+                self.file_picker_scheduled = True
+                QTimer.singleShot(0, self._open_file_picker)
+            return
+
+        self._click_now(name)
+
+    def _open_file_picker(self):
+        self.file_picker_scheduled = False
+        self._click_now('select_file_button')
+
+    def _click_now(self, name):
+        try:
+            if name in self.BUTTONS:
+                widget = getattr(self.host, name)
+                if widget.isEnabled():
+                    widget.click()
+            self.publish()
+        except Exception:
+            # Never allow a native/Qt callback failure to escape through the
+            # WebChannel and terminate the frontend process.
+            logging.exception('Frontend button callback failed: %s', name)
 
     @pyqtSlot(int)
     def transparency(self, value):
@@ -173,6 +226,12 @@ class WorkspaceBridge(QObject):
 
 
 class WebWorkspace(SeleniumAutomationApp):
+    STARTUP_WIDTH = 1280
+    # The compact HTML workspace naturally fits at this height. Keeping the
+    # window taller only exposes unused background below the footer.
+    STARTUP_HEIGHT = 780
+    STARTUP_MARGIN = 24
+
     def __init__(self):
         super().__init__()
         # Retain the entire original widget tree and all of its signal connections.
@@ -180,7 +239,26 @@ class WebWorkspace(SeleniumAutomationApp):
         embed(self, WorkspaceBridge(self))
         self.setWindowIcon(link_icon())
         self.desktop_icon = DesktopIcon(self)
-        self.resize(1180, 860)
+        self.apply_startup_geometry()
+
+    def apply_startup_geometry(self, screen=None):
+        """Center a roomy normal window without filling the entire display."""
+        app = QApplication.instance()
+        screen = screen or (app.primaryScreen() if app is not None else None)
+        if screen is None:
+            self.resize(self.STARTUP_WIDTH, self.STARTUP_HEIGHT)
+            return
+
+        available = screen.availableGeometry()
+        horizontal_room = max(1, available.width() - (self.STARTUP_MARGIN * 2))
+        vertical_room = max(1, available.height() - (self.STARTUP_MARGIN * 2))
+        window_width = min(self.STARTUP_WIDTH, horizontal_room)
+        window_height = min(self.STARTUP_HEIGHT, vertical_room)
+        self.resize(window_width, window_height)
+        self.move(
+            available.x() + (available.width() - window_width) // 2,
+            available.y() + (available.height() - window_height) // 2,
+        )
 
     def toggle_theme(self):
         super().toggle_theme()
@@ -231,10 +309,10 @@ def main():
     if login.exec_() != QDialog.Accepted:
         return 1
     window = WebWorkspace()
-    available = app.primaryScreen().availableGeometry()
-    window.resize(min(1180, available.width() - 40), min(860, available.height() - 40))
-    window.move(available.center() - window.rect().center())
-    window.show()
+    # Be explicit so a previous maximized/fullscreen state can never leak into
+    # the newly launched workspace.
+    window.setWindowState(Qt.WindowNoState)
+    window.showNormal()
     return app.exec_()
 
 

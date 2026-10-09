@@ -44,12 +44,15 @@ body {
 
 .topbar {
   height: 72px;
-  background: var(--surface);
-  border-bottom-color: var(--line);
+  background: linear-gradient(105deg, #a91637, #c62e4d 58%, #8f132f);
+  border-bottom-color: #e76a82;
+  box-shadow: 0 5px 18px #5c0c1f4d, inset 0 -1px 0 #660d22;
+  color: #fff7f9;
 }
 
 .brand { font-size: 19px; letter-spacing: 4px; }
-.brand-sub { font-size: 12px; letter-spacing: .2px; }
+.brand-sub { font-size: 12px; letter-spacing: .2px; color: #ffe4ea; }
+.brand-line { background: #ffd0da80; }
 .mark {
   width: 38px;
   height: 38px;
@@ -60,10 +63,10 @@ body {
 
 .topbar-detail {
   padding: 9px 14px;
-  border: 1px solid var(--line);
+  border: 1px solid #ffd0da55;
   border-radius: 24px;
-  background: var(--soft);
-  color: var(--text);
+  background: #4f0d1f66;
+  color: #fff7f9;
   font-size: 11px;
   font-weight: 600;
 }
@@ -139,6 +142,14 @@ h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; font-wei
 
 .source-card { padding: 18px 22px; }
 .source-body { margin-top: 12px; }
+.source-title p {
+  margin: 0 0 0 14px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
 .files {
   border: 1px dashed var(--line);
   background: var(--soft);
@@ -312,6 +323,7 @@ h2 { font-size: 13px; }
 .section-icon { width: 24px; height: 24px; border-radius: 7px; font-size: 15px; margin-right: 9px; }
 .source-card { padding: 12px 16px; margin-bottom: 12px; }
 .source-body { margin-top: 9px; }
+.source-title p { font-size: 10px; }
 .files { padding: 7px 12px; max-height: 64px; }
 .file-row { font-size: 11px; }
 .source-body .primary { min-height: 34px; padding: 7px 14px; font-size: 11px; }
@@ -355,6 +367,8 @@ footer { padding: 12px 2px; font-size: 9px; }
   .page-heading h1 { font-size: 24px; }
   .selection-card { height: 215px; }
   .source-body .primary { margin-top: 8px; }
+  .source-title { flex-wrap: wrap; }
+  .source-title p { width: 100%; margin: 7px 0 0 33px; padding-left: 0; border-left: 0; }
   .option-group.tools { padding: 10px 12px; }
   .window-options { margin-top: 9px; }
 }

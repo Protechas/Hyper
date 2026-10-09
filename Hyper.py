@@ -19,19 +19,19 @@ def build_app_stylesheet(theme="dark"):
     """Return the shared modern stylesheet used by the main window and dialogs."""
     is_dark = theme == "dark"
     colors = {
-        "window": "#09111f" if is_dark else "#f3f6fb",
-        "surface": "#111c2f" if is_dark else "#ffffff",
-        "surface_alt": "#0c1627" if is_dark else "#f7f9fc",
-        "border": "#263650" if is_dark else "#d9e1ec",
-        "border_hover": "#3b82f6" if is_dark else "#2563eb",
-        "text": "#e8eef8" if is_dark else "#162033",
-        "muted": "#93a4bd" if is_dark else "#64748b",
-        "accent": "#60a5fa" if is_dark else "#2563eb",
-        "accent_fill": "#2563eb",
-        "accent_hover": "#1d4ed8",
-        "selection": "#1e4f91" if is_dark else "#dbeafe",
-        "disabled": "#526077" if is_dark else "#94a3b8",
-        "progress_bg": "#1d2a3f" if is_dark else "#e2e8f0",
+        "window": "#111013" if is_dark else "#c4b5b3",
+        "surface": "#1e1b20" if is_dark else "#dfd5d3",
+        "surface_alt": "#171418" if is_dark else "#d7cbc9",
+        "border": "#403239" if is_dark else "#bca7ae",
+        "border_hover": "#e04362" if is_dark else "#9b1736",
+        "text": "#faf2f4" if is_dark else "#302128",
+        "muted": "#b5a5ab" if is_dark else "#6e555e",
+        "accent": "#ff96aa" if is_dark else "#9b1736",
+        "accent_fill": "#c62e4d" if is_dark else "#b91f40",
+        "accent_hover": "#e04362" if is_dark else "#9f1633",
+        "selection": "#43232d" if is_dark else "#dfbec7",
+        "disabled": "#6e5e64" if is_dark else "#987f87",
+        "progress_bg": "#382b32" if is_dark else "#c9b7be",
     }
     return f"""
         QWidget#HyperRoot, QDialog#LoginDialog {{
@@ -225,8 +225,8 @@ def build_app_stylesheet(theme="dark"):
 def apply_theme_palette(widget, theme="dark"):
     """Keep native controls readable without replacing their platform artwork."""
     is_dark = theme == "dark"
-    text = QColor("#e8eef8" if is_dark else "#162033")
-    disabled = QColor("#60708a" if is_dark else "#94a3b8")
+    text = QColor("#faf2f4" if is_dark else "#302128")
+    disabled = QColor("#6e5e64" if is_dark else "#987f87")
     palette = widget.palette()
     for group in (QPalette.Active, QPalette.Inactive):
         for role in (QPalette.WindowText, QPalette.Text, QPalette.ButtonText):
@@ -373,6 +373,8 @@ class WorkerThread(QThread):
         # ── Prepare env ──
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
 
         if os.name == "nt":
             creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -1006,6 +1008,9 @@ class SeleniumAutomationApp(QWidget):
         """Open the current session log even when automation is idle."""
         if not getattr(self, "log_dialog", None):
             self.log_dialog = TerminalDialog(self)
+            app = QApplication.instance()
+            if hasattr(app, 'native_frame_theme'):
+                app.native_frame_theme.watch(self.log_dialog)
 
         theme = "light" if getattr(self, "theme_toggle", None) and self.theme_toggle.isChecked() else "dark"
         self.log_dialog.setStyleSheet(build_app_stylesheet(theme))
@@ -2250,12 +2255,24 @@ class SeleniumAutomationApp(QWidget):
             checkbox.setChecked(not select_all_checked)
     
     def select_excel_files(self):
-        self.excel_paths, _ = QFileDialog.getOpenFileNames(
-            self, 'Open files', 'C:/Users/', "Excel files (*.xlsx *.xls)"
-        )
-        if self.excel_paths:
+        try:
+            # This is invoked after the WebChannel callback returns (see
+            # WorkspaceBridge), allowing the modern native Windows picker to
+            # run its modal loop without re-entering the frontend callback.
+            selected_paths, _ = QFileDialog.getOpenFileNames(
+                self,
+                'Open files',
+                'C:/Users/',
+                "Excel files (*.xlsx *.xls)",
+            )
+        except Exception:
+            # Exceptions escaping a Qt signal handler can abort the process.
+            logging.exception('Could not open the Excel file picker.')
+            return
+
+        if selected_paths:
             # Trim any stray whitespace
-            self.excel_paths = [p.strip() for p in self.excel_paths]
+            self.excel_paths = [p.strip() for p in selected_paths]
     
             # 1) Show numbered filenames in the label
             numbered = [f"{i+1}. {os.path.basename(p)}"
@@ -2267,11 +2284,8 @@ class SeleniumAutomationApp(QWidget):
             for i, p in enumerate(self.excel_paths):
                 self.excel_list.addItem(f"{i+1}. {os.path.basename(p)}")
     
-        else:
-            # No files chosen: clear both widgets
-            self.excel_path_label.setText('No files selected')
-            self.excel_list.clear()
-            self.excel_list.addItem('No files selected, please select files')
+        # Cancel is intentionally a no-op. It must not clear an existing
+        # selection or mutate the interface while the dialog is closing.
          
     def toggle_theme(self):
         theme = "light" if self.theme_toggle.isChecked() else "dark"

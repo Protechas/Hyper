@@ -38,6 +38,21 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 
 
+def _configure_utf8_stdio():
+    """Keep Unicode progress output safe in Windows consoles and pipes."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, 'reconfigure', None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding='utf-8', errors='replace')
+            except (OSError, ValueError):
+                # Embedded/test streams may not permit reconfiguration.
+                pass
+
+
+_configure_utf8_stdio()
+
+
 #####################################################################################################################################################
 
 

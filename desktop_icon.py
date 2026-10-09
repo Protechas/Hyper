@@ -127,7 +127,12 @@ class DesktopIcon(QWidget):
         return screen.availableGeometry()
 
     def move_within_screen(self, point):
-        screen = QApplication.screenAt(point + QPoint(32, 32)) or QApplication.primaryScreen()
+        center = point + QPoint(self.width() // 2, self.height() // 2)
+        # During a drag the proposed center can briefly fall outside every
+        # screen even though the proposed top-left point is still on the
+        # current screen. Try both before falling back to the primary display.
+        screen = (QApplication.screenAt(point) or QApplication.screenAt(center)
+                  or self.screen() or QApplication.primaryScreen())
         area = screen.availableGeometry()
         self.move(max(area.left(), min(point.x(), area.right() - self.width() + 1)),
                   max(area.top(), min(point.y(), area.bottom() - self.height() + 1)))
