@@ -916,11 +916,15 @@ class SeleniumAutomationApp(QWidget):
         setup_sections = getattr(self, "_setup_sections", [])
 
         if enabled:
+            self._expanded_window_was_maximized = self.isMaximized()
             self._expanded_window_size = self.size()
             for section in setup_sections:
                 section.hide()
 
             self.activity_log_panel.show()
+
+            if self._expanded_window_was_maximized:
+                self.showNormal()
 
             self.workspace_content.setMinimumSize(700, 430)
             self.setMinimumSize(700, 470)
@@ -934,9 +938,12 @@ class SeleniumAutomationApp(QWidget):
 
             self.workspace_content.setMinimumSize(1040, 920)
             self.setMinimumSize(760, 560)
-            expanded_size = getattr(self, "_expanded_window_size", None)
-            if expanded_size is not None:
-                self.resize(expanded_size)
+            if getattr(self, "_expanded_window_was_maximized", False):
+                self.showMaximized()
+            else:
+                expanded_size = getattr(self, "_expanded_window_size", None)
+                if expanded_size is not None:
+                    self.resize(expanded_size)
 
     def _ensure_activity_log(self, parse_reports=False):
         """Use the embedded log and optionally enable report parsing once."""
@@ -1036,33 +1043,6 @@ class SeleniumAutomationApp(QWidget):
         layout.setContentsMargins(20, 18, 20, 20)
         layout.setSpacing(14)
 
-        # Branded header
-        header_card, header_layout = self._create_card("HeaderCard")
-        self.header_card = header_card
-        header_row = QHBoxLayout()
-        header_copy = QVBoxLayout()
-        header_copy.setSpacing(1)
-        app_title = QLabel("HYPER")
-        app_title.setObjectName("AppTitle")
-        app_subtitle = QLabel("ADAS & Repair Information Automation")
-        app_subtitle.setObjectName("AppSubtitle")
-        header_copy.addWidget(app_title)
-        header_copy.addWidget(app_subtitle)
-        header_row.addLayout(header_copy)
-        header_row.addStretch()
-        self.header_actions_layout = QHBoxLayout()
-        self.header_actions_layout.setSpacing(10)
-        status_chip = QLabel("READY")
-        status_chip.setObjectName("StatusChip")
-        self.header_actions_layout.addWidget(status_chip)
-        self.view_log_button = QPushButton("View log")
-        self.view_log_button.setToolTip("Open the current Hyper session log.")
-        self.view_log_button.clicked.connect(self._show_activity_log_window)
-        self.header_actions_layout.addWidget(self.view_log_button)
-        header_row.addLayout(self.header_actions_layout)
-        header_layout.addLayout(header_row)
-        layout.addWidget(header_card)
-
         # File selection card
         file_card, file_card_layout = self._create_card()
         self.file_card = file_card
@@ -1103,8 +1083,15 @@ class SeleniumAutomationApp(QWidget):
         years_card, years_card_layout = self._create_card()
         adas_card, adas_card_layout = self._create_card()
         repair_card, repair_card_layout = self._create_card()
-        for card in (manufacturer_card, years_card, adas_card, repair_card):
+        selection_cards = (manufacturer_card, years_card, adas_card, repair_card)
+        for card in selection_cards:
             card.setMinimumHeight(320)
+        # Publish the child cards' minimum height to the parent layout. Without
+        # this, Qt can compress the container and let the next card overlap the
+        # rounded lower edges until the window is manually enlarged.
+        self.selection_cards_container.setMinimumHeight(
+            max(card.minimumHeight() for card in selection_cards)
+        )
         selection_cards_layout.addWidget(manufacturer_card, 1)
         selection_cards_layout.addWidget(years_card, 1)
         selection_cards_layout.addWidget(adas_card, 1)
@@ -1158,15 +1145,28 @@ class SeleniumAutomationApp(QWidget):
         years_label.setObjectName("SectionTitle")
         years_card_layout.addWidget(years_label)
         years_card_layout.addWidget(self.select_all_years_button)
-        
-        # Mirror the ADAS pattern: a list + a place to store the created QCheckBox widgets
+
+        self.year_checkbox_container = QWidget(self)
+        self.year_checkbox_container.setObjectName("TransparentContainer")
+        self.year_checkbox_layout = QVBoxLayout(self.year_checkbox_container)
+        self.year_checkbox_layout.setContentsMargins(0, 0, 0, 0)
+        self.year_checkbox_layout.setSpacing(3)
+        self.year_checkbox_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+
+        self.years_scroll_area = QScrollArea()
+        self.years_scroll_area.setWidgetResizable(True)
+        self.years_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.years_scroll_area.setMinimumHeight(220)
+        self.years_scroll_area.setWidget(self.year_checkbox_container)
+        years_card_layout.addWidget(self.years_scroll_area, 1)
+
         year_items = ["2012–2016 Years", "2017–2021 Years", "2022–2026 Years", "2027–2031 Years"]
-        self.year_checkboxes = []  # analogous to self.adas_checkboxes
+        self.year_checkboxes = []
         
         for text in year_items:
-            cb = StyledCheckBox(text, self)
+            cb = StyledCheckBox(text, self.year_checkbox_container)
             self.year_checkboxes.append(cb)
-            years_card_layout.addWidget(cb)
+            self.year_checkbox_layout.addWidget(cb)
       
         # Keep direct handles for compatibility with existing logic
         # (old names used across your codebase)
@@ -1180,12 +1180,10 @@ class SeleniumAutomationApp(QWidget):
         self.year_2017_2021_checkbox = self.year_2017_2021
         self.year_2022_2026_checkbox = self.year_2022_2026
         self.year_2027_2031_checkbox = self.year_2027_2031
-        
+
         # Convenience list (kept for any existing loops)
         self._year_checkboxes = [self.year_2012_2016, self.year_2017_2021, self.year_2022_2026, self.year_2027_2031]
-        
-        years_card_layout.addStretch(1)
-  
+
         # ADAS Acronyms section
         self.adas_label = QLabel("ADAS Systems (Old)")
         self.adas_label.setObjectName("SectionTitle")
@@ -1387,10 +1385,6 @@ class SeleniumAutomationApp(QWidget):
         self.on_adas_format_toggled(self.excel_mode_switch.checkState())
         self.on_si_mode_toggled(self.mode_switch.checkState())
 
-        # Theme switch lives in the header for quick access.
-        self.theme_toggle = ToggleSwitch(self)
-        self.header_actions_layout.addWidget(self.theme_toggle)
-    
         # ── Clean up Mode checkbox ──
         self.cleanup_checkbox = StyledCheckBox("Broken Hyperlink Mode", self)
 
@@ -1414,6 +1408,29 @@ class SeleniumAutomationApp(QWidget):
         checkbox_options_layout.addLayout(cleanup_upload_row)
         checkbox_options_layout.addStretch()
         controls_row.addWidget(checkbox_options_box, 2)
+
+        tools_options_box = QFrame(control_card)
+        tools_options_box.setObjectName("WorkflowGroup")
+        tools_options_layout = QVBoxLayout(tools_options_box)
+        tools_options_layout.setContentsMargins(14, 12, 14, 12)
+        tools_options_layout.setSpacing(8)
+        tools_options_title = QLabel("Tools")
+        tools_options_title.setObjectName("SectionTitle")
+        tools_options_layout.addWidget(tools_options_title)
+        tools_actions_row = QHBoxLayout()
+        tools_actions_row.setSpacing(8)
+        self.view_log_button = QPushButton("View log")
+        self.view_log_button.setFixedHeight(34)
+        self.view_log_button.setToolTip("Open the current Hyper session log.")
+        self.view_log_button.clicked.connect(self._show_activity_log_window)
+        tools_actions_row.addWidget(self.view_log_button)
+        self.theme_toggle = ToggleSwitch(tools_options_box)
+        tools_actions_row.addWidget(self.theme_toggle)
+        tools_actions_row.addStretch()
+        tools_options_layout.addLayout(tools_actions_row)
+        tools_options_layout.addStretch()
+        controls_row.addWidget(tools_options_box, 2)
+
         control_card_layout.addLayout(controls_row)
         layout.addWidget(control_card)
         
@@ -1521,7 +1538,6 @@ class SeleniumAutomationApp(QWidget):
         progress_card_layout.addWidget(self.activity_log_panel)
         layout.addWidget(progress_card)
         self._setup_sections = [
-            self.header_card,
             self.file_card,
             self.selection_cards_container,
             self.control_card,
@@ -1575,8 +1591,12 @@ class SeleniumAutomationApp(QWidget):
         # The combined cards are taller than the initial workspace placeholder.
         # Honor the layout's real minimum height so Qt never has to place the
         # workflow card on top of the selection columns. Smaller windows scroll.
+        layout.invalidate()
         layout.activate()
-        required_content_height = layout.minimumSize().height()
+        required_content_height = max(
+            layout.minimumSize().height(),
+            layout.sizeHint().height(),
+        )
         self.workspace_content.setMinimumHeight(
             max(self.workspace_content.minimumHeight(), required_content_height)
         )
@@ -4694,6 +4714,14 @@ if __name__ == "__main__":
             sys.exit(1)  # Exit if login failed or canceled
 
         window = SeleniumAutomationApp()
+        available = app.primaryScreen().availableGeometry()
+        window_width = min(1180, max(760, available.width() - 40))
+        window_height = min(1180, max(560, available.height() - 40))
+        window.resize(window_width, window_height)
+        window.move(
+            available.x() + (available.width() - window_width) // 2,
+            available.y() + (available.height() - window_height) // 2,
+        )
         window.show()
         sys.exit(app.exec_())
     except Exception:
