@@ -1,36 +1,89 @@
+param(
+    [switch]$ValidatePython
+)
+
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $env:PYTHONUTF8 = '1'
 $env:PYTHONIOENCODING = 'utf-8'
 $hyperPython = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 $hyperReady = Join-Path $PSScriptRoot '.venv\hyper-ready'
-if (-not (Test-Path -LiteralPath $hyperPython)) {
-    # Prefer the working Python environment already shipped with this checkout.
-    # The Windows Store app-execution alias can appear as `python.exe` even when
-    # it cannot actually launch, so validate every fallback before using it.
-    $bootstrapPython = Join-Path $PSScriptRoot 'env\Scripts\python.exe'
-    if (-not (Test-Path -LiteralPath $bootstrapPython)) {
-        $pythonCommand = Get-Command python.exe -CommandType Application -ErrorAction SilentlyContinue
-        $bootstrapPython = if ($pythonCommand) { $pythonCommand.Source } else { $null }
-    }
 
-    $pythonWorks = $false
-    if ($bootstrapPython) {
-        try {
-            & $bootstrapPython -c 'import sys' 2>$null
-            $pythonWorks = ($LASTEXITCODE -eq 0)
+function Test-HyperPython {
+    param(
+        [Parameter(Mandatory = $true)][string]$Command,
+        [string[]]$PrefixArguments = @()
+    )
+
+    try {
+        $testArguments = @($PrefixArguments) + @(
+            '-c',
+            'import sys; raise SystemExit(0 if sys.version_info[:2] == (3, 11) else 3)'
+        )
+        & $Command @testArguments *> $null
+        return ($LASTEXITCODE -eq 0)
+    }
+    catch {
+        return $false
+    }
+}
+
+$venvWorks = (Test-Path -LiteralPath $hyperPython) -and (Test-HyperPython -Command $hyperPython)
+if (-not $venvWorks) {
+    # Support both development machines with a standalone Python install and
+    # managed workstations using Python 3.11 from the Microsoft Store.
+    $candidates = @()
+    $repositoryPython = Join-Path $PSScriptRoot 'env\Scripts\python.exe'
+    if (Test-Path -LiteralPath $repositoryPython) {
+        $candidates += [pscustomobject]@{
+            Command = $repositoryPython
+            PrefixArguments = @()
+            Description = 'repository env'
         }
-        catch {
-            $pythonWorks = $false
+    }
+
+    foreach ($candidateSpec in @(
+        @{ Name = 'py.exe'; PrefixArguments = @('-3.11'); Description = 'Windows Python launcher' },
+        @{ Name = 'python3.11.exe'; PrefixArguments = @(); Description = 'Python 3.11' },
+        @{ Name = 'python.exe'; PrefixArguments = @(); Description = 'Python/Windows Store alias' },
+        @{ Name = 'python3.exe'; PrefixArguments = @(); Description = 'Python 3 alias' }
+    )) {
+        $pythonCommands = @(Get-Command $candidateSpec.Name -CommandType Application -All -ErrorAction SilentlyContinue)
+        foreach ($pythonCommand in $pythonCommands) {
+            $candidates += [pscustomobject]@{
+                Command = $pythonCommand.Source
+                PrefixArguments = @($candidateSpec.PrefixArguments)
+                Description = $candidateSpec.Description
+            }
         }
     }
 
-    if (-not $pythonWorks) {
-        throw 'Could not find a working Python installation. Install Python 3.11 or restore the repository env folder.'
+    $bootstrapPython = $null
+    foreach ($candidate in $candidates) {
+        if (Test-HyperPython -Command $candidate.Command -PrefixArguments $candidate.PrefixArguments) {
+            $bootstrapPython = $candidate
+            break
+        }
     }
 
-    & $bootstrapPython -m venv .venv
-    if ($LASTEXITCODE -ne 0) { throw "Could not create the Python environment using $bootstrapPython." }
+    if (-not $bootstrapPython) {
+        throw 'Could not find Python 3.11. Install Python 3.11 from python.org or the Microsoft Store, then run Start-Hyper.cmd again.'
+    }
+
+    Write-Host "Creating Hyper environment with $($bootstrapPython.Description): $($bootstrapPython.Command)"
+    $venvArguments = @($bootstrapPython.PrefixArguments) + @('-m', 'venv', '--clear', '.venv')
+    & $bootstrapPython.Command @venvArguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not create the Python environment using $($bootstrapPython.Command)."
+    }
+    if (-not (Test-HyperPython -Command $hyperPython)) {
+        throw 'The Python environment was created but could not be started.'
+    }
+}
+if ($ValidatePython) {
+    & $hyperPython -c "import sys; print('Hyper Python ready: {} ({})'.format(sys.executable, sys.version.split()[0]))"
+    if ($LASTEXITCODE -ne 0) { throw 'The Hyper Python validation command failed.' }
+    exit 0
 }
 if (-not (Test-Path -LiteralPath $hyperReady)) {
     # Use the Windows certificate store so corporate/root certificates trusted

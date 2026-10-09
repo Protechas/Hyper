@@ -3,7 +3,11 @@
 ## HTML/CSS desktop interface
 
 Start the redesigned interface on Windows with `powershell -ExecutionPolicy Bypass -File .\Start-Hyper.ps1`.
-The launcher creates a local `.venv` and installs dependencies on first use. Python must be installed.
+The launcher creates a local `.venv` and installs dependencies on first use. It supports Python 3.11
+from python.org, the Windows `py` launcher, or the Microsoft Store aliases (`python.exe`,
+`python3.11.exe`, and `python3.exe`). Each candidate is executed and version-checked rather than
+trusted by path alone. If a copied `.venv` points to Python on another computer, the launcher
+automatically rebuilds it using the first working Python 3.11 installation it finds.
 Alternatively, install `requirements.txt` in your existing Python environment and run `python HyperWeb.py`.
 
 The new front end has light and dark themes, responsive selection cards, keyboard accessible controls,
