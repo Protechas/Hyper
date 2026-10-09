@@ -1,5 +1,37 @@
 # Hyper
 
+## HTML/CSS desktop interface
+
+Start the redesigned interface on Windows with `powershell -ExecutionPolicy Bypass -File .\Start-Hyper.ps1`.
+The launcher creates a local `.venv` and installs dependencies on first use. Python must be installed.
+Alternatively, install `requirements.txt` in your existing Python environment and run `python HyperWeb.py`.
+
+The new front end has light and dark themes, responsive selection cards, keyboard accessible controls,
+and the existing compact progress view. Its theme preference is stored locally in the embedded browser.
+On Windows 11, the native title bar and window border follow the crimson palette; native window
+controls and resize behavior remain available. Earlier Windows versions retain their native frame.
+The header uses a custom linked research graphic. Brief entrance and hover highlights respect the
+system's reduced-motion preference.
+`ui/index.html`, `ui/styles.css`, and `ui/app.js` supply the presentation; `HyperWeb.py` connects it to
+the original PyQt widgets through Qt WebChannel. Labels, defaults, checkbox signals, file dialogs,
+sign-in validation and attempt limits, confirmation dialogs, automation workers, reports, and run
+controls use the original code. Upload destination controls remain hidden as in the original GUI.
+
+While automation is running, click **Collapse to icon**, minimize the window, or close it with the
+title-bar X to keep the job running behind a small floating hyperlink icon. Drag the icon to move
+it. Click it to restore the progress window. Right-click it for the existing Pause/Resume and Stop
+controls; Stop still uses the original confirmation. A status bubble appears above the icon for
+six seconds, about every 30 seconds, on a phase change (at most once per 15 seconds), and immediately
+on pause/resume or completion. Hover over the icon for a current update. Closing Hyper while idle
+still exits normally. The icon remains available after completion until the window is restored.
+
+`Hyper.py`, `SharepointExtractor.py`, and `pdf_annotation_extractor.py` are unchanged. Running
+`Hyper.py` still opens the original interface. Opening the HTML file directly cannot run automation;
+use the desktop launcher. Native confirmation, file, and log dialogs retain the original Qt styling.
+
+To verify the front end without starting SharePoint automation, run `python test_web_ui.py`.
+Screenshots are written to `work/screenshots`, or the folder specified by `HYPER_SCREENSHOTS`.
+
 Hyper is a Windows desktop automation tool used by Protech Automotive Solutions to connect OEM service-information PDFs stored in SharePoint with the correct rows in Excel long sheets. It supports ADAS Service Information, Repair Service Information, multiple manufacturers and year ranges, broken-link repair, and a separate PDF upload workflow.
 
 Hyper does not read a PDF's technical contents to decide where its link belongs. The normal hyperlink workflow reads the SharePoint folder structure and PDF filename, extracts the year, manufacturer, model, and system acronym, and matches those values to workbook headers and rows.

@@ -1,0 +1,8 @@
+-r requirements-ui.txt
+selenium
+openpyxl
+PyMuPDF
+PyAutoGUI
+pywin32; sys_platform == 'win32'
+chromedriver-autoinstaller
+webdriver-manager
