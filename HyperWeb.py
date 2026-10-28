@@ -1,4 +1,7 @@
 """HTML presentation for Hyper. The original widgets remain the source of truth."""
+import atexit
+import datetime
+import faulthandler
 import json
 import logging
 import os
@@ -6,16 +9,58 @@ from pathlib import Path
 import sys
 import tempfile
 
-# The bundled interface is entirely local and does not benefit from Chromium's
-# shared GPU/disk caches. Disabling those caches prevents a stale GPUCache lock
-# from aborting startup before the first window is shown.
+# Qt WebEngine 5 delegates even local HTML compositing to the display driver's
+# native code. Some managed Windows display drivers fail there intermittently
+# with 0xC0000005, which terminates Python before it can log an exception. The
+# interface is entirely local, so software rendering is a small and worthwhile
+# tradeoff for deterministic startup.
+os.environ.setdefault('QT_OPENGL', 'software')
 _webengine_flags = os.environ.get('QTWEBENGINE_CHROMIUM_FLAGS', '').split()
-for _flag in ('--disable-gpu-shader-disk-cache', '--disable-gpu-program-cache', '--disk-cache-size=0'):
+for _flag in ('--disable-gpu', '--disable-gpu-compositing',
+              '--disable-gpu-shader-disk-cache', '--disable-gpu-program-cache',
+              '--disk-cache-size=0'):
     if _flag not in _webengine_flags:
         _webengine_flags.append(_flag)
 os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = ' '.join(_webengine_flags)
 
-from PyQt5.QtCore import QEvent, QObject, QTimer, QUrl, Qt, pyqtSignal, pyqtSlot
+_FAULT_STREAM = None
+_FAULT_LOG = None
+
+
+def _enable_fatal_diagnostics():
+    """Keep a traceback when native code terminates Python on Windows."""
+    global _FAULT_STREAM, _FAULT_LOG
+    try:
+        fault_dir = Path.home() / 'Documents' / 'Hyper Logs'
+        fault_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.datetime.now().strftime('%m_%d_%Y_%H-%M-%S')
+        _FAULT_LOG = fault_dir / f'Hyper_Fault_{stamp}.log'
+        _FAULT_STREAM = _FAULT_LOG.open('w', encoding='utf-8')
+        faulthandler.enable(file=_FAULT_STREAM, all_threads=True)
+    except (OSError, RuntimeError):
+        logging.exception('Could not initialize native crash diagnostics.')
+
+
+def _cleanup_empty_fatal_diagnostics():
+    """Normal exits do not leave an empty fault log behind."""
+    global _FAULT_STREAM
+    if _FAULT_STREAM is None:
+        return
+    try:
+        faulthandler.disable()
+        _FAULT_STREAM.close()
+        _FAULT_STREAM = None
+        if _FAULT_LOG is not None and _FAULT_LOG.exists() and _FAULT_LOG.stat().st_size == 0:
+            _FAULT_LOG.unlink()
+    except OSError:
+        pass
+
+
+_enable_fatal_diagnostics()
+atexit.register(_cleanup_empty_fatal_diagnostics)
+
+from PyQt5 import sip
+from PyQt5.QtCore import QCoreApplication, QEvent, QObject, QTimer, QUrl, Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QDialog
 from PyQt5.QtWebChannel import QWebChannel
@@ -74,6 +119,31 @@ def embed(host, bridge, login=False):
     view.setUrl(url)
     host.layout().addWidget(view)
     return view
+
+
+def dispose_webengine_host(host):
+    """Destroy WebEngine children while QApplication is still fully alive.
+
+    Leaving pages for Python's interpreter shutdown makes Qt and Chromium race
+    over already-unloaded native objects on Windows. That race presents as the
+    otherwise intermittent 0xC0000005 seen after an apparently clean run.
+    """
+    if host is None or sip.isdeleted(host):
+        return
+    try:
+        view = getattr(host, 'web_view', None)
+        if view is not None and not sip.isdeleted(view):
+            view.stop()
+            view.close()
+        host.close()
+        host.deleteLater()
+        # Deferred deletes must be delivered before QApplication and the
+        # default WebEngine profile begin their own static teardown.
+        for _ in range(3):
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+            QApplication.processEvents()
+    except (RuntimeError, TypeError, AttributeError):
+        logging.exception('Could not complete orderly WebEngine shutdown.')
 
 
 class LoginBridge(QObject):
@@ -300,6 +370,7 @@ def main():
     os.chdir(ROOT)  # Existing worker commands use repository-relative paths.
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    QApplication.setAttribute(Qt.AA_UseSoftwareOpenGL, True)
     app = QApplication(sys.argv)
     app.setApplicationName('Hyper')
     app.setWindowIcon(link_icon())
@@ -307,13 +378,17 @@ def main():
     app.setFont(QFont('Segoe UI', 10))
     login = WebLogin()
     if login.exec_() != QDialog.Accepted:
-        return 1
+        dispose_webengine_host(login)
+        return 0
+    dispose_webengine_host(login)
     window = WebWorkspace()
     # Be explicit so a previous maximized/fullscreen state can never leak into
     # the newly launched workspace.
     window.setWindowState(Qt.WindowNoState)
     window.showNormal()
-    return app.exec_()
+    result = app.exec_()
+    dispose_webengine_host(window)
+    return result
 
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ from PyQt5.QtCore import QEvent, QPoint, Qt
 from PyQt5.QtTest import QTest
 from PyQt5.QtWidgets import QApplication, QDialog, QFileDialog, QMessageBox
 from Hyper import WorkerThread
-from HyperWeb import WebWorkspace, WebLogin, configure_webengine_profile
+from HyperWeb import WebWorkspace, WebLogin, configure_webengine_profile, dispose_webengine_host
 
 
 class WebInterfaceTest(unittest.TestCase):
@@ -54,6 +54,10 @@ class WebInterfaceTest(unittest.TestCase):
         return results[0]
 
     def test_01_labels_and_defaults(self):
+        flags = os.environ['QTWEBENGINE_CHROMIUM_FLAGS'].split()
+        self.assertIn('--disable-gpu', flags)
+        self.assertIn('--disable-gpu-compositing', flags)
+        self.assertEqual(os.environ['QT_OPENGL'], 'software')
         profile = configure_webengine_profile()
         self.assertEqual(profile.httpCacheType(), profile.MemoryHttpCache)
         self.assertIn('hyper-webengine-', profile.cachePath().lower())
@@ -131,6 +135,7 @@ class WebInterfaceTest(unittest.TestCase):
             time.sleep(.01)
         login.web_view.grab().save(str(output / 'hyper-login.png'))
         login.reject()
+        dispose_webengine_host(login)
 
     def test_05_native_file_and_confirmation_actions(self):
         with patch.object(QFileDialog, 'getOpenFileNames', return_value=(['C:/test/Acura.xlsx'], '')) as picker:
@@ -292,7 +297,7 @@ class WebInterfaceTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.window.close()
+        dispose_webengine_host(cls.window)
 
 
 if __name__ == '__main__':
